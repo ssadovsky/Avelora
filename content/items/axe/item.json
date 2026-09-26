@@ -1,0 +1,25 @@
+{
+  "id": "axe",
+  "name": "Топор",
+  "description": "Плотницкий топор на ясеневом топорище. Берётся в правую руку: рубит деревья и годится для боя.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "weapon": {
+    "damage": [
+      6,
+      10
+    ],
+    "range": 1.7,
+    "cooldown": 1.1,
+    "chop": 1
+  }
+}

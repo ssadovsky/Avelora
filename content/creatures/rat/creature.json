@@ -1,0 +1,17 @@
+{
+  "id": "rat",
+  "name": "Крыса",
+  "hp": 14,
+  "damage": [1, 3],
+  "attackRange": 0.55,
+  "attackCooldown": 1.1,
+  "walkSpeed": 0.9,
+  "runSpeed": 4.2,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 14,
+  "wanderRadius": 4,
+  "respawnMinutes": 3,
+  "hitRadius": 1.26,
+  "scale": 4.2
+}

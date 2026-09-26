@@ -1,0 +1,13 @@
+{
+  "id": "tree",
+  "name": "Дерево",
+  "kind": "trees",
+  "tool": "chop",
+  "hits": 5,
+  "drops": [
+    { "item": "log", "min": 3, "max": 4 },
+    { "item": "branch", "min": 2, "max": 4 }
+  ],
+  "regrowMinutes": 10,
+  "stump": "stump"
+}

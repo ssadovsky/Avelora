@@ -1,0 +1,19 @@
+{
+  "id": "spark",
+  "name": "Искра",
+  "description": "Сгусток магии летит к указанной точке и разлетается снопом искр.",
+  "type": "projectile",
+  "cooldown": 0.8,
+  "range": 18,
+  "speed": 22,
+  "castTime": 0.2,
+  "damage": { "min": 4, "max": 8, "type": "lightning" },
+  "vfx": {
+    "color": "#7fd4ff",
+    "core": "#ffffff",
+    "size": 0.55,
+    "trail": 14,
+    "impactSparks": 28,
+    "impactRadius": 1.4
+  }
+}

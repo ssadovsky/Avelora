@@ -1,0 +1,9 @@
+{
+  "id": "stone",
+  "name": "Камень",
+  "description": "Увесистый булыжник. Пригодится для строительства и ремесла.",
+  "category": "material",
+  "stackMax": 20,
+  "ground": { "variants": 5, "scale": 1.25, "pile": "heap" },
+  "use": null
+}

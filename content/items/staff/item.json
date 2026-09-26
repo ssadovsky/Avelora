@@ -1,0 +1,31 @@
+{
+  "id": "staff",
+  "name": "Посох",
+  "description": "Узловатый посох странника с кристаллом в навершии. Берётся в правую руку, можно и ударить, как палкой.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "hold": {
+    "rotation": [
+      1.671,
+      -0.641,
+      -0.583
+    ]
+  },
+  "weapon": {
+    "damage": [
+      3,
+      6
+    ],
+    "range": 1.9,
+    "cooldown": 0.9
+  }
+}

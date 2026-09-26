@@ -1,0 +1,9 @@
+{
+  "id": "log",
+  "name": "Бревно",
+  "description": "Ровное сосновое бревно. Материал для постройки.",
+  "category": "material",
+  "stackMax": 10,
+  "ground": { "variants": 3, "scale": 1.0, "pile": "stack" },
+  "use": null
+}

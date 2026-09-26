@@ -1,0 +1,6 @@
+{
+  "id": "bush",
+  "name": "Куст орешника",
+  "obstacle": 0.5,
+  "foliage": true
+}

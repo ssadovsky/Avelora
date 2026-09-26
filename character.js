@@ -1,0 +1,821 @@
+/**
+ * Medieval Character Controller: loads any of CHARACTER_CATALOG's models
+ * (characters.js), with per-character animation-name mapping & optional
+ * cosmetic gear attachment (soldier's cloak+staff only). Smooth animation
+ * blending & path tracking are shared across all characters.
+ */
+// Seconds of standing idle before a "greeting" gesture plays (only for
+// characters whose animMap defines a 'greeting' clip, e.g. the mage's wave).
+const IDLE_GREETING_DELAY = 30;
+
+/**
+ * Procedural melee SWING (none of the rigs has an attack clip). Applied AFTER
+ * mixer.update() as extra rotations on top of whatever clip is playing:
+ * spine twist/lean + right shoulder/arm/forearm/hand. Every rotation is
+ * expressed in the CHARACTER's world frame (forward / right / up) and converted
+ * into each bone's local frame, so the same curve works on the warrior's rig
+ * and on the Mixamo rigs regardless of their bone-axis conventions.
+ * Keys: [u (0..1 of the swing), degrees]; wind-up -> strike -> recover.
+ *   armPitch  + = upper arm swings forward/up (about the character's right axis)
+ *   armOut    + = upper arm lifts outward (away from the body)
+ *   forearm   + = elbow flexes (about the right axis)
+ *   hand      + = wrist cocks back
+ *   spineYaw  + = torso turns left (negative = right shoulder back = wind-up)
+ *   spinePitch+ = torso leans back
+ * Per-rig multipliers: characters.js `swing: { arm, forearm, spine, hand }`.
+ */
+const SWING_KEYS = {
+    armPitch:   [[0, 0], [0.42, 150], [0.58, 30], [1, 0]],
+    armOut:     [[0, 0], [0.42, 20], [0.58, 6], [1, 0]],
+    forearm:    [[0, 0], [0.42, 80], [0.58, 8], [1, 0]],
+    hand:       [[0, 0], [0.42, 25], [0.58, -25], [1, 0]],
+    spineYaw:   [[0, 0], [0.42, -24], [0.58, 16], [1, 0]],
+    spinePitch: [[0, 0], [0.42, 9], [0.58, -13], [1, 0]]
+};
+// Fraction of the swing at which the weapon connects (end of the strike).
+const SWING_HIT_FRAC = 0.55;
+const DEG = Math.PI / 180;
+
+/** Keyframe value at u: smoothstep between keys (the strike segment accelerates: ease-in). */
+function swingKey(keys, u) {
+    if (u <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+        const a = keys[i - 1], b = keys[i];
+        if (u <= b[0]) {
+            let t = (u - a[0]) / (b[0] - a[0]);
+            // wind-up->strike segment: accelerate into the hit
+            t = a[0] === 0.42 ? t * t : t * t * (3 - 2 * t);
+            return a[1] + (b[1] - a[1]) * t;
+        }
+    }
+    return keys[keys.length - 1][1];
+}
+
+class MedievalCharacter {
+    constructor(scene, terrain, characterConfig, onLoaded) {
+        this.scene = scene;
+        this.terrain = terrain;
+        this.config = characterConfig || window.getCharacterConfig('warrior');
+        this.onLoaded = onLoaded;
+
+        this.mesh = null;
+        this.mixer = null;
+        this.actions = {};
+        this.currentAction = null;
+
+        const spawn = (window.CURRENT_LOCATION && window.CURRENT_LOCATION.playerSpawn) || { x: 15, z: 8 };
+        this.position = new THREE.Vector3(spawn.x, 0, spawn.z);
+        this.position.y = this.terrain.getHeightAt(this.position.x, this.position.z);
+        // facingOffset corrects for a rig whose local forward is +Z instead of
+        // the soldier's -Z (see characters.js). target/currentRotation stay in
+        // a character-independent "design" domain (same numbers mean the same
+        // world-facing direction for every character, matching how spawn.r in
+        // world_data.js and saved-progress 'r' are authored/persisted) — the
+        // offset is applied only where currentRotation is written onto the
+        // actual mesh (see mesh.rotation.y assignments below and in teleport()).
+        this.facingOffset = this.config.facingOffset || 0;
+        this.targetRotation = Math.PI;
+        this.currentRotation = Math.PI;
+
+        this.path = [];
+        this.currentWaypointIdx = 0;
+        this.moveSpeed = 4.8; // m/s
+        this.isMoving = false;
+
+        // Idle "greeting" gesture: after standing still for IDLE_GREETING_DELAY
+        // seconds, play the character's greeting clip once (if it has one via
+        // animMap.greeting) then return to normal idle. Timer runs on game
+        // time (delta), so it naturally pauses with the rest of gameplay.
+        this.idleTimer = 0;
+        this.isGreeting = false;
+        this.isCasting = false;
+        this.isAttacking = false;
+        this.greetingMixerListener = null;
+
+        // Turn-in-place (e.g. casting a skill toward a target while standing):
+        // currentRotation normally only eases while walking; faceTowards() sets
+        // isTurning so update() keeps easing toward targetRotation when idle.
+        this.isTurning = false;
+
+        // Right-hand bone + hand-held item (items.js/ui_hotbar.js equip). The
+        // item is parented to the bone; `handItemPending` holds an item that was
+        // equipped before the model finished loading.
+        this.rightHandBone = null;
+        this.handItem = null;
+        this.handItemPending = null;
+        this.travelerStaff = null; // warrior's cosmetic staff — hidden while a real item is held
+
+        // Procedural swing overlay (combat.js / harvest.js) — see SWING_KEYS
+        this.swing = null;          // { t, d } seconds
+        this.swingBones = null;     // { spine: [..], shoulder, arm, forearm, hand } (resolved on load)
+        this.overlaySaved = [];     // [{ bone, q }] quaternions before the overlay (restored next frame)
+        // Death fall (combat.js): seconds since the fall started, -1 = alive
+        this.deathT = -1;
+        this._q1 = new THREE.Quaternion();
+        this._q2 = new THREE.Quaternion();
+        this._q3 = new THREE.Quaternion();
+        this._axis = new THREE.Vector3();
+        this._fwd = new THREE.Vector3();
+        this._right = new THREE.Vector3();
+        this._up = new THREE.Vector3(0, 1, 0);
+
+        this.init();
+    }
+
+    base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    init() {
+        const loader = new THREE.GLTFLoader();
+        const modelKey = this.config.modelKey;
+        const b64 = window.GAME_ASSETS.models[modelKey];
+        if (!b64) {
+            console.error(`[Avelora] no model "${modelKey}" in GAME_ASSETS for character "${this.config.id}"`);
+            return;
+        }
+        const buffer = this.base64ToArrayBuffer(b64);
+
+        loader.parse(buffer, '', (gltf) => {
+            this.mesh = gltf.scene;
+
+            // Character scale & initial orientation
+            const s = this.config.scale || 1.0;
+            this.mesh.scale.set(s, s, s);
+            this.mesh.position.copy(this.position);
+
+            const hideNodes = this.config.hideNodes || [];
+            this.mesh.traverse(child => {
+                if (hideNodes.includes(child.name)) {
+                    child.visible = false;
+                }
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (child.material) {
+                        // Только воину задаем принудительную матовость; у мага и Ариссы сохраняем родной PBR
+                        if (this.config.id === 'warrior') {
+                            child.material.roughness = 0.8;
+                            child.material.metalness = 0.05;
+                        }
+                    }
+                }
+            });
+
+            // Cosmetic traveler gear (cloak + staff) — soldier reskin only;
+            // Arissa/AzureArchmage already come with their own gear baked in.
+            if (this.config.hasTravelerGear) {
+                this.attachMedievalTravelerGear();
+            }
+
+            // Setup Animation Mixer
+            this.mixer = new THREE.AnimationMixer(this.mesh);
+            gltf.animations.forEach(clip => {
+                const action = this.mixer.clipAction(clip);
+                this.actions[clip.name] = action;
+            });
+
+            // When one-shot gestures (greeting, cast, attack) finish, cross-fade back to idle (or run if moving).
+            this.mixer.addEventListener('finished', (e) => {
+                if (this.isGreeting && e.action === this.actions[(this.config.animMap || {}).greeting]) {
+                    this.isGreeting = false;
+                    this.idleTimer = 0;
+                    if (!this.isMoving) this.fadeToLogical('idle', 0.35);
+                }
+                if (this.isCasting && e.action === this.actions[(this.config.animMap || {}).cast]) {
+                    this.isCasting = false;
+                    this.idleTimer = 0;
+                    if (!this.isMoving) this.fadeToLogical('idle', 0.25);
+                    else this.fadeToLogical('run', 0.2);
+                }
+                if (this.isAttacking && e.action === this.actions[(this.config.animMap || {}).attack]) {
+                    this.isAttacking = false;
+                    this.idleTimer = 0;
+                    if (!this.isMoving) this.fadeToLogical('idle', 0.25);
+                    else this.fadeToLogical('run', 0.2);
+                }
+            });
+
+            // Start in Idle (or a frozen frame of the run clip if no Idle yet)
+            const idleAction = this.resolveAction('idle');
+            if (idleAction) {
+                this.currentAction = idleAction;
+                idleAction.reset().play();
+            } else {
+                const runAction = this.resolveAction('run');
+                if (runAction) {
+                    runAction.reset().play();
+                    runAction.paused = true;
+                    this.currentAction = runAction;
+                }
+            }
+
+            this.scene.add(this.mesh);
+
+            this.rightHandBone = this.findRightHandBone();
+            this.swingBones = this.findSwingBones();
+            if (this.handItemPending) {
+                const pending = this.handItemPending;
+                this.handItemPending = null;
+                this.setHandItem(pending);
+            }
+
+            if (this.onLoaded) {
+                this.onLoaded(this);
+            }
+        });
+    }
+
+    /** Logical name ('idle' | 'run') -> THREE.AnimationAction, with idleFallback support. Null if nothing usable. */
+    resolveAction(logicalName) {
+        const map = this.config.animMap || {};
+        const wanted = map[logicalName];
+        if (wanted && this.actions[wanted]) return this.actions[wanted];
+
+        if (logicalName === 'idle' && this.config.idleFallback) {
+            const fallback = map[this.config.idleFallback];
+            if (fallback && this.actions[fallback]) return this.actions[fallback];
+        }
+        return null;
+    }
+
+    attachMedievalTravelerGear() {
+        // Find skeleton bones for attaching props
+        let spineBone = null;
+        let rightHandBone = null;
+
+        this.mesh.traverse(child => {
+            if (child.isBone) {
+                if (child.name.includes('Spine2') || child.name.includes('Spine1')) {
+                    spineBone = child;
+                } else if (child.name.includes('RightHand') && !child.name.includes('Thumb') && !child.name.includes('Index')) {
+                    rightHandBone = child;
+                }
+            }
+        });
+
+        // Traveler's Cloak / Cape
+        const capeGeo = new THREE.PlaneGeometry(0.55, 1.1, 4, 8);
+        capeGeo.translate(0, -0.55, 0); // Origin at shoulders
+        const capeMat = new THREE.MeshStandardMaterial({
+            color: 0x362b24, // Weathered dark peat brown wool
+            roughness: 0.9,
+            metalness: 0.05,
+            side: THREE.DoubleSide
+        });
+
+        // Dynamic cape sway in vertex shader
+        capeMat.onBeforeCompile = (shader) => {
+            shader.uniforms.uSpeed = { value: 0 };
+            shader.uniforms.uTime = { value: 0 };
+            this.capeSpeedUniform = shader.uniforms.uSpeed;
+            this.capeTimeUniform = shader.uniforms.uTime;
+            shader.vertexShader = `
+                uniform float uSpeed;
+                uniform float uTime;
+                ${shader.vertexShader}
+            `;
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `
+                #include <begin_vertex>
+                float sway = sin(uTime * 6.0 + position.y * 3.0) * (0.05 + uSpeed * 0.15) * (-position.y);
+                transformed.z += (0.08 + uSpeed * 0.22) * (-position.y) + sway;
+                `
+            );
+        };
+
+        const capeMesh = new THREE.Mesh(capeGeo, capeMat);
+        capeMesh.castShadow = true;
+        // Model faces local -Z (rotation = atan2(dx, dz) + PI), so the back is +Z
+        capeMesh.position.set(0, 1.35, 0.15); // Upper back
+        this.mesh.add(capeMesh);
+        this.capeMesh = capeMesh;
+
+        // Traveler's Wooden Walking Staff
+        const staffGeo = new THREE.CylinderGeometry(0.025, 0.035, 1.95, 8);
+        staffGeo.translate(0, 0.45, 0);
+        const staffMat = new THREE.MeshStandardMaterial({
+            color: 0x4a3728, // Dark oiled ash wood
+            roughness: 0.85
+        });
+        const staffMesh = new THREE.Mesh(staffGeo, staffMat);
+        staffMesh.castShadow = true;
+        staffMesh.rotation.x = Math.PI / 12;
+
+        if (rightHandBone) {
+            rightHandBone.add(staffMesh);
+            staffMesh.position.set(0.05, 0.0, 0.0);
+        } else {
+            staffMesh.position.set(0.35, 0.9, 0.1);
+            this.mesh.add(staffMesh);
+        }
+        this.travelerStaff = staffMesh;
+    }
+
+    /** The rig's right-hand bone (Mixamo `mixamorig:RightHand` / `mixamorigRightHand`, or any '...RightHand'). */
+    findRightHandBone() {
+        let best = null;
+        if (!this.mesh) return null;
+        this.mesh.traverse(o => {
+            if (!o.isBone || best) return;
+            if (/RightHand$/.test(o.name)) best = o;
+        });
+        if (!best) {
+            this.mesh.traverse(o => {
+                if (!best && o.isBone && o.name.includes('RightHand') && !/Thumb|Index|Middle|Ring|Pinky/.test(o.name)) best = o;
+            });
+        }
+        return best;
+    }
+
+    /** First bone whose (sanitized) name ends with `suffix` (e.g. 'RightForeArm'). */
+    findBone(suffix) {
+        let best = null;
+        if (!this.mesh) return null;
+        const re = new RegExp(suffix + '$');
+        this.mesh.traverse(o => { if (!best && o.isBone && re.test(o.name)) best = o; });
+        return best;
+    }
+
+    /** Bones used by the procedural swing; missing ones are simply skipped. */
+    findSwingBones() {
+        let spine = [this.findBone('Spine1'), this.findBone('Spine2')].filter(Boolean);
+        if (!spine.length) spine = [this.findBone('Spine')].filter(Boolean);
+        const b = {
+            spine,
+            shoulder: this.findBone('RightShoulder'),
+            arm: this.findBone('RightArm'),
+            forearm: this.findBone('RightForeArm'),
+            hand: this.rightHandBone
+        };
+        b.all = spine.concat([b.shoulder, b.arm, b.forearm, b.hand]).filter(Boolean); // pre-built: no per-frame arrays
+        return b;
+    }
+
+    /** Starts one procedural weapon swing lasting `duration` s (restarts if one is running). */
+    startSwing(duration) {
+        this.swing = { t: 0, d: Math.max(0.25, duration || 0.8) };
+        this.idleTimer = 0;
+        if (this.isGreeting) {
+            this.isGreeting = false;
+            this.fadeToLogical('idle', 0.15);
+        }
+    }
+
+    /** Plays the character's 'cast' animation clip if available, otherwise falls back to procedural startSwing. */
+    playCast(duration = 0.6) {
+        this.idleTimer = 0;
+        if (this.isGreeting) {
+            this.isGreeting = false;
+        }
+        const castAction = this.resolveAction('cast');
+        if (castAction && this.currentAction) {
+            this.isCasting = true;
+            castAction.reset();
+            castAction.setLoop(THREE.LoopOnce, 1);
+            castAction.clampWhenFinished = true;
+            const clipDur = castAction.getClip().duration || 1.0;
+            castAction.timeScale = Math.max(0.6, Math.min(2.5, clipDur / Math.max(0.2, duration)));
+            castAction.fadeIn(0.12).play();
+            if (this.currentAction !== castAction) {
+                this.currentAction.fadeOut(0.12);
+            }
+            this.currentAction = castAction;
+        } else {
+            this.startSwing(duration);
+        }
+    }
+
+    /** Plays the character's 'attack' animation clip if available, otherwise falls back to procedural startSwing. */
+    playAttack(duration = 0.8) {
+        this.idleTimer = 0;
+        if (this.isGreeting) {
+            this.isGreeting = false;
+        }
+        const attackAction = this.resolveAction('attack');
+        if (attackAction && this.currentAction) {
+            this.isAttacking = true;
+            attackAction.reset();
+            attackAction.setLoop(THREE.LoopOnce, 1);
+            attackAction.clampWhenFinished = true;
+            const clipDur = attackAction.getClip().duration || 1.0;
+            attackAction.timeScale = Math.max(0.6, Math.min(2.5, clipDur / Math.max(0.2, duration)));
+            attackAction.fadeIn(0.1).play();
+            if (this.currentAction !== attackAction) {
+                this.currentAction.fadeOut(0.1);
+            }
+            this.currentAction = attackAction;
+        } else {
+            this.startSwing(duration);
+        }
+    }
+
+    get isSwinging() { return !!this.swing || this.isAttacking; }
+
+    /** Fraction of a swing at which the hit lands (combat.js schedules damage with it). */
+    static get SWING_HIT_FRAC() { return SWING_HIT_FRAC; }
+
+    /** Rotate `bone` by `angle` about a WORLD axis (pivot = the bone itself). */
+    rotateBoneWorld(bone, axis, angle) {
+        if (!bone || !bone.parent || Math.abs(angle) < 1e-5) return;
+        const qp = this._q1, qw = this._q2;
+        bone.parent.getWorldQuaternion(qp);
+        qw.setFromAxisAngle(axis, angle);
+        // local = parent^-1 * world * parent
+        this._q3.copy(qp).invert();
+        qw.premultiply(this._q3).multiply(qp);
+        bone.quaternion.premultiply(qw);
+    }
+
+    saveOverlayBone(bone) {
+        if (!bone) return;
+        const slot = this.overlaySaved.find(e => e.bone === bone);
+        if (slot) { slot.q.copy(bone.quaternion); slot.used = true; }
+        else this.overlaySaved.push({ bone, q: bone.quaternion.clone(), used: true });
+    }
+
+    /** Undo last frame's overlay (a bone without an animation track would otherwise accumulate it). */
+    restoreOverlay() {
+        for (let i = 0; i < this.overlaySaved.length; i++) {
+            const e = this.overlaySaved[i];
+            if (e.used) { e.bone.quaternion.copy(e.q); e.used = false; }
+        }
+    }
+
+    applySwingOverlay(delta) {
+        const sw = this.swing;
+        const b = this.swingBones;
+        if (!sw || !b || !this.mesh) return;
+        sw.t += delta;
+        const u = sw.t / sw.d;
+        if (u >= 1) { this.swing = null; return; }
+        const k = this.config.swing || {};
+        const kArm = k.arm !== undefined ? k.arm : 1, kFore = k.forearm !== undefined ? k.forearm : 1;
+        const kSpine = k.spine !== undefined ? k.spine : 1, kHand = k.hand !== undefined ? k.hand : 1;
+
+        this.mesh.updateMatrixWorld(true);
+        for (let i = 0; i < b.all.length; i++) this.saveOverlayBone(b.all[i]);
+
+        // Character frame (design heading: rotation = atan2(dx,dz)+PI -> forward = (-sin r, -cos r))
+        const r = this.currentRotation;
+        const yaw = swingKey(SWING_KEYS.spineYaw, u) * DEG * kSpine;
+        const pitch = swingKey(SWING_KEYS.spinePitch, u) * DEG * kSpine;
+        this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+        const n = b.spine.length || 1;
+        for (let i = 0; i < b.spine.length; i++) {
+            this.rotateBoneWorld(b.spine[i], this._up, yaw / n);
+            this.rotateBoneWorld(b.spine[i], this._right, pitch / n);
+        }
+        // The arm works in the twisted torso's frame
+        this._fwd.applyAxisAngle(this._up, yaw);
+        this._right.applyAxisAngle(this._up, yaw);
+
+        const armPitch = swingKey(SWING_KEYS.armPitch, u) * DEG * kArm;
+        const armOut = swingKey(SWING_KEYS.armOut, u) * DEG * kArm;
+        this.rotateBoneWorld(b.shoulder, this._right, armPitch * 0.12);
+        this.rotateBoneWorld(b.arm, this._right, armPitch * 0.88);
+        // + about forward would swing a hanging arm inward (to the left) -> outward is negative
+        this.rotateBoneWorld(b.arm, this._fwd, -armOut);
+        this.rotateBoneWorld(b.forearm, this._right, swingKey(SWING_KEYS.forearm, u) * DEG * kFore);
+        this.rotateBoneWorld(b.hand, this._right, swingKey(SWING_KEYS.hand, u) * DEG * kHand);
+    }
+
+    // ---------------------------------------------------------------
+    // Death fall (no death clip on any rig): tip over backwards around
+    // the feet with an accelerating fall + tiny bounce, then lie still.
+    // ---------------------------------------------------------------
+    startDeathFall() {
+        this.deathT = 0;
+        this.swing = null;
+        this.isCasting = false;
+        this.isAttacking = false;
+        if (this.isMoving) this.stopMovement();
+        this.isTurning = false;
+        this.isGreeting = false;
+    }
+
+    resetDeathPose() {
+        this.deathT = -1;
+        if (this.mesh) this.mesh.quaternion.setFromAxisAngle(this._up, this.currentRotation + this.facingOffset);
+    }
+
+    get isDeadPose() { return this.deathT >= 0; }
+
+    applyDeathPose(delta) {
+        this.deathT += delta;
+        const FALL = 0.75;
+        let a;
+        if (this.deathT < FALL) {
+            const t = this.deathT / FALL;
+            a = t * t * 84;                      // accelerating
+        } else {
+            const t = Math.min(1, (this.deathT - FALL) / 0.35);
+            a = 84 - Math.sin(t * Math.PI) * 7 * (1 - t * 0.5); // small bounce
+        }
+        const rad = a * DEG;
+        const r = this.currentRotation;
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+        // Yaw first, then tip about the (world) right axis: + tips the head backwards
+        this._q1.setFromAxisAngle(this._up, r + this.facingOffset);
+        this._q2.setFromAxisAngle(this._right, rad);
+        this.mesh.quaternion.copy(this._q1).premultiply(this._q2);
+        // Lift a little so the back doesn't sink through the ground when lying
+        this.mesh.position.y = this.position.y + Math.sin(rad) * 0.14;
+    }
+
+    /** World position of the right hand (skill projectiles start here). False if the rig has no such bone. */
+    getRightHandWorldPosition(out) {
+        if (!this.rightHandBone) return false;
+        this.rightHandBone.getWorldPosition(out);
+        return true;
+    }
+
+    /**
+     * Puts `object` (an item model with its origin at the grip, shaft along +Y)
+     * into the right hand, or clears the hand with null. The previous item is
+     * detached and disposed.
+     *
+     * Scale: the hand bone's WORLD scale is compensated so the item keeps its
+     * real-world size — characters.js `scale` can be ~93 (AzureArchmage) and
+     * FBX-derived rigs may carry 0.01 bone scales; dividing by the bone's world
+     * scale undoes whatever the chain accumulates.
+     * Orientation/offset: characters.js `handGrip: { position:[x,y,z] (meters,
+     * in the hand's frame), rotation:[x,y,z] (radians, Euler XYZ) }` per rig.
+     */
+    setHandItem(object) {
+        if (!this.mesh) { // model still loading — attach when it arrives
+            if (this.handItemPending && this.handItemPending !== object) MedievalCharacter.disposeObject(this.handItemPending);
+            this.handItemPending = object;
+            return;
+        }
+        if (this.handItem) {
+            if (this.handItem.parent) this.handItem.parent.remove(this.handItem);
+            MedievalCharacter.disposeObject(this.handItem);
+            this.handItem = null;
+        }
+        if (this.travelerStaff) this.travelerStaff.visible = !object;
+        if (!object) return;
+
+        const bone = this.rightHandBone;
+        const grip = this.config.handGrip || {};
+        const holder = new THREE.Group();
+        holder.name = 'hand-item';
+        holder.add(object);
+        if (bone) {
+            this.mesh.updateMatrixWorld(true);
+            const ws = new THREE.Vector3();
+            bone.getWorldScale(ws);
+            holder.scale.set(1 / (ws.x || 1), 1 / (ws.y || 1), 1 / (ws.z || 1));
+            const gp = grip.position || [0, 0, 0];
+            // Offset is authored in meters: convert into the bone's (scaled) local space
+            holder.position.set(gp[0] / (ws.x || 1), gp[1] / (ws.y || 1), gp[2] / (ws.z || 1));
+            const gr = grip.rotation || [0, 0, 0];
+            holder.rotation.set(gr[0], gr[1], gr[2]);
+            bone.add(holder);
+        } else {
+            // No hand bone: carry it at the side (still real size: undo the root scale)
+            const s = this.config.scale || 1;
+            holder.scale.setScalar(1 / s);
+            holder.position.set(0.3 / s, 0.9 / s, 0);
+            this.mesh.add(holder);
+        }
+        this.handItem = holder;
+    }
+
+    static disposeObject(obj) {
+        if (!obj) return;
+        const geos = new Set(), mats = new Set();
+        obj.traverse(o => {
+            if (o.geometry) geos.add(o.geometry);
+            if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.add(m));
+        });
+        mats.forEach(m => {
+            Object.keys(m).forEach(k => { if (m[k] && m[k].isTexture) m[k].dispose(); });
+            m.dispose();
+        });
+        geos.forEach(g => g.dispose());
+    }
+
+    /**
+     * Turn (smoothly, in place) to face a world point — used when casting.
+     * Also interrupts the idle greeting gesture and resets its timer.
+     */
+    faceTowards(x, z) {
+        const dx = x - this.position.x, dz = z - this.position.z;
+        if (dx * dx + dz * dz < 1e-6) return;
+        this.targetRotation = Math.atan2(dx, dz) + Math.PI;
+        if (!this.isMoving) this.isTurning = true; // при движении поворот идёт через ветку isMoving
+        this.idleTimer = 0;
+        if (this.isGreeting) {
+            this.isGreeting = false;
+            this.fadeToLogical('idle', 0.2);
+        }
+    }
+
+    // Location change: new terrain + spawn point
+    setTerrain(terrain) {
+        this.terrain = terrain;
+    }
+
+    teleport(x, z, rotation) {
+        this.path = [];
+        this.currentWaypointIdx = 0;
+        if (this.isMoving) this.stopMovement();
+        this.position.set(x, this.terrain.getHeightAt(x, z), z);
+        if (rotation !== undefined) {
+            this.currentRotation = rotation;
+            this.targetRotation = rotation;
+        }
+        if (this.mesh) {
+            this.mesh.position.copy(this.position);
+            this.mesh.rotation.y = this.currentRotation + this.facingOffset;
+        }
+    }
+
+    setPath(waypoints) {
+        if (!waypoints || waypoints.length === 0) return;
+        this.path = waypoints;
+        this.currentWaypointIdx = 0;
+        this.isMoving = true;
+        this.isTurning = false;
+        this.idleTimer = 0;
+        this.isGreeting = false;
+        if (this.isCasting) {
+            this.isCasting = false;
+            const castAction = this.resolveAction('cast');
+            if (castAction) castAction.fadeOut(0.15);
+        }
+        if (this.isAttacking) {
+            this.isAttacking = false;
+            const attackAction = this.resolveAction('attack');
+            if (attackAction) attackAction.fadeOut(0.15);
+        }
+        this.fadeToLogical('run', 0.2);
+    }
+
+    stopMovement() {
+        this.isMoving = false;
+        this.path = [];
+        this.currentWaypointIdx = 0;
+        this.idleTimer = 0;
+        this.fadeToLogical('idle', 0.25);
+    }
+
+    /** Plays the character's 'greeting' clip once (if it has one), then returns to idle. */
+    playGreeting() {
+        const greetingAction = this.resolveAction('greeting');
+        if (!greetingAction || !this.currentAction) return;
+
+        this.isGreeting = true;
+        greetingAction.reset();
+        greetingAction.setLoop(THREE.LoopOnce, 1);
+        greetingAction.clampWhenFinished = true;
+        greetingAction.fadeIn(0.25).play();
+        this.currentAction.fadeOut(0.25);
+        this.currentAction = greetingAction;
+    }
+
+    /** Cross-fade to the action for a logical name ('idle' | 'run'), honoring idleFallback. */
+    fadeToLogical(logicalName, duration = 0.2) {
+        const nextAction = this.resolveAction(logicalName);
+        if (!nextAction || nextAction === this.currentAction) return;
+
+        nextAction.paused = false;
+        nextAction.reset().fadeIn(duration).play();
+        if (this.currentAction) {
+            this.currentAction.fadeOut(duration);
+        }
+        this.currentAction = nextAction;
+    }
+
+    update(delta) {
+        this.restoreOverlay();
+        if (this.mixer) {
+            this.mixer.update(delta);
+        }
+
+        // Dead: no movement/turning; lie down procedurally (combat.js respawns)
+        if (this.deathT >= 0) {
+            this.position.y = this.terrain.getHeightAt(this.position.x, this.position.z);
+            if (this.mesh) {
+                this.mesh.position.copy(this.position);
+                this.applyDeathPose(delta);
+            }
+            return;
+        }
+
+        // Idle "greeting" gesture (e.g. the mage's wave) after standing still
+        // for a while — only for characters with a mapped 'greeting' clip.
+        if (!this.isMoving && !this.isGreeting && (this.config.animMap || {}).greeting) {
+            this.idleTimer += delta;
+            if (this.idleTimer >= IDLE_GREETING_DELAY) {
+                this.playGreeting();
+            }
+        }
+
+        if (this.isMoving && this.path.length > 0 && this.currentWaypointIdx < this.path.length) {
+            const targetPt = this.path[this.currentWaypointIdx];
+            const dx = targetPt.x - this.position.x;
+            const dz = targetPt.z - this.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
+            if (dist < 0.35) {
+                // Waypoint reached
+                this.currentWaypointIdx++;
+                if (this.currentWaypointIdx >= this.path.length) {
+                    this.stopMovement();
+                    return;
+                }
+            } else {
+                // Smooth rotation towards heading (facing forward) — "design"
+                // domain, see the facingOffset comment in the constructor.
+                this.targetRotation = Math.atan2(dx, dz) + Math.PI;
+                // Angular shortest path
+                let diff = this.targetRotation - this.currentRotation;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+
+                // Энергичный и четкий поворот лицом к направлению движения
+                const turnSpeed = 24.0;
+                this.currentRotation += diff * Math.min(1.0, turnSpeed * delta);
+
+                // Движение строго к цели по вектору вейпоинта
+                const moveDist = Math.min(dist, this.moveSpeed * delta);
+                this.position.x += (dx / dist) * moveDist;
+                this.position.z += (dz / dist) * moveDist;
+            }
+        }
+
+        // Turning in place toward a skill target (faster than the walking ease)
+        if (!this.isMoving && this.isTurning) {
+            let diff = this.targetRotation - this.currentRotation;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            if (Math.abs(diff) < 0.01) {
+                this.currentRotation = this.targetRotation;
+                this.isTurning = false;
+            } else {
+                this.currentRotation += diff * Math.min(1.0, 22.0 * delta);
+            }
+        }
+
+        // Stick character to terrain surface
+        const groundHeight = this.terrain.getHeightAt(this.position.x, this.position.z);
+        this.position.y = groundHeight;
+
+        if (this.mesh) {
+            this.mesh.position.copy(this.position);
+            this.mesh.rotation.y = this.currentRotation + this.facingOffset;
+            if (this.swing) this.applySwingOverlay(delta);
+        }
+
+        // Cape sway clock (game time: freezes on pause)
+        if (this.capeTimeUniform) {
+            this.capeTimeUniform.value += delta;
+        }
+
+        // Update cape movement speed
+        if (this.capeSpeedUniform) {
+            const targetSpeed = this.isMoving ? 1.0 : 0.0;
+            this.capeSpeedUniform.value += (targetSpeed - this.capeSpeedUniform.value) * 8.0 * delta;
+        }
+    }
+
+    /** Releases the mesh/materials/mixer — call when switching to a different character. */
+    dispose() {
+        if (this.handItemPending) { MedievalCharacter.disposeObject(this.handItemPending); this.handItemPending = null; }
+        this.handItem = null; // lives under the bone -> disposed with the mesh below
+        this.rightHandBone = null;
+        if (this.mixer) {
+            this.mixer.stopAllAction();
+            this.mixer = null;
+        }
+        if (this.mesh) {
+            const geos = new Set();
+            const mats = new Set();
+            this.mesh.traverse(o => {
+                if (o.geometry) geos.add(o.geometry);
+                if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.add(m));
+            });
+            mats.forEach(m => {
+                Object.keys(m).forEach(k => { if (m[k] && m[k].isTexture) m[k].dispose(); });
+                m.dispose();
+            });
+            geos.forEach(g => g.dispose());
+            this.scene.remove(this.mesh);
+            this.mesh = null;
+        }
+        this.actions = {};
+        this.currentAction = null;
+    }
+}
+
+window.MedievalCharacter = MedievalCharacter;
