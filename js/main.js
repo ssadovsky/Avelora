@@ -262,6 +262,21 @@ class AveloraGame {
             card.appendChild(mainBtn);
 
             if (save) {
+                const trashBtn = document.createElement('button');
+                trashBtn.type = 'button';
+                trashBtn.className = 'charcard-trash';
+                trashBtn.title = 'Удалить сохранение';
+                trashBtn.setAttribute('aria-label', 'Удалить сохранение');
+                trashBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+                trashBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!window.confirm(`Удалить сохранение для персонажа «${char.name}»?`)) return;
+                    window.AveloraSave.deleteSave(char.id);
+                    if (this.gameState && this.gameState.characterId === char.id) this.gameState.discard();
+                    this.renderCharacterCards(allowCancel);
+                });
+                card.appendChild(trashBtn);
+
                 const newGameBtn = document.createElement('button');
                 newGameBtn.type = 'button';
                 newGameBtn.className = 'charcard-newgame';
@@ -270,9 +285,6 @@ class AveloraGame {
                     e.stopPropagation();
                     if (!window.confirm(`Удалить сохранение и начать заново за «${char.name}»?`)) return;
                     window.AveloraSave.deleteSave(char.id); // also clears avelora_state_<id>
-                    // If that's the character currently in play, its in-memory
-                    // state must not be written back by startGame()'s "save the
-                    // outgoing character" step.
                     if (this.gameState && this.gameState.characterId === char.id) this.gameState.discard();
                     this.chooseCharacter(char, null);
                 });
@@ -793,6 +805,21 @@ class AveloraGame {
         if (pauseSettingsBtn) pauseSettingsBtn.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('settings'); });
         if (pauseControlsBack) pauseControlsBack.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('main'); });
         if (pauseSettingsBack) pauseSettingsBack.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('main'); });
+
+        const resetAllBtn = document.getElementById('reset-all-data-btn');
+        if (resetAllBtn) {
+            resetAllBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!window.confirm('ВНИМАНИЕ: Вы действительно хотите полностью сбросить ВСЕ сохранения ВСЕХ персонажей?')) return;
+                try {
+                    window.localStorage.clear();
+                } catch (err) {
+                    console.warn('[Avelora] failed to clear localStorage', err);
+                }
+                alert('Все сохранения успешно удалены.');
+                location.reload();
+            });
+        }
 
         // FPS counter toggle — session-only (never persisted), always off on
         // load, lives in Settings.

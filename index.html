@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0c1214">
-    <link rel="manifest" href="manifest.json">
-    <title>Avelora - Medieval Diablo Experience</title>
+    <link rel="manifest" href="js/manifest.json">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <title>Avelora — Врата в средневековый мир</title>
     <style>
         * {
             box-sizing: border-box;
@@ -16,1449 +17,443 @@
         }
         body, html {
             width: 100%;
-            height: 100%;
-            overflow: hidden;
+            min-height: 100%;
             background-color: #0c1214;
+            background-image: 
+                radial-gradient(circle at 50% 18%, rgba(32, 60, 68, 0.45) 0%, rgba(12, 18, 20, 0.95) 75%),
+                linear-gradient(180deg, #070b0c 0%, #0c1214 50%, #050809 100%);
             font-family: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
             color: #d8cbb5;
-        }
-        #game-container {
-            width: 100%;
-            height: 100%;
-            display: block;
-            cursor: crosshair;
-        }
-
-        /* Loading Screen */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at center, #1b282c 0%, #080d0e 100%);
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            z-index: 1000;
-            transition: opacity 0.6s ease-out;
-        }
-        #loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .loading-title {
-            font-size: 2.8rem;
-            letter-spacing: 0.35rem;
-            color: #f1e2c8;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.4);
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-        }
-        .loading-subtitle {
-            font-size: 1.1rem;
-            letter-spacing: 0.15rem;
-            color: #9aa7a6;
-            margin-bottom: 2rem;
-            font-style: italic;
-        }
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(212, 175, 55, 0.2);
-            border-top-color: #e5be65;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+            overflow-x: hidden;
         }
 
-        /* Diablo HUD */
-        #hud-top-left {
-            position: fixed;
-            top: 14px;
-            left: 18px;
-            pointer-events: none;
-        }
-        #hud-coords {
-            font-size: 0.85rem;
-            color: #1c1812;
-            font-weight: bold;
-            letter-spacing: 0.05rem;
-            font-family: 'Consolas', 'Courier New', monospace;
-            text-shadow: 0 0 3px rgba(255, 250, 235, 0.7), 0 0 8px rgba(255, 250, 235, 0.45);
-        }
-
-        /* Diablo Classic Orbs */
-        .orb {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            border: 2px solid #5a4b33;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 15px rgba(0,0,0,0.8);
-            position: relative;
-            overflow: hidden;
-        }
-        .orb-health {
-            background: radial-gradient(circle at 35% 35%, #e63946 0%, #7d111b 70%, #2b0206 100%);
-            box-shadow: 0 0 15px rgba(230, 57, 70, 0.35);
-        }
-        .orb-stamina {
-            background: radial-gradient(circle at 35% 35%, #457b9d 0%, #1d3557 70%, #08111e 100%);
-            box-shadow: 0 0 15px rgba(69, 123, 157, 0.35);
-        }
-        .orb::after {
-            content: '';
-            position: absolute;
-            top: 6px;
-            left: 10px;
-            width: 18px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.35);
-            border-radius: 50%;
-            transform: rotate(-30deg);
-        }
-
-        /* Google Maps Style Compass */
-        #compass-btn {
-            position: fixed;
-            top: 20px;
-            right: 25px;
-            width: 54px;
-            height: 54px;
-            background: rgba(14, 18, 20, 0.88);
-            border: 2px solid rgba(212, 175, 55, 0.5);
-            border-radius: 50%;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-            z-index: 100;
-        }
-        #compass-btn:hover {
-            transform: scale(1.1);
-            border-color: #efcf7a;
-            box-shadow: 0 0 18px rgba(239, 207, 122, 0.5);
-        }
-        #compass-btn:active {
-            transform: scale(0.94);
-        }
-        #compass-needle {
+        .container {
             width: 100%;
-            height: 100%;
-            position: relative;
-            pointer-events: none;
-            transform-origin: center center;
-            transition: transform 0.05s linear;
-        }
-        .needle-north {
-            position: absolute;
-            top: 7px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-bottom: 18px solid #e63946;
-        }
-        .needle-north::after {
-            content: 'N';
-            position: absolute;
-            top: 4px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 8px;
-            font-weight: bold;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-        }
-        .needle-south {
-            position: absolute;
-            bottom: 7px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-top: 18px solid #8d99ae;
-        }
-
-        /* Exit labels above location passages */
-        #world-labels {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            overflow: hidden;
-            z-index: 50;
-        }
-        .world-label {
-            position: absolute;
-            left: 0;
-            top: 0;
-            white-space: nowrap;
-            font-size: 0.95rem;
-            letter-spacing: 0.08rem;
-            color: #f3dfba;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.7);
-        }
-        .world-label::before {
-            content: '➜ ';
-            color: #efcf7a;
-        }
-
-        /* Hover tooltip for interactable props (trees/boulders/shrubs/reeds) */
-        #object-tooltip {
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 200;
-            pointer-events: none;
-            background: rgba(12, 16, 18, 0.9);
-            border: 1px solid rgba(212, 175, 55, 0.55);
-            border-radius: 4px;
-            padding: 5px 10px;
-            font-size: 0.78rem;
-            letter-spacing: 0.06rem;
-            color: #f1e2c8;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), inset 0 0 8px rgba(0, 0, 0, 0.5);
-            white-space: nowrap;
-        }
-        #object-tooltip.hidden {
-            display: none;
-        }
-
-        /* Location name banner (shown on arrival) */
-        #location-banner {
-            position: fixed;
-            top: 16%;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 2rem;
-            letter-spacing: 0.3rem;
-            text-transform: uppercase;
-            color: #f1e2c8;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.4);
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            z-index: 60;
-        }
-        #location-banner.show {
-            animation: location-banner 3.2s ease-in-out forwards;
-        }
-        @keyframes location-banner {
-            0% { opacity: 0; }
-            18% { opacity: 1; }
-            70% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        /* Character Select Screen (startup with 0/2+ saves, or from pause menu) */
-        #character-select-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 1000;
+            max-width: 960px;
+            padding: 40px 20px 60px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
-            padding: 24px 16px;
-            background: radial-gradient(circle at center, #1b282c 0%, #080d0e 100%);
-            transition: opacity 0.4s ease-out;
-        }
-        #character-select-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .charselect-title {
-            font-size: 2.4rem;
-            letter-spacing: 0.3rem;
-            text-transform: uppercase;
-            color: #f1e2c8;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.4);
-        }
-        .charselect-subtitle {
-            font-size: 1rem;
-            letter-spacing: 0.15rem;
-            color: #9aa7a6;
-            font-style: italic;
-            margin: 0.4rem 0 2rem;
-        }
-        .charselect-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 18px;
-            max-width: 900px;
-        }
-        .charcard {
-            width: 220px;
-            background: rgba(12, 16, 18, 0.85);
-            border: 1px solid rgba(195, 160, 95, 0.4);
-            border-radius: 4px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(0, 0, 0, 0.55);
-            padding: 20px 16px 16px;
             text-align: center;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
         }
-        .charcard:hover {
-            border-color: rgba(212, 175, 55, 0.7);
-            box-shadow: 0 0 20px rgba(239, 207, 122, 0.25), 0 16px 40px rgba(0, 0, 0, 0.7);
+
+        /* Hero */
+        .hero-emblem {
+            font-size: 2.8rem;
+            color: #efcf7a;
+            text-shadow: 0 0 25px rgba(212, 175, 55, 0.5);
+            margin-bottom: 8px;
+            animation: pulse-glow 3.5s ease-in-out infinite alternate;
+        }
+        @keyframes pulse-glow {
+            0% { transform: scale(0.98); opacity: 0.85; filter: drop-shadow(0 0 10px rgba(212,175,55,0.3)); }
+            100% { transform: scale(1.02); opacity: 1; filter: drop-shadow(0 0 25px rgba(212,175,55,0.7)); }
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 7vw, 4.2rem);
+            letter-spacing: 0.45rem;
+            color: #f5e8d0;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.9), 0 0 35px rgba(212, 175, 55, 0.45);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(0.95rem, 2.8vw, 1.25rem);
+            letter-spacing: 0.18rem;
+            color: #a89f8d;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .divider {
+            color: #7e6834;
+            font-size: 1rem;
+            letter-spacing: 0.3rem;
+            margin: 15px 0 30px;
+            opacity: 0.8;
+        }
+
+        /* Main CTA */
+        .cta-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 45px;
+        }
+
+        .btn-play {
+            width: 100%;
+            padding: 18px 28px;
+            font-size: 1.25rem;
+            letter-spacing: 0.2rem;
+            text-transform: uppercase;
+            font-family: inherit;
+            color: #1a1205;
+            background: linear-gradient(180deg, #f7df99 0%, #d4af37 60%, #aa8420 100%);
+            border: 2px solid #fff2bf;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: bold;
+        }
+        .btn-play:hover {
+            background: linear-gradient(180deg, #ffebaf 0%, #e6be44 60%, #bd9326 100%);
+            box-shadow: 0 0 35px rgba(212, 175, 55, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.8);
             transform: translateY(-2px);
         }
-        .charcard-icon {
-            font-size: 2.6rem;
-            margin-bottom: 8px;
-            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+        .btn-play:active {
+            transform: translateY(1px);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
         }
-        .charcard-name {
+
+        .btn-secondary {
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            font-family: inherit;
+            color: #a89f8d;
+            background: rgba(18, 28, 30, 0.7);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-secondary:hover {
+            color: #f1e2c8;
+            border-color: rgba(212, 175, 55, 0.6);
+            background: rgba(28, 42, 45, 0.85);
+        }
+
+        /* Characters section */
+        .section-title {
+            font-size: 1.35rem;
+            letter-spacing: 0.15rem;
+            color: #efcf7a;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-title::before, .section-title::after {
+            content: '';
+            width: 40px;
+            height: 1px;
+            background: rgba(212, 175, 55, 0.4);
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 100%;
+            margin-bottom: 45px;
+        }
+
+        .card {
+            background: linear-gradient(180deg, rgba(20, 32, 36, 0.7) 0%, rgba(10, 16, 18, 0.9) 100%);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 6px;
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+        }
+        .card:hover {
+            border-color: rgba(212, 175, 55, 0.6);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7), 0 0 15px rgba(212, 175, 55, 0.15);
+        }
+
+        .card-icon {
+            font-size: 2.4rem;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.7));
+        }
+        .card-name {
             font-size: 1.15rem;
             letter-spacing: 0.1rem;
             color: #f1e2c8;
+            margin-bottom: 4px;
         }
-        .charcard-class {
-            font-size: 0.78rem;
-            letter-spacing: 0.08rem;
-            color: #9aa7a6;
-            font-style: italic;
-            margin: 2px 0 12px;
-        }
-        .charcard-progress {
-            font-size: 0.72rem;
-            letter-spacing: 0.05rem;
-            color: #8a7a58;
-            margin-bottom: 10px;
-            min-height: 1.4em;
-        }
-        .charcard .pause-btn {
-            width: 100%;
-            font-size: 0.9rem;
-        }
-        .charcard-newgame {
-            display: block;
-            margin: 8px auto 0;
-            font-size: 0.72rem;
-            letter-spacing: 0.05rem;
-            color: #7e8a89;
-            background: none;
-            border: none;
-            text-decoration: underline;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        .charcard-newgame:hover {
-            color: #efcf7a;
-        }
-        .charselect-back {
-            margin-top: 26px;
-            font-size: 0.85rem;
-            letter-spacing: 0.08rem;
-        }
-
-        /* Pause Overlay (Escape) */
-        #pause-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 900;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 16px;
-            background: radial-gradient(circle at center, rgba(12, 18, 20, 0.55) 0%, rgba(4, 7, 8, 0.82) 100%);
-            backdrop-filter: blur(3px) saturate(0.7);
-            -webkit-backdrop-filter: blur(3px) saturate(0.7);
-            cursor: default;
-            visibility: hidden;
-        }
-        #pause-overlay.open {
-            visibility: visible;
-        }
-        .pause-panel {
-            width: 100%;
-            max-width: 380px;
-            max-height: 100%;
-            overflow-y: auto;
-            background: rgba(12, 16, 18, 0.92);
-            border: 1px solid rgba(195, 160, 95, 0.45);
-            border-radius: 4px;
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), inset 0 0 22px rgba(0, 0, 0, 0.6);
-            padding: 28px 28px 22px;
-            text-align: center;
-        }
-        .pause-title {
-            font-size: 1.9rem;
-            letter-spacing: 0.3rem;
-            text-transform: uppercase;
-            color: #f1e2c8;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.9), 0 0 20px rgba(212, 175, 55, 0.35);
-        }
-        .pause-subtitle {
-            font-size: 0.85rem;
-            letter-spacing: 0.15rem;
-            color: #9aa7a6;
-            font-style: italic;
-            margin: 4px 0 20px;
-        }
-        .pause-divider {
-            height: 1px;
-            margin: 18px 0 14px;
-            background: linear-gradient(to right, transparent, rgba(195, 160, 95, 0.5), transparent);
-        }
-        .pause-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .pause-btn {
-            font-family: inherit;
-            font-size: 1rem;
-            letter-spacing: 0.12rem;
-            color: #ded1b8;
-            background: rgba(22, 27, 29, 0.9);
-            border: 1px solid rgba(195, 160, 95, 0.35);
-            border-radius: 3px;
-            padding: 11px 16px;
-            cursor: pointer;
-            position: relative;
-            transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .pause-btn:hover:not(:disabled),
-        .pause-btn:focus-visible {
-            outline: none;
-            color: #f3dfba;
-            border-color: #efcf7a;
-            box-shadow: 0 0 14px rgba(239, 207, 122, 0.3), inset 0 0 10px rgba(0, 0, 0, 0.6);
-        }
-        .pause-btn.primary {
-            color: #efcf7a;
-            border-color: rgba(212, 175, 55, 0.6);
-        }
-        .pause-btn:disabled {
-            cursor: not-allowed;
-            color: #6f7473;
-            border-color: rgba(195, 160, 95, 0.15);
-        }
-        .pause-btn .soon {
-            font-size: 0.65rem;
-            letter-spacing: 0.08rem;
-            color: #8a7a58;
-            margin-left: 8px;
-            font-style: italic;
-        }
-        .pause-section-title {
+        .card-class {
             font-size: 0.8rem;
-            letter-spacing: 0.2rem;
+            letter-spacing: 0.06rem;
+            color: #d4af37;
             text-transform: uppercase;
-            color: #b9a47a;
-            margin-bottom: 10px;
-        }
-        .pause-controls {
-            list-style: none;
-            text-align: left;
-        }
-        .pause-controls li {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 5px 0;
-            font-size: 0.85rem;
-            color: #ded1b8;
-            border-bottom: 1px dashed rgba(195, 160, 95, 0.12);
-        }
-        .pause-controls li:last-child {
-            border-bottom: none;
-        }
-        .pause-controls .key {
-            color: #efcf7a;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        .pause-controls .touch-only { display: none; }
-        @media (hover: none) and (pointer: coarse) {
-            .pause-controls .desktop-only { display: none; }
-            .pause-controls .touch-only { display: flex; }
-        }
-        .pause-title.small {
-            font-size: 1.3rem;
-            letter-spacing: 0.2rem;
-            margin-bottom: 16px;
-        }
-        #pause-panel-controls .pause-btn,
-        #pause-panel-settings .pause-btn {
-            margin-top: 16px;
-        }
-        .settings-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            padding: 6px 2px;
-        }
-        .settings-label {
-            font-size: 0.95rem;
-            color: #ded1b8;
-            letter-spacing: 0.04rem;
-        }
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 42px;
-            height: 24px;
-            flex-shrink: 0;
-        }
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .switch-slider {
-            position: absolute;
-            cursor: pointer;
-            inset: 0;
-            background: rgba(22, 27, 29, 0.9);
-            border: 1px solid rgba(195, 160, 95, 0.4);
-            border-radius: 24px;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .switch-slider::before {
-            content: "";
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            left: 3px;
-            top: 3px;
-            background: #9aa7a6;
-            border-radius: 50%;
-            transition: transform 0.15s ease, background 0.15s ease;
-        }
-        .switch input:checked + .switch-slider {
-            border-color: #efcf7a;
-            box-shadow: 0 0 10px rgba(239, 207, 122, 0.35);
-        }
-        .switch input:checked + .switch-slider::before {
-            transform: translateX(18px);
-            background: #efcf7a;
-        }
-        .switch input:focus-visible + .switch-slider {
-            outline: 2px solid #efcf7a;
-            outline-offset: 2px;
-        }
-
-        /* FPS counter (Settings toggle, off by default, not persisted) */
-        #fps-counter {
-            position: fixed;
-            left: 14px;
-            bottom: 14px;
-            z-index: 95;
-            padding: 4px 9px;
-            font-size: 0.75rem;
-            letter-spacing: 0.05rem;
-            color: #efcf7a;
-            background: rgba(12, 16, 18, 0.78);
-            border: 1px solid rgba(195, 160, 95, 0.4);
-            border-radius: 3px;
-            pointer-events: none;
-            display: none;
-        }
-
-        /* Skill Bar */
-        .skill-bar {
-            position: fixed;
-            bottom: 14px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 4px;
-            align-items: center;
-            pointer-events: none;
-            z-index: 100;
-        }
-        .skill-slot {
-            -webkit-tap-highlight-color: transparent; /* no blue flash on tap (mobile) */
-            width: 38px;
-            height: 38px;
-            border: 1px solid rgba(195, 160, 95, 0.5);
-            background: rgba(12, 16, 18, 0.78);
-            border-radius: 4px;
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.5);
-            backdrop-filter: blur(3px);
-        }
-
-        /* Skill-bar HUD buttons (☰ menu first, inventory last) */
-        .skill-slot.hud-btn {
-            pointer-events: auto;
-            cursor: pointer;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 4px;
-            border-color: rgba(212, 175, 55, 0.7);
-            background: rgba(20, 22, 20, 0.9);
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .skill-slot.hud-btn:hover,
-        .skill-slot.hud-btn.active {
-            border-color: #efcf7a;
-            box-shadow: 0 0 12px rgba(239, 207, 122, 0.45), inset 0 0 8px rgba(0, 0, 0, 0.7);
-        }
-        #menu-btn span {
-            display: block;
-            width: 16px;
-            height: 2px;
-            background: #d8c49a;
-            border-radius: 1px;
-        }
-        #inventory-btn img {
-            width: 78%;
-            height: 78%;
-            object-fit: contain;
-            border-radius: 3px;
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
-            transition: filter 0.15s ease;
-        }
-        #inventory-btn:hover img,
-        #inventory-btn.active img {
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px rgba(239, 207, 122, 0.65));
-        }
-
-        /* Inventory Panel (stub) */
-        #inventory-panel {
-            position: fixed;
-            right: 14px;
-            bottom: 70px;
-            width: 300px;
-            background: rgba(12, 16, 18, 0.92);
-            border: 1px solid rgba(195, 160, 95, 0.45);
-            border-radius: 4px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.6);
-            padding: 14px 14px 16px;
-            z-index: 150;
-            display: none;
-            cursor: default;
-        }
-        #inventory-panel.open {
-            display: block;
-        }
-        .inventory-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 12px;
         }
-        .inventory-title {
-            font-size: 1.05rem;
-            letter-spacing: 0.2rem;
-            text-transform: uppercase;
-            color: #f1e2c8;
+        .card-desc {
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: #9ea8a7;
         }
-        #inventory-close {
-            font-family: inherit;
-            font-size: 1.2rem;
-            line-height: 1;
-            width: 26px;
-            height: 26px;
-            color: #b9a47a;
-            background: transparent;
-            border: 1px solid rgba(195, 160, 95, 0.3);
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        #inventory-close:hover {
-            color: #efcf7a;
-            border-color: #efcf7a;
-        }
-        .inventory-grid {
+
+        /* Features & Info */
+        .info-grid {
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            gap: 3px;
-        }
-        .inventory-cell {
-            aspect-ratio: 1;
-            background: rgba(22, 27, 29, 0.9);
-            border: 1px solid rgba(195, 160, 95, 0.18);
-            border-radius: 2px;
-            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.8);
-        }
-        .inventory-empty {
-            margin-top: 10px;
-            font-size: 0.8rem;
-            font-style: italic;
-            color: #7e8a89;
-            text-align: center;
-        }
-
-        /* ---------------------------------------------------------------
-           Hotbar slots, inventory items, skills panel, drag & drop
-           (driven by ui_hotbar.js)
-           --------------------------------------------------------------- */
-        .skill-slot.hotbar-slot {
-            position: relative;
-            pointer-events: auto;
-            cursor: pointer;
-            touch-action: none;           /* pointer-event drag on touch screens */
-            overflow: hidden;
-            transition: border-color 0.12s ease, box-shadow 0.12s ease;
-        }
-        .skill-slot.hotbar-slot:hover {
-            border-color: rgba(239, 207, 122, 0.85);
-        }
-        .slot-icon, .slot-cd {
-            position: absolute;
-            inset: 2px;
-            border-radius: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
-        .slot-cd { inset: 0; }
-        .slot-key {
-            position: absolute;
-            left: 3px;
-            top: 1px;
-            font-size: 9px;
-            font-family: 'Consolas', 'Courier New', monospace;
-            color: rgba(239, 207, 122, 0.85);
-            text-shadow: 0 0 2px #000, 0 0 3px #000;
-            pointer-events: none;
-        }
-        .slot-count, .cell-count {
-            position: absolute;
-            right: 2px;
-            bottom: 0;
-            font-size: 10px;
-            font-weight: bold;
-            font-family: 'Consolas', 'Courier New', monospace;
-            color: #f3e6c8;
-            text-shadow: 0 0 2px #000, 0 0 3px #000, 0 0 4px #000;
-            pointer-events: none;
-        }
-        .ui-icon {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
             width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 3px;
-            -webkit-user-drag: none;
-            pointer-events: none;
-        }
-        .icon-fallback {
-            font-weight: bold;
-            font-size: 1.05em;
-            color: #f1e2c8;
-            text-shadow: 0 1px 2px #000;
-            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.75);
-            border: 1px solid rgba(195, 160, 95, 0.35);
-        }
-        .hotbar-slot.missing .slot-icon { filter: grayscale(1) brightness(0.45); }
-        .hotbar-slot.equipped { border-color: #efcf7a; box-shadow: 0 0 10px rgba(239, 207, 122, 0.45), inset 0 0 8px rgba(0,0,0,0.7); }
-        .hotbar-slot.pressed { animation: slot-press 0.22s ease-out; }
-        .hotbar-slot.shake { animation: slot-shake 0.3s ease-in-out; }
-        .hotbar-slot.reject { animation: slot-reject 0.55s ease-out; }
-        @keyframes slot-press {
-            0% { box-shadow: 0 0 16px rgba(255, 236, 170, 0.9), inset 0 0 10px rgba(255, 236, 170, 0.45); }
-            100% { box-shadow: inset 0 0 8px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.5); }
-        }
-        @keyframes slot-shake {
-            0%, 100% { transform: translateX(0); }
-            20% { transform: translateX(-3px); }
-            40% { transform: translateX(3px); }
-            60% { transform: translateX(-2px); }
-            80% { transform: translateX(2px); }
-        }
-        @keyframes slot-reject {
-            0%, 45% { border-color: #e63946; box-shadow: 0 0 14px rgba(230, 57, 70, 0.85), inset 0 0 12px rgba(230, 57, 70, 0.45); }
-            100% { border-color: rgba(195, 160, 95, 0.5); }
-        }
-        .drop-ok { border-color: #9be38a !important; box-shadow: 0 0 12px rgba(155, 227, 138, 0.7), inset 0 0 8px rgba(0,0,0,0.6) !important; }
-        .drop-bad { border-color: #e63946 !important; box-shadow: 0 0 12px rgba(230, 57, 70, 0.7), inset 0 0 8px rgba(0,0,0,0.6) !important; }
-        .drag-source { opacity: 0.45; }
-        body.ui-dragging, body.ui-dragging * { cursor: grabbing !important; }
-        #drag-ghost {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 42px;
-            height: 42px;
-            z-index: 950;
-            pointer-events: none;
-            border: 1px solid rgba(239, 207, 122, 0.8);
-            border-radius: 4px;
-            background: rgba(12, 16, 18, 0.85);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7), 0 0 12px rgba(239, 207, 122, 0.35);
-            padding: 3px;
-            opacity: 0.92;
-        }
-        #drag-ghost.hidden { display: none; }
-
-        /* Item / skill tooltip */
-        #item-tooltip {
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 960;
-            max-width: 240px;
-            pointer-events: none;
-            background: rgba(12, 16, 18, 0.95);
-            border: 1px solid rgba(212, 175, 55, 0.55);
-            border-radius: 4px;
-            padding: 7px 10px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.7), inset 0 0 8px rgba(0, 0, 0, 0.5);
-        }
-        #item-tooltip.hidden { display: none; }
-        #item-tooltip.warn { border-color: #e63946; }
-        #item-tooltip.warn .tt-name { color: #ffb3b8; font-size: 0.78rem; }
-        .tt-name { font-size: 0.9rem; color: #efcf7a; letter-spacing: 0.05rem; }
-        .tt-desc { font-size: 0.75rem; color: #d8cbb5; margin-top: 3px; line-height: 1.3; }
-        .tt-desc:empty { display: none; }
-        .tt-meta { font-size: 0.7rem; color: #8f9c9b; margin-top: 4px; font-style: italic; }
-        .tt-meta:empty { display: none; }
-
-        /* Inventory cells with items */
-        .inventory-cell {
-            position: relative;
-            touch-action: none;
-        }
-        .inventory-cell.filled {
-            cursor: grab;
-            padding: 2px;
-            border-color: rgba(195, 160, 95, 0.4);
-        }
-        .inventory-cell.filled:hover { border-color: rgba(239, 207, 122, 0.8); }
-        .inventory-cell.equipped { border-color: #efcf7a; box-shadow: 0 0 8px rgba(239, 207, 122, 0.45), inset 0 0 6px rgba(0, 0, 0, 0.8); }
-        .inventory-cell.equipped::after {
-            content: '';
-            position: absolute;
-            left: 2px;
-            top: 2px;
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #efcf7a;
-            box-shadow: 0 0 4px #efcf7a;
-        }
-        #inventory-btn.pulse { animation: inv-pulse 0.7s ease-out; }
-        @keyframes inv-pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 rgba(239, 207, 122, 0); }
-            30% { transform: scale(1.18); box-shadow: 0 0 18px rgba(239, 207, 122, 0.9); }
-            100% { transform: scale(1); box-shadow: 0 0 0 rgba(239, 207, 122, 0); }
+            margin-bottom: 40px;
+            text-align: left;
         }
 
-        /* Skills button (spellbook SVG) & panel */
-        #skills-btn svg {
-            width: 76%;
-            height: 76%;
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
-            transition: filter 0.15s ease;
+        .info-box {
+            background: rgba(15, 23, 26, 0.6);
+            border: 1px solid rgba(126, 104, 52, 0.25);
+            border-radius: 6px;
+            padding: 18px 20px;
         }
-        #skills-btn:hover svg,
-        #skills-btn.active svg {
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px rgba(239, 207, 122, 0.7));
-        }
-        #skills-panel {
-            position: fixed;
-            right: 14px;
-            bottom: 70px;
-            width: 280px;
-            max-height: calc(100% - 150px);
-            overflow-y: auto;
-            background: rgba(12, 16, 18, 0.92);
-            border: 1px solid rgba(195, 160, 95, 0.45);
-            border-radius: 4px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.6);
-            padding: 14px 14px 12px;
-            z-index: 150;
-            display: none;
-            cursor: default;
-        }
-        #skills-panel.open { display: block; }
-        #skills-panel.beside-inventory { right: 324px; }
-        #skills-close {
-            font-family: inherit;
-            font-size: 1.2rem;
-            line-height: 1;
-            width: 26px;
-            height: 26px;
-            color: #b9a47a;
-            background: transparent;
-            border: 1px solid rgba(195, 160, 95, 0.3);
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        #skills-close:hover { color: #efcf7a; border-color: #efcf7a; }
-        .skill-entry {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            padding: 8px;
-            margin-bottom: 6px;
-            background: rgba(22, 27, 29, 0.9);
-            border: 1px solid rgba(195, 160, 95, 0.25);
-            border-radius: 3px;
-            cursor: grab;
-            touch-action: none;
-        }
-        .skill-entry:hover { border-color: rgba(239, 207, 122, 0.75); }
-        .skill-entry-icon {
-            flex: 0 0 42px;
-            height: 42px;
-            border: 1px solid rgba(212, 175, 55, 0.6);
-            border-radius: 4px;
-            padding: 2px;
-            background: rgba(12, 16, 18, 0.9);
-        }
-        .skill-entry-name { font-size: 0.92rem; color: #efcf7a; letter-spacing: 0.05rem; }
-        .skill-entry-desc { font-size: 0.74rem; color: #d8cbb5; line-height: 1.3; margin-top: 2px; }
-        .skill-entry-meta { font-size: 0.68rem; color: #8f9c9b; font-style: italic; margin-top: 4px; }
-        .skills-hint { font-size: 0.7rem; color: #7e8a89; font-style: italic; text-align: center; margin-top: 4px; }
-
-        /* Floating world texts (+5 Камень / Сумка полна) */
-        .float-text {
-            position: absolute;
-            left: 0;
-            top: 0;
-            white-space: nowrap;
-            font-size: 1rem;
-            font-weight: bold;
-            letter-spacing: 0.05rem;
-            color: #f3dfba;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8);
-            pointer-events: none;
-        }
-        .float-text.gain { color: #b8f0a0; }
-        .float-text.warn { color: #ff9ea5; }
-        .float-text.info { color: #efcf7a; font-size: 0.9rem; }
-
-        /* HP Bar (combat.js): dark trough + red fill + small "85 / 100" */
-        .hp-bar {
-            position: fixed;
-            right: 14px;
-            bottom: 14px;
-            width: 130px;
-            height: 13px;
-            background: rgba(22, 8, 8, 0.85);
-            border: 1px solid #5a1a1a;
-            border-radius: 3px;
-            box-shadow: 0 0 8px rgba(230, 57, 70, 0.4), inset 0 1px 3px rgba(0,0,0,0.6);
-            pointer-events: none;
-            z-index: 100;
-            overflow: hidden;
-        }
-        .hp-fill {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 100%;
-            background: linear-gradient(to right, #a00, #e63946);
-            box-shadow: inset 0 1px 2px rgba(255, 200, 200, 0.25);
-            transition: width 0.18s ease-out;
-        }
-        .hp-text {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 9px;
-            font-weight: bold;
-            font-family: 'Consolas', 'Courier New', monospace;
-            letter-spacing: 0.03rem;
-            color: #fbe9e0;
-            text-shadow: 0 0 2px #000, 0 0 3px #000;
-        }
-        .hp-bar.low { animation: hp-low 1.1s ease-in-out infinite; }
-        @keyframes hp-low {
-            0%, 100% { box-shadow: 0 0 8px rgba(230, 57, 70, 0.4), inset 0 1px 3px rgba(0,0,0,0.6); }
-            50% { box-shadow: 0 0 16px rgba(255, 60, 60, 0.9), inset 0 1px 3px rgba(0,0,0,0.6); }
-        }
-
-        /* Red screen-edge flash when the player takes damage (opacity driven by combat.js on game time) */
-        #damage-vignette {
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            z-index: 40;
-            opacity: 0;
-            background: radial-gradient(ellipse at center, rgba(120, 0, 0, 0) 55%, rgba(150, 0, 0, 0.55) 85%, rgba(110, 0, 0, 0.85) 100%);
-        }
-
-        /* "Вы погибли" */
-        #death-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 800;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.7s ease-in;
-            background: radial-gradient(circle at center, rgba(30, 0, 0, 0.35) 0%, rgba(8, 0, 0, 0.8) 100%);
-        }
-        #death-overlay.show { opacity: 1; pointer-events: auto; }
-        .death-title {
-            font-size: 2.8rem;
-            letter-spacing: 0.35rem;
-            text-transform: uppercase;
-            color: #d9463f;
-            text-shadow: 0 4px 18px rgba(0, 0, 0, 0.95), 0 0 30px rgba(200, 30, 30, 0.55);
-        }
-        .death-subtitle {
-            margin-top: 0.6rem;
-            font-size: 1rem;
-            letter-spacing: 0.15rem;
-            font-style: italic;
-            color: #b39a8a;
-        }
-
-        /* Creature HP bar (creatures.js; positioned in #world-labels) */
-        .creature-hp {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 46px;
-            height: 5px;
-            background: rgba(12, 6, 6, 0.85);
-            border: 1px solid rgba(90, 26, 26, 0.9);
-            border-radius: 2px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-            overflow: hidden;
-            pointer-events: none;
-        }
-        .creature-hp-fill {
-            height: 100%;
-            width: 100%;
-            background: linear-gradient(to right, #9b1111, #e0463c);
-        }
-
-        /* Damage numbers */
-        .float-text.dmg { color: #fff1c9; font-size: 1.05rem; }
-        .float-text.dmg-magic { color: #aee6ff; font-size: 1.05rem; }
-        .float-text.hurt { color: #ff6b6b; font-size: 1.05rem; }
-        .float-text.miss { color: #c9c9c9; font-size: 0.85rem; font-style: italic; }
-
-        /* Mobile Responsive Styles */
-        @media (max-width: 680px) {
-            .loading-title {
-                font-size: 1.9rem;
-                letter-spacing: 0.18rem;
-            }
-            .loading-subtitle {
-                font-size: 0.95rem;
-                margin-bottom: 1.5rem;
-            }
-            #hud-top-left {
-                top: 10px;
-                left: 10px;
-            }
-            #hud-coords {
-                font-size: 0.75rem;
-            }
-            #compass-btn {
-                top: 10px;
-                right: 12px;
-                width: 44px;
-                height: 44px;
-            }
-            .orb {
-                width: 48px;
-                height: 48px;
-                flex-shrink: 0;
-            }
-            .pause-panel {
-                padding: 22px 18px 18px;
-            }
-            #location-banner {
-                font-size: 1.3rem;
-                letter-spacing: 0.15rem;
-            }
-            .world-label {
-                font-size: 0.8rem;
-            }
-            .pause-title {
-                font-size: 1.5rem;
-            }
-            .pause-controls li {
-                font-size: 0.8rem;
-            }
-            .skill-bar {
-                bottom: 8px;
-                gap: 3px;
-            }
-            .skill-slot {
-                width: 26px;
-                height: 26px;
-                border-radius: 3px;
-                font-size: 0.6rem;
-            }
-            #menu-btn {
-                gap: 3px;
-            }
-            #menu-btn span {
-                width: 13px;
-            }
-            #inventory-panel {
-                left: 10px;
-                right: 10px;
-                width: auto;
-                bottom: 70px;
-            }
-            #skills-panel,
-            #skills-panel.beside-inventory {
-                left: 10px;
-                right: 10px;
-                width: auto;
-                top: 64px;
-                bottom: auto;
-                max-height: 38vh;
-                padding: 10px 10px 8px;
-            }
-            .slot-key { font-size: 7px; left: 2px; top: 0; }
-            .slot-count, .cell-count { font-size: 8px; }
-            .icon-fallback { font-size: 0.8em; }
-            .hp-bar {
-                right: 10px;
-                bottom: 48px;
-                width: 90px;
-                height: 10px;
-            }
-            .hp-text { font-size: 7px; }
-            .death-title { font-size: 1.9rem; letter-spacing: 0.2rem; }
-        }
-
-        /* ========= Map Overlay ========= */
-        #map-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 310;
-            background: rgba(0, 0, 0, 0.68);
-            backdrop-filter: blur(4px);
-            align-items: center;
-            justify-content: center;
-        }
-        #map-overlay.open {
-            display: flex;
-        }
-        #map-panel {
-            background: rgba(10, 16, 12, 0.97);
-            border: 1.5px solid rgba(195, 160, 95, 0.65);
-            border-radius: 8px;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,0,0,0.5);
-            padding: 12px 14px 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            max-width: 90vw;
-            max-height: 90vh;
-        }
-        #map-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        #map-loc-name {
-            font-family: 'Cinzel', Georgia, serif;
-            color: #d4aa55;
-            font-size: 1rem;
-            letter-spacing: 0.06em;
-        }
-        #map-close-btn {
-            background: none;
-            border: 1px solid rgba(195,160,95,0.4);
-            color: #a0866a;
+        .info-box-title {
             font-size: 0.95rem;
-            line-height: 1;
-            padding: 3px 7px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: color 0.15s, border-color 0.15s;
-        }
-        #map-close-btn:hover { color: #efcf7a; border-color: #efcf7a; }
-        #map-canvas {
-            display: block;
-            border: 1px solid rgba(195,160,95,0.3);
-            border-radius: 4px;
-            max-width: min(420px, 85vw);
-            max-height: min(420px, 75vh);
-            width: min(420px, 85vw);
-            height: min(420px, 75vh);
-            image-rendering: pixelated;
-        }
-        #map-legend {
+            letter-spacing: 0.08rem;
+            color: #efcf7a;
+            margin-bottom: 8px;
             display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
-        .map-leg {
-            font-size: 0.7rem;
-            opacity: 0.75;
+        .info-box-content {
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: #929e9c;
+        }
+        .info-box-content ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 6px;
+        }
+        .info-box-content li {
+            margin-bottom: 4px;
+            display: flex;
+            gap: 8px;
+        }
+        .key-badge {
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 0.72rem;
+            color: #efcf7a;
             white-space: nowrap;
         }
-        .map-leg-player  { color: #ffffff; }
-        .map-leg-exit    { color: #f59e0b; }
-        .map-leg-hostile { color: #ef4444; }
-        .map-leg-neutral { color: #eab308; }
 
+        /* Storage management box */
+        .storage-box {
+            width: 100%;
+            background: rgba(18, 12, 12, 0.75);
+            border: 1px dashed rgba(168, 93, 93, 0.4);
+            border-radius: 6px;
+            padding: 18px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+        .storage-info {
+            text-align: left;
+        }
+        .storage-title {
+            font-size: 0.92rem;
+            color: #e0b4b4;
+            margin-bottom: 4px;
+            letter-spacing: 0.05rem;
+        }
+        .storage-status {
+            font-size: 0.8rem;
+            color: #8f7979;
+        }
+        .btn-danger {
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            letter-spacing: 0.05rem;
+            font-family: inherit;
+            color: #ff9e9e;
+            background: rgba(60, 20, 20, 0.6);
+            border: 1px solid rgba(200, 80, 80, 0.4);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-danger:hover {
+            background: rgba(100, 30, 30, 0.8);
+            border-color: #ff6b6b;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(255, 80, 80, 0.3);
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            letter-spacing: 0.05rem;
+            color: #5d6766;
+        }
+        .footer a {
+            color: #8a7a58;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            color: #d4af37;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
+    <div class="container">
+        <!-- Hero Header -->
+        <div class="hero-emblem">✧ ⚔ ✧</div>
+        <h1 class="hero-title">Avelora</h1>
+        <div class="hero-subtitle">Medieval 3D RPG Experience</div>
 
-    <!-- Loading Screen -->
-    <div id="loading-overlay">
-        <h1 class="loading-title">Avelora</h1>
-        <div class="loading-subtitle">Вход в средневековый мир...</div>
-        <div class="loading-spinner"></div>
-    </div>
+        <div class="divider">✦ ─────── ✧ ─────── ✦</div>
 
-    <!-- Character Select Screen (shown at startup when there's 0 or 2+ saves, or from pause menu) -->
-    <div id="character-select-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="charselect-title">
-        <h1 class="charselect-title" id="charselect-title">Avelora</h1>
-        <div class="charselect-subtitle">Выберите персонажа</div>
-        <div class="charselect-grid" id="charselect-grid"><!-- карточки персонажей рендерятся из main.js --></div>
-        <button type="button" class="pause-btn charselect-back" id="charselect-back" style="display:none">Отмена</button>
-    </div>
-
-    <!-- Top Left Character Status -->
-    <div id="hud-top-left">
-        <div id="hud-coords">Загрузка координат...</div>
-    </div>
-
-    <!-- Google Maps Style Interactive Compass -->
-    <div id="compass-btn" title="Сбросить ориентацию на Север">
-        <div id="compass-needle">
-            <div class="needle-north"></div>
-            <div class="needle-south"></div>
+        <!-- Main Action -->
+        <div class="cta-container">
+            <a href="Avelora.html" class="btn-play">⚔️ Войти в игру</a>
+            <button type="button" class="btn-secondary" id="btn-quick-info">Как играть</button>
         </div>
-    </div>
 
-
-    <!-- Skill Bar -->
-    <div id="skill-bar" class="skill-bar">
-        <button type="button" id="menu-btn" class="skill-slot hud-btn" title="Меню (Esc)" aria-label="Меню паузы">
-            <span></span><span></span><span></span>
-        </button>
-        <button type="button" id="map-btn" class="skill-slot hud-btn" title="Карта (M)" aria-label="Карта локации">
-            <!-- Значок карты: контурный квадрат с треугольником-меткой -->
-            <svg viewBox="0 0 32 32" aria-hidden="true" style="width:72%;height:72%">
-                <defs>
-                    <linearGradient id="mapGold" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#f6dc92"/>
-                        <stop offset="1" stop-color="#b8862f"/>
-                    </linearGradient>
-                </defs>
-                <!-- Рамка карты -->
-                <rect x="4" y="5" width="24" height="22" rx="2" ry="2"
-                      fill="#1a2f1a" stroke="url(#mapGold)" stroke-width="1.6"/>
-                <!-- Рельеф: кривые линии -->
-                <path d="M7 14 Q12 10 16 14 Q20 18 25 14"
-                      stroke="#4a7c59" stroke-width="1.1" fill="none" stroke-linecap="round" opacity="0.8"/>
-                <path d="M7 19 Q11 16 15 19 Q19 22 25 19"
-                      stroke="#4a7c59" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.6"/>
-                <!-- Метка игрока -->
-                <polygon points="16,8 13.5,13 18.5,13"
-                         fill="url(#mapGold)" opacity="0.95"/>
-            </svg>
-        </button>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <div class="skill-slot"></div>
-        <button type="button" id="skills-btn" class="skill-slot hud-btn" title="Навыки (K)" aria-label="Навыки" style="display:none">
-            <!-- Раскрытая книга заклинаний с руной (inline SVG, gold-on-dark) -->
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-                <defs>
-                    <linearGradient id="skillsGold" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#f6dc92"/>
-                        <stop offset="1" stop-color="#b8862f"/>
-                    </linearGradient>
-                </defs>
-                <path d="M16 9.2 C12.6 6.9 8.2 6.4 3.6 7.4 V25.2 C8.2 24.2 12.6 24.7 16 27 C19.4 24.7 23.8 24.2 28.4 25.2 V7.4 C23.8 6.4 19.4 6.9 16 9.2 Z"
-                      fill="#221c14" stroke="url(#skillsGold)" stroke-width="1.5" stroke-linejoin="round"/>
-                <path d="M16 9.2 V27" stroke="url(#skillsGold)" stroke-width="1.2"/>
-                <path d="M6.2 11.2 C8.6 10.8 11 11 13.2 11.9 M6.2 14.6 C8.6 14.2 11 14.4 13.2 15.3 M6.2 18 C8.6 17.6 11 17.8 13.2 18.7"
-                      stroke="#b8862f" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.85"/>
-                <path d="M22.3 10.6 L23.35 14.2 L26.9 14.2 L24.05 16.4 L25.1 19.9 L22.3 17.7 L19.5 19.9 L20.55 16.4 L17.7 14.2 L21.25 14.2 Z"
-                      fill="url(#skillsGold)"/>
-                <circle cx="22.3" cy="15.5" r="5.6" fill="none" stroke="#f6dc92" stroke-width="0.6" opacity="0.55"/>
-            </svg>
-        </button>
-        <button type="button" id="inventory-btn" class="skill-slot hud-btn" title="Инвентарь (I)" aria-label="Инвентарь">
-            <!-- Сумка: собственное изображение (см. lib/JiUj2.jpg), не требует атрибуции -->
-            <img src="data:image/jpeg;base64,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" alt="" aria-hidden="true">
-        </button>
-    </div>
-
-    <!-- Inventory Panel (cells are (re)built by ui_hotbar.js: 32 cells, 8 columns) -->
-    <div id="inventory-panel" role="dialog" aria-labelledby="inventory-title" aria-hidden="true">
-        <div class="inventory-header">
-            <div class="inventory-title" id="inventory-title">Инвентарь</div>
-            <button type="button" id="inventory-close" title="Закрыть (I)" aria-label="Закрыть инвентарь">×</button>
-        </div>
-        <div class="inventory-grid"><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div></div>
-        <div class="inventory-empty">Сумка пуста</div>
-    </div>
-
-    <!-- Skills Panel (K): the character's skills, drag them onto the hotbar -->
-    <div id="skills-panel" role="dialog" aria-labelledby="skills-title" aria-hidden="true">
-        <div class="inventory-header">
-            <div class="inventory-title" id="skills-title">Навыки</div>
-            <button type="button" id="skills-close" title="Закрыть (K)" aria-label="Закрыть навыки">×</button>
-        </div>
-        <div id="skills-list"></div>
-        <div class="skills-hint">Перетащите навык на панель внизу</div>
-    </div>
-
-    <!-- Item/skill tooltip and drag ghost (ui_hotbar.js) -->
-    <div id="item-tooltip" class="hidden"></div>
-    <div id="drag-ghost" class="hidden"></div>
-
-    <!-- HP Bar (combat.js) -->
-    <div id="hp-bar" class="hp-bar" title="Здоровье"><div class="hp-fill" id="hp-fill"></div><div class="hp-text" id="hp-text"></div></div>
-    <div id="damage-vignette"></div>
-    <div id="death-overlay" aria-hidden="true">
-        <div class="death-title">Вы погибли</div>
-        <div class="death-subtitle">Возрождение…</div>
-    </div>
-
-    <!-- 3D Canvas -->
-    <div id="game-container"></div>
-
-    <!-- Labels over location exits & arrival banner -->
-    <div id="world-labels"></div>
-    <div id="location-banner"></div>
-    <div id="object-tooltip" class="hidden"></div>
-    <div id="fps-counter"></div>
-
-    <!-- Map overlay (M key) -->
-    <div id="map-overlay" role="dialog" aria-modal="true" aria-label="Карта локации" aria-hidden="true">
-        <div id="map-panel">
-            <div id="map-header">
-                <span id="map-loc-name">—</span>
-                <button type="button" id="map-close-btn" aria-label="Закрыть карту">✕</button>
+        <!-- Class Roster -->
+        <div class="section-title">Герои Авелоры</div>
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-icon">⚔️</div>
+                <div class="card-name">Воин</div>
+                <div class="card-class">Странствующий страж</div>
+                <div class="card-desc">Выносливый защитник королевства. Обладает повышенным запасом здоровья и мастерски владеет холодным оружием в ближнем бою.</div>
             </div>
-            <canvas id="map-canvas"></canvas>
-            <div id="map-legend">
-                <span class="map-leg map-leg-player">▲ Вы</span>
-                <span class="map-leg map-leg-exit">● Выход</span>
-                <span class="map-leg map-leg-hostile">● Враг</span>
-                <span class="map-leg map-leg-neutral">● Существо</span>
+            <div class="card">
+                <div class="card-icon">🏹</div>
+                <div class="card-name">Арисса</div>
+                <div class="card-class">Лучница</div>
+                <div class="card-desc">Меткая и неуловимая охотница прибрежных земель. Быстро перемещается и идеально чувствует дистанцию в сражении.</div>
             </div>
-        </div>
-    </div>
-
-    <!-- Pause Menu (Escape) -->
-    <div id="pause-overlay" role="dialog" aria-modal="true" aria-labelledby="pause-title" aria-hidden="true">
-        <div class="pause-panel" id="pause-panel-main">
-            <div class="pause-title" id="pause-title">Пауза</div>
-            <div class="pause-subtitle">Avelora</div>
-
-            <div class="pause-buttons">
-                <button type="button" class="pause-btn primary" id="pause-resume">Продолжить</button>
-                <button type="button" class="pause-btn" id="pause-character-select">Выбор персонажа</button>
-                <button type="button" class="pause-btn" id="pause-settings-btn">Настройки</button>
-                <button type="button" class="pause-btn" id="pause-controls-btn">Управление</button>
+            <div class="card">
+                <div class="card-icon">🔮</div>
+                <div class="card-name">Азур Аркмаг</div>
+                <div class="card-class">Маг стихий</div>
+                <div class="card-desc">Повелитель древней арканы. Способен поражать противников магическими искрами и управлять силами стихий на расстоянии.</div>
             </div>
         </div>
 
-        <!-- Controls hint popup (was inlined in the main panel — moved behind a button to keep the pause menu short) -->
-        <div class="pause-panel" id="pause-panel-controls" style="display:none">
-            <div class="pause-title small" id="pause-controls-title">Управление</div>
-            <ul class="pause-controls">
-                <li class="desktop-only"><span class="key">ЛКМ</span><span>Идти (обход препятствий и воды)</span></li>
-                <li class="desktop-only"><span class="key">ПКМ + мышь</span><span>Вращение камеры</span></li>
-                <li class="desktop-only"><span class="key">Колесо</span><span>Приближение / отдаление</span></li>
-                <li class="touch-only"><span class="key">Тап</span><span>Идти</span></li>
-                <li class="touch-only"><span class="key">Два пальца</span><span>Зум и вращение камеры</span></li>
-                <li><span class="key">Компас</span><span>Развернуть камеру на север</span></li>
-                <li class="desktop-only"><span class="key">I</span><span>Инвентарь</span></li>
-                <li class="touch-only"><span class="key">Сумка</span><span>Инвентарь</span></li>
-                <li class="desktop-only"><span class="key">K</span><span>Навыки (если есть)</span></li>
-                <li class="touch-only"><span class="key">Книга</span><span>Навыки (если есть)</span></li>
-                <li class="desktop-only"><span class="key">1 … 9, 0</span><span>Ячейки панели действий</span></li>
-                <li class="touch-only"><span class="key">Тап по ячейке</span><span>Навык / предмет с панели</span></li>
-                <li><span class="key">Перетаскивание</span><span>Навык или предмет на панель; с панели — убрать</span></li>
-                <li><span class="key">Клик по куче</span><span>Подойти и подобрать</span></li>
-                <li><span class="key">Перетащить предмет из сумки в мир</span><span>Выбросить</span></li>
-                <li><span class="key">Клик по врагу</span><span>Выбрать цель (жёлтое кольцо)</span></li>
-                <li><span class="key">Ещё раз клик по цели</span><span>Атаковать оружием в руке (или кулаками)</span></li>
-                <li class="desktop-only"><span class="key">Tab</span><span>Следующая ближайшая цель впереди</span></li>
-                <li><span class="key">Клик по земле</span><span>Идти туда, снять выделение цели</span></li>
-                <li><span class="key">Топор в руке + клик по дереву</span><span>Рубить</span></li>
-                <li class="desktop-only"><span class="key">Esc / ☰</span><span>Пауза / продолжить</span></li>
-                <li class="touch-only"><span class="key">☰</span><span>Пауза / продолжить</span></li>
-            </ul>
-            <button type="button" class="pause-btn" id="pause-controls-back">Назад</button>
+        <!-- Info / Guides -->
+        <div class="section-title" id="info-section">Управление и мир</div>
+        <div class="info-grid">
+            <div class="info-box">
+                <div class="info-box-title">🎮 Управление</div>
+                <div class="info-box-content">
+                    <ul>
+                        <li><span class="key-badge">ЛКМ / Тап</span> Идти к точке / поднять предмет</li>
+                        <li><span class="key-badge">ПКМ / 2 пальца</span> Вращение и зум камеры</li>
+                        <li><span class="key-badge">I / Сумка</span> Открыть инвентарь</li>
+                        <li><span class="key-badge">K / Книга</span> Книга навыков</li>
+                        <li><span class="key-badge">1 … 9, 0</span> Быстрые ячейки действий</li>
+                        <li><span class="key-badge">Esc / ☰</span> Пауза и настройки</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="info-box">
+                <div class="info-box-title">🌍 Особенности мира</div>
+                <div class="info-box-content">
+                    <ul>
+                        <li>Живая водная гладь Three.js с физикой волн и прибоя</li>
+                        <li>Динамическая вырубка деревьев и сбор ресурсов</li>
+                        <li>Обитатели мира: дикие вепри, олени, уличные крысы</li>
+                        <li>Полная автономность: игра работает без серверов</li>
+                    </ul>
+                </div>
+            </div>
         </div>
 
-        <!-- Settings popup -->
-        <div class="pause-panel" id="pause-panel-settings" style="display:none">
-            <div class="pause-title small" id="pause-settings-title">Настройки</div>
-            <div class="settings-row">
-                <span class="settings-label">Счётчик FPS</span>
-                <label class="switch">
-                    <input type="checkbox" id="fps-toggle">
-                    <span class="switch-slider"></span>
-                </label>
+        <!-- Storage Management -->
+        <div class="storage-box">
+            <div class="storage-info">
+                <div class="storage-title">💾 Управление данными браузера</div>
+                <div class="storage-status" id="storage-status-text">Проверка сохранений...</div>
             </div>
-            <button type="button" class="pause-btn" id="pause-settings-back">Назад</button>
+            <button type="button" class="btn-danger" id="btn-clear-storage">Очистить все сохранения</button>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            Avelora &bull; Работает локально по <code>file://</code> и на хостинге &bull; Three.js PBR Engine
         </div>
     </div>
 
-    <!-- Engine Scripts (Serverless file:// Compatible) -->
-    <script src="lib_js/three.min.js"></script>
-    <script src="lib_js/GLTFLoader.js"></script>
-    <script src="lib_js/Water.js"></script>
-    <script src="lib_js/simplex-noise.js"></script>
-    <script src="assets_data.js"></script>
-    <script src="content_data.js"></script>
-    <script src="world_data.js"></script>
-    <script src="location_groups.js"></script>
-    <script src="pathfinding.js"></script>
-    <script src="terrain.js"></script>
-    <script src="water.js"></script>
-    <script src="environment.js"></script>
-    <script src="characters.js"></script>
-    <script src="save.js"></script>
-    <script src="items.js"></script>
-    <script src="game_state.js"></script>
-    <script src="world_objects.js"></script>
-    <script src="creatures.js"></script>
-    <script src="harvest.js"></script>
-    <script src="combat.js"></script>
-    <script src="skills.js"></script>
-    <script src="ui_hotbar.js"></script>
-    <script src="character.js"></script>
-    <script src="map.js"></script>
-    <script src="main.js"></script>
     <script>
-        // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
-        if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
-            });
+        // Check local storage for Avelora saves
+        function updateStorageStatus() {
+            const statusEl = document.getElementById('storage-status-text');
+            if (!statusEl) return;
+            try {
+                let saveCount = 0;
+                const charSaves = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('avelora_save_')) {
+                        saveCount++;
+                        const charId = key.replace('avelora_save_', '');
+                        charSaves.push(charId);
+                    }
+                }
+                if (saveCount > 0) {
+                    statusEl.textContent = 'Обнаружено сохранений: ' + saveCount + ' (' + charSaves.join(', ') + ')';
+                    statusEl.style.color = '#efcf7a';
+                } else {
+                    statusEl.textContent = 'Сохранённых данных нет (чистый профиль)';
+                    statusEl.style.color = '#7e8a89';
+                }
+            } catch (e) {
+                statusEl.textContent = 'Хранилище недоступно в текущем режиме';
+            }
         }
+
+        // Clear all Avelora saves
+        document.getElementById('btn-clear-storage').addEventListener('click', () => {
+            if (!window.confirm('ВНИМАНИЕ: Вы действительно хотите стереть все сохранения игры Avelora в этом браузере?')) {
+                return;
+            }
+            try {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('avelora_save_') || key.startsWith('avelora_state_'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+                alert('Все сохранения Avelora успешно удалены.');
+                updateStorageStatus();
+            } catch (err) {
+                alert('Ошибка при очистке: ' + err);
+            }
+        });
+
+        // Quick scroll to info
+        document.getElementById('btn-quick-info').addEventListener('click', () => {
+            const infoEl = document.getElementById('info-section');
+            if (infoEl) infoEl.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        updateStorageStatus();
     </script>
 </body>
 </html>

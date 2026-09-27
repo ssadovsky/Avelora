@@ -8,9 +8,9 @@ The game is completely standalone, highly optimized, and follows strict serverle
 
 ## 2. THE GOLDEN RULE (CRITICAL - DO NOT VIOLATE)
 ### 🚨 STRICT SERVERLESS EXECUTION (`file://`)
-- The game **MUST** launch by simply double-clicking `index.html` from local disk in ANY browser (Chrome, Edge, Firefox).
+- The game **MUST** launch by simply double-clicking `Avelora.html` from local disk in ANY browser (Chrome, Edge, Firefox).
 - **NEVER** use `fetch()`, `XMLHttpRequest` to local files, or standard `GLTFLoader.load('path.glb')`.
-- All binary assets (3D models, textures, heightmaps) **MUST** be loaded as **Base64 Data URLs** via `assets_data.js`.
+- All binary assets (3D models, textures, heightmaps) **MUST** be loaded as **Base64 Data URLs** via `js/assets_data.js`.
 - **NEVER** require the user to run `python -m http.server`, `node server.js`, or any local web server.
 
 ---
@@ -20,7 +20,7 @@ The game is completely standalone, highly optimized, and follows strict serverle
   `temp_work/tests/` (`e2e.py` — 22 checks, several minutes; plus focused scripts) are run
   ONLY when: the user reports a bug, a change touches the systems a suite covers in a risky
   way (save format, input routing, location lifecycle), or the user asks for it.
-- **Default after a change = a quick smoke check**: load `index.html` once, start one
+- **Default after a change = a quick smoke check**: load `Avelora.html` once, start one
   character, confirm no console errors, 1–2 screenshots of what changed. That's it.
 - Work in **small steps**; after each step report and wait for the user's go-ahead
   (the user watches the usage limit and approves the next step).
@@ -38,53 +38,65 @@ The game is completely standalone, highly optimized, and follows strict serverle
 3. **Vegetation & Reeds**:
    - Rendered using `THREE.InstancedMesh` for 60+ FPS in 1-2 draw calls.
    - Dynamic vertex shader wind sway using `onBeforeCompile`.
-4. **Character**:
-   - Anatomically realistic medieval villager with idle, walk, and run skeletal animations.
+4. **Characters & 3D Standards (Golden Mean / Золотая середина)**:
+   - **Target Devices**: Modern smartphones (Samsung Galaxy S20, S21 Ultra, S25) and PC. Old devices like Galaxy S10 are dropped and not targeted.
+   - **Character Polycount**: ~50k–60k triangles (AzureArchmage set to ~58k polys). Full PBR textures, colors, roughness, and metalness must be preserved. Do not override materials with dull warrior settings.
+   - **Creatures Budget**:
+     - Boars: ~35k–45k triangles
+     - Fawns: ~25k–30k triangles
+     - Small creatures (Rats): ~12k–18k triangles
+   - **Mage (AzureArchmage) Rig & Build Rules (Preventing Backwards Running)**:
+     - **CRITICAL**: The base Mixamo Agree_Gesture pose has `mixamorig:Hips` rotated ~ -16.1° in yaw. In `temp_work/build_perfect_mage.py`, Hips yaw **MUST** be zeroed out to 0.0° (`clean_hips_q = Euler((hips_eul.x, 0.0, hips_eul.z))`). Missing this causes the sideways-movement backwards running bug when blending Idle and Running!
+     - In `characters.js`: Mage uses `facingOffset: Math.PI` and `cast: 'Cast'`.
+     - **Idle Posture**: Natural upright stance, slight Spine1 pitch correction (-4°), Head pitch (-17°) and yaw (-3.5°) for a level forward gaze, soft chest breathing (60 frames). No backwards arching ("штырь" is forbidden).
+     - **Cast Action**: Strictly dedicated `Cast` animation (right arm raises to shoulder level, 24 frames). Never use `Skill_01` or `Skill_03` for casting.
+     - **Pipeline**: Build via `& "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" --background --python temp_work/build_perfect_mage.py`, then run `python temp_work/build_assets.py`.
 
 ---
 
 ## 4. Architecture & File Structure
 
-### 🎮 Runtime Files (Root Directory)
-These files are executed directly by the browser when opening `index.html`:
-- `index.html` — Entry point, Diablo HUD (transparent coords readout, compass button, skill bar: ☰ menu button, 10 hotbar slots, skills 📖 button (inline SVG, hidden for characters without skills), inventory 🎒 button last; inventory & skills panels, item tooltip, drag ghost, HP bar), Escape pause menu (with control hints), canvas, and script tags.
-- `assets_data.js` — All binary models and textures serialized as Base64 strings in `window.GAME_ASSETS` (incl. `content/` models under keys like `'items/stone'`).
-- `content_data.js` — **Generated** from `content/**` by `build_assets.py`: `window.GAME_CONTENT = {items, props, skills, characters}` (JSON defs + `iconData` data-URLs + `modelKey`). Never edit by hand — see §7b.
-- `world_data.js` — **Level Design Registry**. `window.LOCATIONS`: every location (terrain, water, spawns, exits, groups, decorations). See `world_data_help.txt` for the full guide.
-- `location_groups.js` — **Prefab groups** (`forest`, `reeds`, `rocks`, `meadow`). Expands a one-line group config into individual, seeded, terrain-aware objects (`expandLocationObjects()`). Load order matters: after `world_data.js`, before `environment.js`.
-- `terrain.js` — Procedural PBR terrain with analytical normals, multi-layer texturing, and support for `lake`, `coast`, and `island` water bodies.
-- `water.js` — Photorealistic `THREE.Water` surface with Gerstner waves, sun reflection, and dynamic shore foam.
-- `character.js` — Player controller, GLTF skeletal animation blending (idle/walk/run), movement interpolation.
-- `pathfinding.js` — A* navigation grid with obstacle radius registration and raycast string-pulling line-of-sight smoothing.
-- `environment.js` — Instanced foliage manager (reeds, grass, flowers, shrubs, boulders, 3D trees). Draws `expandLocationObjects()`'s output as `THREE.InstancedMesh`, split into 20 m chunks for frustum culling (see §7). Every object has an id (`environment.objects.get(id)`) for future interaction (chop a tree, harvest reeds, ...); `setObjectVisible(id, false)` hides one instance without touching its neighbours. Owns a `dispose()` that releases everything on location change.
-  - Bushes are ONLY the 3D `shrub.glb` model. Flat PNG "star-quad" bushes were tried (wild berry bush) and removed: from the top-down Diablo camera they read as flat hexagons. Do not re-add large sprite-based bushes.
-- `items.js` — Item registry over `GAME_CONTENT.items` (`AveloraItems`), the 32-cell `Inventory` model (stacking by `stackMax`, swap/merge), model helpers (parse `model.glb`, split `variant_N`, neutral fallback meshes).
-- `game_state.js` — Per-character persistent state (`AveloraState.load(charId)` → `CharacterState`: inventory, hotbar, pickupsTaken, equipped), key `avelora_state_<id>`, write-on-change, sanitized load (§7b).
-- `world_objects.js` — Per-location item piles (`pickups`) and static `props` from `world_data.js`: seeded heap/stack layouts, hover/click-to-walk-and-pickup, nav obstacles (§7b).
-- `skills.js` — Skill registry/casting/cooldowns (`AveloraSkillSystem`), generic by `type` (`projectile` implemented), pooled additive VFX (§7b).
-- `creatures.js` — Creatures: spawn, skinned clone, AI, damage, death/respawn (§7e).
-- `harvest.js` — Tree chopping: hits, fall, stump, ground drops, regrow on played time (§7d).
-- `combat.js` — Player HP / death & respawn / melee engagement (§7c).
-- `ui_hotbar.js` — Hotbar (keys 1..0), inventory & skills panels, pointer-event drag & drop (mouse + touch), tooltips, floating "+5 Камень" texts, right-hand equip.
-- `main.js` — Engine loop, game clock & pause (`isPaused`, `gameTime`, `setGameTimeout`), **location lifecycle** (`buildLocation`/`teardownLocation`/`changeLocation`, see §7), camera controller (Diablo tilt, RMB drag orbit, wheel zoom, compass reset), soft shadows, lighting. Only small integration hooks for the systems above (`this.gameState`, `this.worldObjects`, `this.skills`, `this.ui`).
-- `content/` — Data of items / props / skills / character skill lists, one folder per entity (§7b, `content/README.md` in Russian). Not loaded by the browser directly — bundled by `build_assets.py`.
-- `lib_js/` — Standalone vendor scripts (`three.min.js`, `GLTFLoader.js`, `Water.js`, `simplex-noise.js`).
+### 🎮 Runtime Files
+These files are executed directly by the browser when opening `Avelora.html`:
+- `Avelora.html` — Entry point, Diablo HUD (transparent coords readout, compass button, skill bar: ☰ menu button, 10 hotbar slots, skills 📖 button (inline SVG, hidden for characters without skills), inventory 🎒 button last; inventory & skills panels, item tooltip, drag ghost, HP bar), Escape pause menu (with control hints), canvas, and script tags.
+- `js/` — Game engine scripts, data bundles, and configs:
+  - `js/assets_data.js` — All binary models and textures serialized as Base64 strings in `window.GAME_ASSETS` (incl. `content/` models under keys like `'items/stone'`).
+  - `js/content_data.js` — **Generated** from `content/**` by `temp_work/build_assets.py`: `window.GAME_CONTENT = {items, props, skills, characters}`. Never edit by hand — see §7b.
+  - `js/world_data.js` — **Level Design Registry**. `window.LOCATIONS`: every location (terrain, water, spawns, exits, groups, decorations).
+  - `js/location_groups.js` — **Prefab groups** (`forest`, `reeds`, `rocks`, `meadow`). Expands a one-line group config into individual, seeded, terrain-aware objects (`expandLocationObjects()`).
+  - `js/terrain.js` — Procedural PBR terrain with analytical normals, multi-layer texturing, and support for `lake`, `coast`, and `island` water bodies.
+  - `js/water.js` — Photorealistic `THREE.Water` surface with Gerstner waves, sun reflection, and dynamic shore foam.
+  - `js/character.js` — Player controller, GLTF skeletal animation blending (idle/walk/run), movement interpolation.
+  - `js/characters.js` — Character catalog and rig configuration.
+  - `js/pathfinding.js` — A* navigation grid with obstacle radius registration and raycast string-pulling line-of-sight smoothing.
+  - `js/environment.js` — Instanced foliage manager (reeds, grass, flowers, shrubs, boulders, 3D trees).
+  - `js/items.js` — Item registry over `GAME_CONTENT.items` (`AveloraItems`), 32-cell `Inventory` model.
+  - `js/game_state.js` — Per-character persistent state (`AveloraState.load(charId)` → `CharacterState`).
+  - `js/world_objects.js` — Per-location item piles (`pickups`) and static `props`.
+  - `js/skills.js` — Skill registry/casting/cooldowns (`AveloraSkillSystem`).
+  - `js/creatures.js` — Creatures: spawn, skinned clone, AI, damage, death/respawn.
+  - `js/harvest.js` — Tree chopping: hits, fall, stump, ground drops, regrow.
+  - `js/combat.js` — Player HP / death & respawn / melee engagement.
+  - `js/ui_hotbar.js` — Hotbar, inventory & skills panels, drag & drop, tooltips.
+  - `js/main.js` — Engine loop, game clock & pause, location lifecycle, camera controller.
+  - `js/manifest.json` & `js/twa-manifest.json` — PWA and TWA configuration files.
+  - `js/sw.js` — Service worker for offline caching.
+- `js/lib/` — Standalone vendor scripts (`three.min.js`, `GLTFLoader.js`, `Water.js`, `simplex-noise.js`, `OrbitControls.js`).
+- `models/` — Game-ready 3D models (`models/characters/`, `models/buildings/`, `models/environment/`).
+- `content/` — Modular data of items / props / skills / creatures (§7b, `content/README.md` in Russian). Bundled into `js/content_data.js` and `js/assets_data.js` by `temp_work/build_assets.py`.
 
 ### 🛠️ Developer & Offline Tools (`temp_work/`)
 Python scripts and intermediate files are **NEVER** run by the browser. They are offline developer utilities run via terminal.
 *(See detailed reference in [`temp_work/README.md`](temp_work/README.md))*:
-- `temp_work/build_assets.py` — **Master Asset Bundler**: converts `.glb` models and `.jpg`/`.png` textures to Base64 in root `assets_data.js`, and bundles `content/**` into `content_data.js` (+ its models into `assets_data.js`).
-- `temp_work/optimize_tree_model.py` — **GLB Compressor**: downsizes high-res 4K scans to game-ready < 1 MB models with 512px textures.
-- `temp_work/create_reed_texture.py` — Procedural alpha cutout generator for reeds (`cattail_reed_diff.png`).
-- `temp_work/create_grass_clump_texture.py` — Procedural alpha cutout generator for grass clumps (`grass_clump_diff.png`).
-- `temp_work/create_true_seamless_ground.py` — Procedural seamless PBR meadow diffuse & normal map generator.
-- `temp_work/make_medieval_character.py` — Bakes medieval villager textures onto rigged models.
-- `lib/` — Storage for raw user-downloaded ZIP archives and 3D scans.
+- `temp_work/build_assets.py` — **Master Asset Bundler**: converts `.glb` models and textures to Base64 in `js/assets_data.js`, and bundles `content/**` into `js/content_data.js`.
+- `temp_work/build_perfect_mage.py` — Blender pipeline for assembling AzureArchmage model and animations.
+- `temp_work/optimize_tree_model.py` — **GLB Compressor**: downsizes high-res scans.
+- `temp_work/lib/` — Exchange folder for raw user-downloaded ZIP archives, scans and materials for processing.
 
 ---
 
-## 5. Level Design & Customization — legacy single-location notes (see world_data_help.txt and §7 for the current multi-location system)
-To modify or create locations, **only edit `world_data.js`**:
+## 5. Level Design & Customization — legacy single-location notes (see docs/world_data_help.txt and §7 for the current multi-location system)
+To modify or create locations, **only edit `js/world_data.js`**:
 
 ### Water Body Configurations:
 1. **Sea Coast** (Ocean covering one entire side of the map):
@@ -161,7 +173,7 @@ grass: [
 
 ## 7. Locations, Transitions & Prefab Groups
 
-Full player-facing guide: `world_data_help.txt`. Summary for future coding work:
+Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding work:
 
 - **One session, many locations.** `AveloraGame` owns the renderer, camera, character, sun and
   the single `LakesideWater` instance for the whole session. Everything specific to a location

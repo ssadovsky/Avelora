@@ -5,8 +5,8 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      - "twa-manifest.json"
-      - "manifest.json"
+      - "js/twa-manifest.json"
+      - "js/manifest.json"
       - ".github/workflows/build-twa.yml"
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
       - name: Regenerate Android project from twa-manifest.json
         run: |
           printf '%.0s\n' {1..30} > /tmp/answers.txt
-          bubblewrap update --manifest=./twa-manifest.json --skipVersionUpgrade < /tmp/answers.txt
+          bubblewrap update --manifest=./js/twa-manifest.json --skipVersionUpgrade < /tmp/answers.txt
 
       - name: Build signed APK and AAB
         env:
