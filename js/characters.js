@@ -91,13 +91,17 @@ window.CHARACTER_CATALOG = [
         // exist for all of these, so idleFallback is no longer needed.
         // 'greeting' plays once after IDLE_GREETING_DELAY (character.js) of
         // standing still, then returns to idle.
-        animMap: { idle: 'Idle', run: 'Running', greeting: 'Greeting', cast: 'Cast', attack: 'Attack' },
+        // ПРИМЕЧАНИЕ: attack намеренно не указываем в animMap, чтобы для ударов и рубки
+        // использовался процедурный взмах оружием startSwing (рубка вперед-вниз лезвием),
+        // а не карате-удар рукой/ногой из сырого клипа Meshy AI.
+        animMap: { idle: 'Idle', run: 'Running', greeting: 'Greeting', cast: 'Cast' },
         hasTravelerGear: false,
         // Новый молодой боевой маг на родном Meshy AI biped скелете
         scale: 1.05,
         facingOffset: Math.PI,
         maxHp: 90,
-        handGrip: { position: [0.022, 0.082, -0.004], rotation: [1.482, 0.4, -1.121] }
+        // Топор ориентирован лезвием вперед и вниз (Y = 1.5708 rad = 90 deg)
+        handGrip: { position: [0.0, 0.08, 0.0], rotation: [0.0, 1.5708, 0.0] }
     }
 ];
 

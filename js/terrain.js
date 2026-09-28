@@ -14,8 +14,9 @@ class LakesideTerrain {
         // `size` = playable square (meters). The visible terrain mesh extends `border`
         // meters beyond it on every side, so the camera never shows the edge of the world.
         this.size = options.size || locTerrain.size || 120;
-        this.segments = options.segments || locTerrain.segments || 160;
+        this.segments = options.segments || locTerrain.segments || 240; // 240x240 сетка для плавных холмов без low-poly ступеней
         this.border = (locTerrain.border !== undefined) ? locTerrain.border : 28;
+        this.biome = locTerrain.biome || 'forest';
 
         // Water body configuration (lake, coast, island)
         this.waterConfig = locTerrain.waterBody || locTerrain.lake || {
@@ -166,40 +167,63 @@ class LakesideTerrain {
         posAttr.needsUpdate = true;
         normAttr.needsUpdate = true;
 
-        // Load PBR Textures from base64 assets
+        // Load PBR Textures from base64 assets based on active biome
         const texLoader = new THREE.TextureLoader();
-        const beachDiff = texLoader.load(window.GAME_ASSETS.textures.beachDiff);
-        const meadowDiff = texLoader.load(window.GAME_ASSETS.textures.meadowDiff);
-        const meadowNor = texLoader.load(window.GAME_ASSETS.textures.meadowNor);
-        const rockDiff = texLoader.load(window.GAME_ASSETS.textures.rockDiff);
+        let grassDiff, grassNor, trailDiff, rockDiff, beachDiff;
 
-        this.textures = [beachDiff, meadowDiff, meadowNor, rockDiff];
-        [beachDiff, meadowDiff, meadowNor, rockDiff].forEach(tex => {
+        const assets = window.GAME_ASSETS && window.GAME_ASSETS.textures ? window.GAME_ASSETS.textures : {};
+
+        if (this.biome === 'goldshire') {
+            grassDiff = texLoader.load(assets.goldshireGrassDiff || assets.meadowDiff);
+            grassNor = texLoader.load(assets.goldshireGrassNor || assets.meadowNor);
+            trailDiff = texLoader.load(assets.goldshireTrailDiff || assets.gravelDiff || assets.beachDiff);
+            rockDiff = texLoader.load(assets.rockDiff);
+            beachDiff = texLoader.load(assets.beachDiff);
+        } else {
+            // forest / default
+            grassDiff = texLoader.load(assets.meadowDiff);
+            grassNor = texLoader.load(assets.meadowNor);
+            trailDiff = texLoader.load(assets.gravelDiff || assets.beachDiff);
+            rockDiff = texLoader.load(assets.rockDiff);
+            beachDiff = texLoader.load(assets.beachDiff);
+        }
+
+        this.textures = [grassDiff, grassNor, trailDiff, rockDiff, beachDiff];
+        this.textures.forEach(tex => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
             tex.anisotropy = 8;
         });
 
+        grassDiff.repeat.set(20, 20);
+        trailDiff.repeat.set(18, 18);
         beachDiff.repeat.set(14, 14);
-        meadowDiff.repeat.set(20, 20);
+        rockDiff.repeat.set(16, 16);
         // Normal map uses mesh UVs: keep ~6 m tiles regardless of map size
         const norRepeat = 20 * meshSize / 120;
-        meadowNor.repeat.set(norRepeat, norRepeat);
-        rockDiff.repeat.set(16, 16);
+        grassNor.repeat.set(norRepeat, norRepeat);
 
         // Standard Material with smooth PBR blending
         this.material = new THREE.MeshStandardMaterial({
-            roughness: 0.88,
+            roughness: 0.86,
             metalness: 0.04,
             flatShading: false,
-            normalMap: meadowNor,
+            normalMap: grassNor,
             normalScale: new THREE.Vector2(0.5, 0.5)
         });
 
+        // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
+        // скомпилированный шейдер первой локации для всех последующих!
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}`;
+
+        const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
+
         this.material.onBeforeCompile = (shader) => {
-            shader.uniforms.uBeachDiff = { value: beachDiff };
-            shader.uniforms.uMeadowDiff = { value: meadowDiff };
+            shader.uniforms.uGrassDiff = { value: grassDiff };
+            shader.uniforms.uTrailDiff = { value: trailDiff };
             shader.uniforms.uRockDiff = { value: rockDiff };
+            shader.uniforms.uBeachDiff = { value: beachDiff };
+            shader.uniforms.uBiome = { value: biomeId };
 
             shader.vertexShader = `
                 varying vec3 vWorldPosition;
@@ -216,9 +240,11 @@ class LakesideTerrain {
             );
 
             shader.fragmentShader = `
-                uniform sampler2D uBeachDiff;
-                uniform sampler2D uMeadowDiff;
+                uniform sampler2D uGrassDiff;
+                uniform sampler2D uTrailDiff;
                 uniform sampler2D uRockDiff;
+                uniform sampler2D uBeachDiff;
+                uniform float uBiome;
 
                 varying vec3 vWorldPosition;
                 varying vec3 vWorldNormal;
@@ -229,27 +255,66 @@ class LakesideTerrain {
                 '#include <map_fragment>',
                 `
                 vec2 uvShore = vWorldPosition.xz * 0.12;
-                vec2 uvMeadow = vWorldPosition.xz * 0.18;
-                vec2 uvRock = vWorldPosition.xz * 0.14;
+                vec2 uvGrass = vWorldPosition.xz * 0.16;
+                vec2 uvTrail = vWorldPosition.xz * 0.18;
+                vec2 uvRock  = vWorldPosition.xz * 0.14;
 
                 vec4 colBeach = texture2D(uBeachDiff, uvShore);
-                vec4 colMeadow = texture2D(uMeadowDiff, uvMeadow);
-                vec4 colRock = texture2D(uRockDiff, uvRock);
+                vec4 colGrass = texture2D(uGrassDiff, uvGrass);
+                vec4 colTrail = texture2D(uTrailDiff, uvTrail);
+                vec4 colRock  = texture2D(uRockDiff, uvRock);
 
-                // Shore weight: highest near water level Y in [-0.5, 0.6]
-                float shoreWeight = 1.0 - smoothstep(0.15, 0.85, vWorldPosition.y);
+                // Shore weight: highest near water level Y in [-0.5, 0.8]
+                float shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
 
-                // Rocky outcrop weight: moderate slope (normal.y < 0.82)
-                float cliffWeight = 1.0 - smoothstep(0.68, 0.85, vWorldNormal.y);
+                // Rocky outcrop weight: moderate slope (normal.y < 0.84)
+                float cliffWeight = 1.0 - smoothstep(0.68, 0.86, vWorldNormal.y);
 
-                // Base meadow, overlaid with beach sand near water, and rocky soil on slopes
-                vec3 terrainColor = mix(colMeadow.rgb, colBeach.rgb, shoreWeight);
-                terrainColor = mix(terrainColor, colRock.rgb, cliffWeight * 0.65);
+                vec3 terrainColor;
+
+                if (uBiome > 0.5 && uBiome < 1.5) {
+                    // === BIOME: GOLDSHIRE (Poly Haven High-Res Scanned Terrain) ===
+                    // Плавная извилистая дорога от портала (X~50, Z~6) к озеру (X~2, Z~4)
+                    float roadCurveZ = 5.2 + sin(vWorldPosition.x * 0.072) * 3.6;
+                    float roadDist = abs(vWorldPosition.z - roadCurveZ);
+                    float roadMask = 1.0 - smoothstep(1.6, 3.8, roadDist);
+                    roadMask *= smoothstep(0.0, 5.0, vWorldPosition.x);
+                    roadMask *= 1.0 - smoothstep(49.0, 53.0, vWorldPosition.x);
+
+                    // Смешивание сочной травы и грунтовой дороги из Poly Haven
+                    vec3 baseCol = mix(colGrass.rgb, colTrail.rgb, roadMask * 0.95);
+
+                    // Золотистый песок у озера
+                    terrainColor = mix(baseCol, colBeach.rgb, shoreWeight);
+
+                    // Скальные выходы на крутых склонах
+                    terrainColor = mix(terrainColor, colRock.rgb, cliffWeight * 0.80);
+
+                    // Насыщенность и контраст Poly Haven PBR
+                    terrainColor = pow(terrainColor, vec3(1.10));
+                } else if (uBiome > 1.5) {
+                    // === BIOME: VOLCANIC (Future Extensibility) ===
+                    vec3 ashCol = colRock.rgb * 0.35;
+                    vec3 lavaGlow = vec3(1.0, 0.35, 0.05);
+                    float lavaCracks = smoothstep(0.85, 0.98, sin(vWorldPosition.x * 0.25) * cos(vWorldPosition.z * 0.25));
+                    terrainColor = mix(ashCol, lavaGlow, lavaCracks * 0.85);
+                    terrainColor = mix(terrainColor, colRock.rgb * 0.5, cliffWeight);
+                } else {
+                    // === BIOME: FOREST (Classic Meadow) ===
+                    terrainColor = mix(colGrass.rgb, colBeach.rgb, shoreWeight);
+                    terrainColor = mix(terrainColor, colRock.rgb, cliffWeight * 0.65);
+                    terrainColor = pow(terrainColor, vec3(1.05));
+                }
 
                 // Shoreline moisture darkening right at water boundary
                 if (vWorldPosition.y < 0.25 && vWorldPosition.y > -0.4) {
                     terrainColor *= 0.85;
                 }
+
+                // Компенсация яркого освещения сцены (sun 1.45 + hemi 0.85 = 2.30x)
+                // Предотвращает выгорание и белёсый засвет земли
+                float macroVar = 0.62 + sin(vWorldPosition.x * 0.045) * cos(vWorldPosition.z * 0.045) * 0.05;
+                terrainColor *= macroVar;
 
                 diffuseColor = vec4(terrainColor, 1.0);
                 `

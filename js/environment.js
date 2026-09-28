@@ -583,27 +583,60 @@ class LakesideEnvironment {
     }
 
     createAlphaCutoutGrass() {
-        if (!window.GAME_ASSETS.textures.grassSprite) return;
         const grassPlacements = this.getDecorations('grass');
         if (grassPlacements.length === 0) return;
 
+        const locTerrain = (this.location && this.location.terrain) || {};
+        const isGoldshire = locTerrain.biome === 'goldshire';
+
+        // Настоящая 3D-модель травы из Poly Haven (grass.glb) используется для Goldshire (Локация 2)
+        if (isGoldshire && window.GAME_ASSETS && window.GAME_ASSETS.models && window.GAME_ASSETS.models.grass) {
+            this.loadModel('grass', (gltf) => {
+                let grassMesh = null;
+                gltf.scene.traverse(c => { if (c.isMesh && !grassMesh) grassMesh = c; });
+                if (!grassMesh) return;
+
+                const grassMat = grassMesh.material.clone();
+                grassMat.roughness = 0.75;
+                grassMat.metalness = 0.05;
+                this.addWindSway(grassMat, 2.6, 0.08, 0.25, 0.02);
+
+                this.buildInstanced('grass', [{ geometry: grassMesh.geometry, material: grassMat }], grassPlacements, (p, idx, d) => {
+                    const gy = this.terrain.getHeightAt(p.x, p.z);
+                    const scale = (p.s || 1.0) * 1.8;
+                    d.position.set(p.x, gy - 0.02, p.z);
+                    d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
+                    d.scale.set(scale, scale, scale);
+                }, { castShadow: false, reflect: false });
+            });
+            return;
+        }
+
+        const spriteKey = (isGoldshire && window.GAME_ASSETS && window.GAME_ASSETS.textures.goldshireGrassSprite)
+            ? 'goldshireGrassSprite'
+            : 'grassSprite';
+
+        if (!window.GAME_ASSETS || !window.GAME_ASSETS.textures || !window.GAME_ASSETS.textures[spriteKey]) return;
+
         // Star-quad geometry: 3 vertical planes at 60 degree angles (*)
-        const grassGeo = LakesideEnvironment.makeCrossQuad(0.95, 0.65, 3);
-        const grassTex = this.loadTexture('grassSprite');
+        const gw = 0.85;
+        const gh = 0.55;
+        const grassGeo = LakesideEnvironment.makeCrossQuad(gw, gh, 3);
+        const grassTex = this.loadTexture(spriteKey);
         grassTex.anisotropy = 4;
 
         const grassMat = new THREE.MeshStandardMaterial({
             map: grassTex,
             alphaTest: 0.45,
             side: THREE.DoubleSide,
-            roughness: 0.72,
-            metalness: 0.05
+            roughness: 0.70,
+            metalness: 0.04
         });
-        this.addWindSway(grassMat, 2.8, 0.12, 0.65, 0.05);
+        this.addWindSway(grassMat, 2.6, 0.12, gh, 0.05);
 
         this.buildInstanced('grass', [{ geometry: grassGeo, material: grassMat }], grassPlacements, (p, idx, d) => {
             const gy = this.terrain.getHeightAt(p.x, p.z);
-            const scale = p.s || 1.2;
+            const scale = (p.s || 1.0);
             d.position.set(p.x, gy - 0.02, p.z);
             d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
             d.scale.set(scale, scale, scale);

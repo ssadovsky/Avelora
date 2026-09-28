@@ -67,6 +67,8 @@ window.LOCATIONS = {
         terrain: {
             size: 120,          // игровая область 120 x 120 м (от -60 до 60)
             seed: 9127,         // другой seed = другие холмы
+            biome: 'forest',    // лесной биом
+            segments: 240,      // повышенная детализация сетки для гладких холмов
             baseHeight: 1.7,    // земля выше уровня воды -> нет случайных луж (по умолчанию 0.85)
             waterBody: {
                 type: 'lake',   // небольшой лесной пруд
@@ -135,7 +137,7 @@ window.LOCATIONS = {
             { id: 'hill_rat_1',  type: 'rat',  x: 27.0,  z: 19.0 },
             { id: 'hill_rat_2',  type: 'rat',  x: 29.5,  z: 26.0 },
             { id: 'portal_boar', type: 'boar', x: -49.5, z: 9.5,  r: 1.57 },
-            { id: 'stump_fawn',  type: 'fawn', x: 3.2,   z: 16.5, r: 2.4 }
+            { id: 'stump_fawn',  type: 'fawn', x: -8.0,  z: -12.0, r: 1.2 }
         ],
 
         pickups: [
@@ -180,6 +182,8 @@ window.LOCATIONS = {
         terrain: {
             size: 120,
             seed: 4242,
+            biome: 'goldshire', // WoW Златоземье: сочная изумрудная трава, грунтовые дорожки, стилизованные скалы
+            segments: 240,      // гладкий рельеф без ступеней
 
             // ТИП ВОДОЕМА:
             // 1. 'lake'   - Замкнутое озеро в любой точке карты
@@ -210,10 +214,14 @@ window.LOCATIONS = {
         ],
 
         clearings: [
-            { x: 46.0, z: 6.0, radius: 6.0 }
+            { x: 46.0, z: 6.0, radius: 2.5 }
         ],
 
         groups: [
+            // Поляны с травой и цветами вдоль дороги от портала
+            { id: 'meadow_portal_n', type: 'meadow', x: 40.0, z: 12.0,  radius: 7.0,  count: 35, flowers: 6, seed: 117 },
+            { id: 'meadow_portal_s', type: 'meadow', x: 41.0, z: -1.0,  radius: 7.0,  count: 35, flowers: 5, seed: 118 },
+
             // Заросли камыша вдоль берега (с просветами открытого пляжа)
             { id: 'reeds_east',      type: 'reeds', x: 5.5,   z: -6.0,  radius: 7.0, count: 45, seed: 101 },
             { id: 'reeds_northeast', type: 'reeds', x: -1.0,  z: -19.0, radius: 7.0, count: 40, seed: 102 },

@@ -735,8 +735,12 @@ class MedievalCharacter {
                     return;
                 }
             } else {
-                // Smooth rotation towards heading (facing forward) — "design"
-                // domain, see the facingOffset comment in the constructor.
+                // =========================================================================
+                // !!! ВНИМАНИЕ: СТРОГО ЗАПРЕЩЕНО МЕНЯТЬ ЭТИ СТРОКИ И ЛОГИКУ ДВИЖЕНИЯ/ПОВОРОТА !!!
+                // Любые изменения этой формулы (this.targetRotation = Math.atan2(dx, dz) + Math.PI)
+                // или сглаживания currentRotation приводят к критическому багу «бега задом» у персонажей!
+                // Поправка ориентации моделей настраивается ИСКЛЮЧИТЕЛЬНО через facingOffset в js/characters.js!
+                // =========================================================================
                 this.targetRotation = Math.atan2(dx, dz) + Math.PI;
                 // Angular shortest path
                 let diff = this.targetRotation - this.currentRotation;
@@ -773,6 +777,7 @@ class MedievalCharacter {
 
         if (this.mesh) {
             this.mesh.position.copy(this.position);
+            // !!! НЕ ТРОГАТЬ: расчет рыскания меша жестко привязан к currentRotation и facingOffset !!!
             this.mesh.rotation.y = this.currentRotation + this.facingOffset;
             if (this.swing) this.applySwingOverlay(delta);
         }
