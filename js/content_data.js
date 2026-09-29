@@ -11,7 +11,13 @@ window.GAME_CONTENT = {
    "ground": {
     "variants": 1,
     "scale": 1.0,
-    "pile": "single"
+    "pile": "single",
+    "rotation": [
+     1.5708,
+     0,
+     0
+    ],
+    "offsetY": 0.025
    },
    "use": {
     "type": "equip",
@@ -68,7 +74,13 @@ window.GAME_CONTENT = {
    "ground": {
     "variants": 1,
     "scale": 1.0,
-    "pile": "single"
+    "pile": "single",
+    "rotation": [
+     1.5708,
+     0,
+     0
+    ],
+    "offsetY": 0.04
    },
    "use": {
     "type": "equip",

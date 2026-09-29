@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar .skill-slot, #inventory-panel, #skills-panel, #item-tooltip, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar .skill-slot, #inventory-panel, #skills-panel, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -805,6 +805,19 @@ class AveloraGame {
         if (pauseSettingsBtn) pauseSettingsBtn.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('settings'); });
         if (pauseControlsBack) pauseControlsBack.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('main'); });
         if (pauseSettingsBack) pauseSettingsBack.addEventListener('click', (e) => { e.stopPropagation(); this.showPausePanel('main'); });
+
+        const pauseTabs = document.querySelectorAll('.pause-tab-btn');
+        pauseTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const target = tab.dataset.tab;
+                pauseTabs.forEach(t => t.classList.toggle('active', t === tab));
+                const contents = document.querySelectorAll('.pause-tab-content');
+                contents.forEach(c => {
+                    c.classList.toggle('active', c.id === `tab-controls-${target}`);
+                });
+            });
+        });
 
         const resetAllBtn = document.getElementById('reset-all-data-btn');
         if (resetAllBtn) {

@@ -79,9 +79,11 @@
             this.tooltip = document.getElementById('item-tooltip');
             this.ghost = document.getElementById('drag-ghost');
             this.labelsEl = document.getElementById('world-labels');
+            this.quantityModal = document.getElementById('quantity-modal');
 
             this.buildSlots();
             this.buildInventoryCells();
+            this.setupQuantityModal();
             this.setupEvents();
         }
 
@@ -388,12 +390,226 @@
             x = Math.max(6, Math.min(window.innerWidth - tw - 6, x));
             let y = r.top - th - 8;
             if (y < 6) y = r.bottom + 8;
+            if (y + th > window.innerHeight - 6) y = Math.max(6, window.innerHeight - th - 6);
             t.style.left = `${x}px`;
             t.style.top = `${y}px`;
         }
 
         hideTooltip() {
-            if (this.tooltip) this.tooltip.classList.add('hidden');
+            if (this.tooltip) {
+                this.tooltip.classList.add('hidden');
+                this.tooltip.classList.remove('interactive');
+            }
+        }
+
+        /**
+         * Interactive item card shown on tap (mobile) or click (desktop) on an inventory cell.
+         * Contains description and actionable buttons: Equip/Unequip, Split stack, Drop.
+         */
+        showItemCard(src) {
+            if (!this.tooltip) return;
+            const def = window.AveloraItems.get(src.item);
+            if (!def) return;
+            const st = this.state;
+            const isEquipped = st && st.equipped && st.equipped.right === src.item;
+
+            this.tooltip.innerHTML = '';
+            this.tooltip.classList.remove('warn');
+            this.tooltip.classList.add('interactive');
+
+            const n = document.createElement('div'); n.className = 'tt-name'; n.textContent = def.name;
+            const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = def.description || '';
+            const m = document.createElement('div'); m.className = 'tt-meta';
+            m.textContent = `Количество: ${src.count} · ${def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал'}`;
+
+            this.tooltip.append(n, d, m);
+
+            // Action buttons row (tap on mobile or click on PC)
+            const actions = document.createElement('div');
+            actions.className = 'tt-actions';
+
+            if (def.use && def.use.type === 'equip') {
+                const btnEquip = document.createElement('button');
+                btnEquip.className = 'tt-btn';
+                btnEquip.textContent = isEquipped ? 'Снять' : 'Надеть';
+                btnEquip.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideTooltip();
+                    st.setEquipped('right', isEquipped ? null : src.item);
+                    this.applyEquipment();
+                });
+                actions.appendChild(btnEquip);
+            }
+
+            if (src.count > 1) {
+                const btnSplit = document.createElement('button');
+                btnSplit.className = 'tt-btn';
+                btnSplit.textContent = '✂ Разделить';
+                btnSplit.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideTooltip();
+                    const emptyIdx = st.inventory.firstEmpty();
+                    if (emptyIdx < 0) {
+                        this.showMessageAt(src.el, 'Нет свободных ячеек в сумке');
+                        return;
+                    }
+                    this.openQuantityModal({
+                        mode: 'split',
+                        item: src.item,
+                        totalCount: src.count,
+                        max: src.count - 1,
+                        initial: Math.floor(src.count / 2),
+                        onConfirm: (count) => {
+                            st.inventory.split(src.index, -1, count);
+                        }
+                    });
+                });
+                actions.appendChild(btnSplit);
+            }
+
+            const btnDrop = document.createElement('button');
+            btnDrop.className = 'tt-btn drop';
+            btnDrop.textContent = '⏏ Выбросить';
+            btnDrop.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideTooltip();
+                if (src.count === 1) {
+                    this.game.worldObjects.dropFromInventory(src.index);
+                } else {
+                    this.openQuantityModal({
+                        mode: 'drop',
+                        item: src.item,
+                        totalCount: src.count,
+                        max: src.count,
+                        initial: src.count,
+                        onConfirm: (count) => {
+                            this.game.worldObjects.dropFromInventory(src.index, count);
+                        }
+                    });
+                }
+            });
+            actions.appendChild(btnDrop);
+
+            this.tooltip.appendChild(actions);
+            this.placeTooltip(src.el);
+        }
+
+        setupQuantityModal() {
+            if (!this.quantityModal) return;
+            this.qmTitle = document.getElementById('quantity-modal-title');
+            this.qmIcon = document.getElementById('quantity-item-icon');
+            this.qmName = document.getElementById('quantity-item-name');
+            this.qmDesc = document.getElementById('quantity-item-desc');
+            this.qmInput = document.getElementById('quantity-input');
+            this.qmSlider = document.getElementById('quantity-slider');
+            this.qmDec = document.getElementById('quantity-dec');
+            this.qmInc = document.getElementById('quantity-inc');
+            this.qmConfirm = document.getElementById('quantity-confirm');
+            this.qmCancel = document.getElementById('quantity-cancel');
+            this.qmClose = document.getElementById('quantity-modal-close');
+            this.qmPresets = Array.from(this.quantityModal.querySelectorAll('.quantity-preset-btn'));
+
+            const updateVal = (v) => {
+                const min = parseInt(this.qmInput.min, 10) || 1;
+                const max = parseInt(this.qmInput.max, 10) || 1;
+                let val = Math.max(min, Math.min(max, parseInt(v, 10) || min));
+                this.qmInput.value = String(val);
+                this.qmSlider.value = String(val);
+            };
+
+            if (this.qmSlider) this.qmSlider.addEventListener('input', () => updateVal(this.qmSlider.value));
+            if (this.qmInput) this.qmInput.addEventListener('input', () => updateVal(this.qmInput.value));
+            if (this.qmDec) this.qmDec.addEventListener('click', () => updateVal((parseInt(this.qmInput.value, 10) || 1) - 1));
+            if (this.qmInc) this.qmInc.addEventListener('click', () => updateVal((parseInt(this.qmInput.value, 10) || 1) + 1));
+
+            this.qmPresets.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const preset = btn.dataset.preset;
+                    const max = parseInt(this.qmInput.max, 10) || 1;
+                    if (preset === '1') updateVal(1);
+                    else if (preset === 'half') updateVal(Math.max(1, Math.floor(max / 2)));
+                    else if (preset === 'all') updateVal(max);
+                });
+            });
+
+            const close = () => {
+                this.quantityModal.classList.add('hidden');
+                if (this._qmCallbackCancel) this._qmCallbackCancel();
+                this._qmCallbackConfirm = null;
+                this._qmCallbackCancel = null;
+            };
+
+            const confirm = () => {
+                const count = parseInt(this.qmInput.value, 10) || 1;
+                this.quantityModal.classList.add('hidden');
+                if (this._qmCallbackConfirm) this._qmCallbackConfirm(count);
+                this._qmCallbackConfirm = null;
+                this._qmCallbackCancel = null;
+            };
+
+            if (this.qmCancel) this.qmCancel.addEventListener('click', close);
+            if (this.qmClose) this.qmClose.addEventListener('click', close);
+            if (this.qmConfirm) this.qmConfirm.addEventListener('click', confirm);
+            this.quantityModal.addEventListener('click', (e) => {
+                if (e.target === this.quantityModal) close();
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (this.quantityModal && !this.quantityModal.classList.contains('hidden')) {
+                    if (e.code === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        confirm();
+                    } else if (e.code === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        close();
+                    }
+                }
+            });
+        }
+
+        openQuantityModal({ mode, item, totalCount, max, initial, onConfirm, onCancel }) {
+            if (!this.quantityModal) return;
+            this.hideTooltip();
+            const def = window.AveloraItems.get(item);
+            this._qmCallbackConfirm = onConfirm;
+            this._qmCallbackCancel = onCancel;
+
+            if (this.qmTitle) this.qmTitle.textContent = mode === 'drop' ? 'Выбросить предмет' : 'Разделить стек';
+            if (this.qmConfirm) {
+                this.qmConfirm.textContent = mode === 'drop' ? 'Выбросить' : 'Разделить';
+                this.qmConfirm.className = `quantity-btn confirm ${mode === 'drop' ? 'drop' : ''}`;
+            }
+            if (this.qmName) this.qmName.textContent = def ? def.name : item;
+            if (this.qmDesc) this.qmDesc.textContent = `В ячейке: ${totalCount} шт.`;
+
+            if (this.qmIcon) {
+                this.qmIcon.innerHTML = '';
+                this.qmIcon.appendChild(makeIcon(def));
+            }
+
+            const min = 1;
+            const maxVal = Math.max(1, max);
+            const initVal = Math.max(min, Math.min(maxVal, initial !== undefined ? initial : maxVal));
+
+            if (this.qmInput) {
+                this.qmInput.min = String(min);
+                this.qmInput.max = String(maxVal);
+                this.qmInput.value = String(initVal);
+            }
+
+            if (this.qmSlider) {
+                this.qmSlider.min = String(min);
+                this.qmSlider.max = String(maxVal);
+                this.qmSlider.value = String(initVal);
+            }
+
+            this.quantityModal.classList.remove('hidden');
+            if (this.qmInput) {
+                this.qmInput.focus();
+                this.qmInput.select();
+            }
         }
 
         // -----------------------------------------------------------
@@ -508,7 +724,14 @@
             }
 
             // Press on any drag source (delegated)
-            document.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+            document.addEventListener('pointerdown', (e) => {
+                if (this.tooltip && this.tooltip.classList.contains('interactive')) {
+                    if (!this.tooltip.contains(e.target) && !e.target.closest('.inventory-cell')) {
+                        this.hideTooltip();
+                    }
+                }
+                this.onPointerDown(e);
+            });
             window.addEventListener('pointermove', (e) => this.onPointerMove(e));
             window.addEventListener('pointerup', (e) => this.onPointerUp(e));
             window.addEventListener('pointercancel', () => this.cancelDrag());
@@ -516,11 +739,13 @@
             // Hover tooltips (mouse only)
             document.addEventListener('pointerover', (e) => {
                 if (e.pointerType !== 'mouse' || this.drag) return;
+                if (this.tooltip && this.tooltip.classList.contains('interactive')) return;
                 const src = this.sourceFromEl(e.target);
                 if (src) this.showSourceTooltip(src);
             });
             document.addEventListener('pointerout', (e) => {
                 if (e.pointerType !== 'mouse') return;
+                if (this.tooltip && this.tooltip.classList.contains('interactive')) return;
                 const src = this.sourceFromEl(e.target);
                 if (src && !(e.relatedTarget && src.el.contains(e.relatedTarget)) && !(this.tooltip && this.tooltip.classList.contains('warn'))) this.hideTooltip();
             });
@@ -568,7 +793,17 @@
             if (!this.inputAllowed()) return;
             const src = this.sourceFromEl(e.target);
             if (!src) return;
-            this.drag = { src, x: e.clientX, y: e.clientY, pointerId: e.pointerId, pointerType: e.pointerType, active: false, over: null };
+            this.drag = {
+                src,
+                x: e.clientX,
+                y: e.clientY,
+                pointerId: e.pointerId,
+                pointerType: e.pointerType,
+                active: false,
+                over: null,
+                shiftKey: !!e.shiftKey,
+                ctrlKey: !!e.ctrlKey
+            };
             if (e.pointerType !== 'mouse') e.preventDefault(); // no emulated mouse/click storm on touch
         }
 
@@ -594,8 +829,30 @@
             this.drag = null;
             if (!d.active) {
                 // Plain tap/click
-                if (d.src.kind === 'slot') this.activateSlot(d.src.index);
-                else if (d.pointerType !== 'mouse') {
+                if (d.src.kind === 'slot') {
+                    this.activateSlot(d.src.index);
+                } else if (d.src.kind === 'inv') {
+                    if (e.shiftKey && d.src.count > 1) {
+                        // Desktop Shift+Click on stack -> instant split dialog!
+                        const emptyIdx = this.state ? this.state.inventory.firstEmpty() : -1;
+                        if (emptyIdx < 0) {
+                            this.showMessageAt(d.src.el, 'Нет свободных ячеек в сумке');
+                            return;
+                        }
+                        this.openQuantityModal({
+                            mode: 'split',
+                            item: d.src.item,
+                            totalCount: d.src.count,
+                            max: d.src.count - 1,
+                            initial: Math.floor(d.src.count / 2),
+                            onConfirm: (count) => {
+                                if (this.state) this.state.inventory.split(d.src.index, -1, count);
+                            }
+                        });
+                        return;
+                    }
+                    this.showItemCard(d.src);
+                } else if (d.pointerType !== 'mouse') {
                     // Touch: no hover, so a tap shows the tooltip for a moment
                     this.showSourceTooltip(d.src);
                     clearTimeout(this.tooltipTimer);
@@ -603,6 +860,8 @@
                 }
                 return;
             }
+            d.shiftKey = e.shiftKey || d.shiftKey;
+            d.ctrlKey = e.ctrlKey || d.ctrlKey;
             this.finishDrag(d, e.clientX, e.clientY);
         }
 
@@ -685,6 +944,20 @@
                 return;
             }
             if (tgt && tgt.kind === 'inv' && src.kind === 'inv') {
+                if (d.shiftKey && src.count > 1 && src.index !== tgt.index) {
+                    // Shift-drag in backpack: split onto this specific target cell!
+                    this.openQuantityModal({
+                        mode: 'split',
+                        item: src.item,
+                        totalCount: src.count,
+                        max: src.count - 1,
+                        initial: Math.floor(src.count / 2),
+                        onConfirm: (count) => {
+                            st.inventory.split(src.index, tgt.index, count);
+                        }
+                    });
+                    return;
+                }
                 st.inventory.move(src.index, tgt.index);
                 return;
             }
@@ -695,7 +968,26 @@
             }
             // Bag cell released over the game world (not over any panel/HUD) -> drop the stack there
             if (src.kind === 'inv' && !tgt && this.isOverWorld(x, y) && this.game.worldObjects) {
-                this.game.worldObjects.dropFromInventory(src.index);
+                if (src.count <= 1 || d.shiftKey) {
+                    // Single item or Shift-drag: drop entire stack immediately!
+                    this.game.worldObjects.dropFromInventory(src.index);
+                } else if (d.ctrlKey) {
+                    // Ctrl-drag on PC: drop exactly 1 item!
+                    this.game.worldObjects.dropFromInventory(src.index, 1);
+                } else {
+                    // Open drop quantity modal!
+                    this.openQuantityModal({
+                        mode: 'drop',
+                        item: src.item,
+                        totalCount: src.count,
+                        max: src.count,
+                        initial: src.count,
+                        onConfirm: (count) => {
+                            this.game.worldObjects.dropFromInventory(src.index, count);
+                        }
+                    });
+                }
+                return;
             }
         }
 
@@ -704,7 +996,7 @@
             if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
             const el = document.elementFromPoint(x, y);
             if (!el) return false;
-            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #skills-panel';
+            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #skills-panel, #quantity-modal, #item-tooltip';
             return !(el.closest && el.closest(sel));
         }
 

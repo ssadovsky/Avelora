@@ -271,6 +271,57 @@
             return { item: c.item, count: c.count };
         }
 
+        /**
+         * Removes up to `count` items from a specific cell.
+         * Returns { item, count } or null if empty/invalid.
+         */
+        removeCountAt(index, count) {
+            const c = this.cells[index];
+            if (!c || count <= 0) return null;
+            const take = Math.min(c.count, count);
+            c.count -= take;
+            const item = c.item;
+            if (c.count <= 0) this.cells[index] = null;
+            this.changed();
+            return { item, count: take };
+        }
+
+        /**
+         * Splits a stack: moves `count` items from cell `from` into cell `to`.
+         * If `to` is omitted or < 0, finds the first empty cell in the bag.
+         */
+        split(from, to, count) {
+            if (from === to || from < 0 || from >= this.cells.length) return false;
+            const a = this.cells[from];
+            if (!a || count <= 0 || a.count <= count) return false;
+            if (to === undefined || to === null || to < 0 || to >= this.cells.length) {
+                to = this.firstEmpty();
+                if (to < 0) return false; // Bag full
+            }
+            const b = this.cells[to];
+            if (b) {
+                if (b.item !== a.item) return false;
+                const max = AveloraItems.stackMax(a.item);
+                const canAdd = max - b.count;
+                if (canAdd <= 0) return false;
+                const actual = Math.min(count, canAdd, a.count - 1);
+                if (actual <= 0) return false;
+                b.count += actual;
+                a.count -= actual;
+            } else {
+                const actual = Math.min(count, a.count - 1);
+                if (actual <= 0) return false;
+                this.cells[to] = { item: a.item, count: actual };
+                a.count -= actual;
+            }
+            this.changed();
+            return true;
+        }
+
+        firstEmpty() {
+            return this.cells.findIndex(c => !c);
+        }
+
         toJSON() {
             return this.cells.map(c => (c ? { item: c.item, count: c.count } : null));
         }

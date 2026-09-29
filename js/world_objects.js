@@ -238,7 +238,7 @@
             layout.forEach(l => {
                 const obj = pile.variants[l.v % pile.variants.length].clone();
                 obj.position.set(l.x, l.y, l.z);
-                obj.rotation.set(l.rx || 0, l.ry || 0, l.rz || 0);
+                obj.rotation.set(l.rx || 0, l.ry || 0, l.rz || 0, l.order || 'XYZ');
                 obj.scale.setScalar(scale);
                 group.add(obj);
                 footprint = Math.max(footprint, Math.hypot(l.x, l.z) + 0.25);
@@ -291,11 +291,24 @@
         layoutSingle(pile) {
             const p = pile.data;
             const rng = rngFor(pile.id);
-            const baseY = this.groundY(p.x, p.z) + (p.y || 0) - 0.01;
+            const gConf = (pile.def && pile.def.ground) || {};
+            const isEquip = pile.def && pile.def.use && pile.def.use.type === 'equip';
+            const offsetY = gConf.offsetY !== undefined ? gConf.offsetY : (isEquip ? 0.03 : 0);
+            const baseY = this.groundY(p.x, p.z) + (p.y || 0) + offsetY - 0.01;
+
             if (Array.isArray(p.rotation)) {
                 return [{ v: 0, x: 0, y: baseY, z: 0, rx: p.rotation[0] || 0, ry: p.rotation[1] || 0, rz: p.rotation[2] || 0 }];
             }
-            return [{ v: 0, x: 0, y: baseY, z: 0, ry: p.r !== undefined ? p.r : rng() * Math.PI * 2 }];
+
+            const yaw = p.r !== undefined ? p.r : rng() * Math.PI * 2;
+            if (Array.isArray(gConf.rotation)) {
+                return [{ v: 0, x: 0, y: baseY, z: 0, rx: gConf.rotation[0] || 0, ry: yaw, rz: gConf.rotation[2] || 0, order: 'YXZ' }];
+            }
+            if (isEquip) {
+                // Hand-held tools and weapons modeled along +Y lie flat horizontally on the terrain
+                return [{ v: 0, x: 0, y: baseY, z: 0, rx: Math.PI / 2, ry: yaw, rz: 0, order: 'YXZ' }];
+            }
+            return [{ v: 0, x: 0, y: baseY, z: 0, ry: yaw }];
         }
 
         /** Natural heap: most items on the ground in a loose cluster, the rest resting in the gaps on top. */
@@ -537,8 +550,11 @@
          * Drops the WHOLE stack of a bag cell at the character's feet (slightly
          * in front, on walkable ground). Dropping the equipped item unequips it
          * (the hotbar binding stays — it just greys out).
+        /**
+         * Drops a stack (or a specified count of items) from a bag cell at the
+         * character's feet. If count is omitted or >= stack count, drops the whole cell.
          */
-        dropFromInventory(cellIndex) {
+        dropFromInventory(cellIndex, count = null) {
             const st = this.state;
             const c = this.game.character;
             if (!st || !c) return false;
@@ -549,7 +565,9 @@
             const rot = c.currentRotation;
             const fx = -Math.sin(rot), fz = -Math.cos(rot);
             const spot = this.findDropSpot(c.position.x + fx * 0.85, c.position.z + fz * 0.85, c.position.x, c.position.z);
-            const taken = st.inventory.removeAt(cellIndex); // saves
+            const taken = (count && count > 0 && count < cell.count)
+                ? st.inventory.removeCountAt(cellIndex, count)
+                : st.inventory.removeAt(cellIndex); // saves
             if (!taken) return false;
             if (st.equipped.right === taken.item && st.inventory.count(taken.item) <= 0) {
                 st.setEquipped('right', null);
