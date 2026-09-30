@@ -706,6 +706,496 @@
             filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px rgba(239, 207, 122, 0.65));
         }
 
+        /* Health Potion button (#potion-btn) */
+        .skill-slot.potion-slot {
+            position: relative;
+            overflow: visible;
+        }
+        .potion-slot-icon {
+            width: 78%;
+            height: 78%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .potion-slot-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.85));
+        }
+        .skill-slot.potion-slot.empty-potion .potion-slot-icon {
+            display: none;
+        }
+        .potion-empty-text {
+            font-size: 0.58rem;
+            color: #8c7b65;
+            font-weight: 700;
+            letter-spacing: 0.02rem;
+            text-transform: uppercase;
+            pointer-events: none;
+            display: none;
+        }
+        .skill-slot.potion-slot.empty-potion .potion-empty-text {
+            display: block;
+        }
+        .potion-slot-count {
+            position: absolute;
+            right: 2px;
+            bottom: 1px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #f1e2c8;
+            text-shadow: 0 1px 2px #000, 0 0 4px #000;
+            pointer-events: none;
+        }
+        .potion-auto-badge {
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            font-size: 0.52rem;
+            font-weight: 800;
+            color: #4ade80;
+            background: rgba(10, 28, 14, 0.95);
+            border: 1px solid rgba(74, 222, 128, 0.7);
+            border-radius: 2px;
+            padding: 0 2px;
+            line-height: 1.1;
+            box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+            pointer-events: none;
+        }
+        .potion-auto-badge.hidden {
+            display: none;
+        }
+
+        /* ---------------------------------------------------------------
+           Hero Micro-Menu (slide-up dock bar)
+           --------------------------------------------------------------- */
+        .micromenu-container {
+            position: relative;
+            display: inline-flex;
+            pointer-events: auto;
+        }
+
+        .skill-slot.micromenu-toggle {
+            position: relative;
+            z-index: 102;
+            cursor: pointer;
+            background: linear-gradient(180deg, #2b2416 0%, #171510 100%);
+            border: 1.5px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        .skill-slot.micromenu-toggle:hover,
+        .skill-slot.micromenu-toggle.open {
+            border-color: #fff0be;
+            box-shadow: 0 0 14px rgba(239, 207, 122, 0.6), inset 0 0 8px rgba(212, 175, 55, 0.3);
+        }
+        .micromenu-toggle .micromenu-icon {
+            width: 72%;
+            height: 72%;
+            transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        .skill-slot.micromenu-toggle.open .micromenu-icon {
+            transform: rotate(45deg) scale(1.08);
+        }
+
+        /* Slide-up Micro-menu Dock */
+        .micromenu-dock {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            right: 0;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 5px;
+            padding: 7px 6px;
+            background: rgba(14, 18, 20, 0.96);
+            border: 1.5px solid rgba(212, 175, 55, 0.55);
+            border-radius: 6px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85), 0 0 18px rgba(212, 175, 55, 0.2);
+            backdrop-filter: blur(8px);
+            z-index: 101;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(12px) scale(0.94);
+            transform-origin: bottom right;
+            transition: opacity 0.18s cubic-bezier(0.2, 0.9, 0.3, 1), transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        .micromenu-dock.open {
+            pointer-events: auto;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .micromenu-dock.hidden {
+            display: none;
+        }
+
+        /* Micro-menu Items */
+        .micromenu-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 140px;
+            height: 34px;
+            padding: 0 8px;
+            background: rgba(22, 28, 30, 0.88);
+            border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 4px;
+            color: #f1e2c8;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.14s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .micromenu-item svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+        }
+        .micromenu-label {
+            font-family: inherit;
+            font-size: 0.82rem;
+            letter-spacing: 0.04rem;
+            flex: 1;
+            white-space: nowrap;
+        }
+        .micromenu-key {
+            font-size: 0.68rem;
+            color: #b9a47a;
+            background: rgba(10, 14, 16, 0.85);
+            border: 1px solid rgba(195, 160, 95, 0.25);
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-weight: 600;
+        }
+        .micromenu-item:hover,
+        .micromenu-item.active {
+            background: rgba(195, 160, 95, 0.25);
+            border-color: #efcf7a;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(239, 207, 122, 0.35);
+            transform: translateX(-2px);
+        }
+        .micromenu-item:hover .micromenu-key,
+        .micromenu-item.active .micromenu-key {
+            color: #efcf7a;
+            border-color: #efcf7a;
+        }
+
+        /* Hero & Quests Modals */
+        #hero-panel,
+        #quests-panel {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 340px;
+            max-width: 92vw;
+            background: rgba(12, 16, 18, 0.95);
+            border: 1.5px solid rgba(212, 175, 55, 0.6);
+            border-radius: 6px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.25);
+            padding: 16px 18px 20px;
+            z-index: 900;
+            display: none;
+            backdrop-filter: blur(8px);
+            cursor: default;
+        }
+        #hero-panel.open,
+        #quests-panel.open {
+            display: block;
+            animation: modalFadeIn 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: translate(-50%, -46%) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        }
+        .panel-title {
+            font-size: 1.05rem;
+            color: #efcf7a;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .panel-close {
+            font-family: inherit;
+            font-size: 1.25rem;
+            line-height: 1;
+            width: 24px;
+            height: 24px;
+            color: #b9a47a;
+            background: transparent;
+            border: 1px solid rgba(195, 160, 95, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: all 0.15s ease;
+        }
+        .panel-close:hover {
+            color: #efcf7a;
+            border-color: #efcf7a;
+            background: rgba(212, 175, 55, 0.2);
+        }
+
+        /* Hero Panel Body */
+        .hero-profile-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+            padding: 8px 10px;
+            background: rgba(20, 25, 28, 0.7);
+            border: 1px solid rgba(195, 160, 95, 0.2);
+            border-radius: 4px;
+        }
+        .hero-avatar-badge {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #382e1c 0%, #15130e 100%);
+            border: 1.5px solid #d4af37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+        .hero-name-block {
+            flex: 1;
+        }
+        .hero-name {
+            font-size: 1.0rem;
+            font-weight: 600;
+            color: #f1e2c8;
+            letter-spacing: 0.04rem;
+        }
+        .hero-class {
+            font-size: 0.76rem;
+            color: #b9a47a;
+            margin-top: 1px;
+            font-style: italic;
+        }
+
+        /* Hero HP Bar */
+        .hero-hp-container {
+            margin-bottom: 14px;
+        }
+        .hero-hp-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: #d8cbb5;
+            margin-bottom: 4px;
+        }
+        .hero-hp-track {
+            height: 10px;
+            background: rgba(20, 10, 10, 0.85);
+            border: 1px solid rgba(180, 50, 50, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7);
+        }
+        .hero-hp-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #c62828 0%, #ef5350 100%);
+            box-shadow: 0 0 8px rgba(239, 83, 80, 0.6);
+            transition: width 0.25s ease;
+        }
+
+        /* Hero Stats Grid */
+        .hero-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .hero-stat-card {
+            background: rgba(18, 22, 24, 0.75);
+            border: 1px solid rgba(195, 160, 95, 0.18);
+            border-radius: 4px;
+            padding: 6px 8px;
+        }
+        .hero-stat-label {
+            font-size: 0.68rem;
+            color: #8f9c9b;
+            text-transform: uppercase;
+            letter-spacing: 0.04rem;
+        }
+        .hero-stat-value {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #efcf7a;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Quests Panel Body */
+        .quest-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+        .quest-card {
+            background: rgba(20, 25, 28, 0.75);
+            border: 1px solid rgba(195, 160, 95, 0.25);
+            border-radius: 4px;
+            padding: 10px 12px;
+            transition: border-color 0.15s ease;
+        }
+        .quest-card.completed {
+            border-color: rgba(139, 195, 74, 0.6);
+            background: rgba(25, 35, 25, 0.7);
+        }
+        .quest-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .quest-card-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #f1e2c8;
+        }
+        .quest-card.completed .quest-card-title {
+            color: #c5e1a5;
+        }
+        .quest-status-badge {
+            font-size: 0.68rem;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04rem;
+            background: rgba(212, 175, 55, 0.18);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            color: #efcf7a;
+        }
+        .quest-card.completed .quest-status-badge {
+            background: rgba(76, 175, 80, 0.25);
+            border-color: #81c784;
+            color: #a5d6a7;
+        }
+        .quest-card-desc {
+            font-size: 0.74rem;
+            color: #a2aba9;
+            line-height: 1.35;
+        }
+
+        /* Potion Configuration & Usage Modal */
+        #potion-modal {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            max-width: 92vw;
+            background: rgba(12, 16, 18, 0.96);
+            border: 1.5px solid rgba(212, 175, 55, 0.65);
+            border-radius: 6px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 25px rgba(212, 175, 55, 0.25);
+            padding: 16px 18px 20px;
+            z-index: 920;
+            display: none;
+            backdrop-filter: blur(8px);
+            cursor: default;
+        }
+        #potion-modal.open {
+            display: block;
+            animation: modalFadeIn 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        .potion-section-title {
+            font-size: 0.78rem;
+            color: #efcf7a;
+            letter-spacing: 0.05rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .potion-choice-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-bottom: 14px;
+        }
+        .potion-choice-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            background: rgba(22, 28, 30, 0.85);
+            border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .potion-choice-card:hover {
+            background: rgba(195, 160, 95, 0.2);
+            border-color: #efcf7a;
+        }
+        .potion-choice-card.selected {
+            background: rgba(212, 175, 55, 0.22);
+            border-color: #efcf7a;
+            box-shadow: 0 0 10px rgba(239, 207, 122, 0.3);
+        }
+        .potion-choice-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 14, 16, 0.8);
+            border: 1px solid rgba(195, 160, 95, 0.3);
+            border-radius: 4px;
+        }
+        .potion-choice-icon img {
+            width: 85%;
+            height: 85%;
+            object-fit: contain;
+        }
+        .potion-choice-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .potion-choice-name {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #f1e2c8;
+        }
+        .potion-choice-desc {
+            font-size: 0.72rem;
+            color: #8f9c9b;
+            margin-top: 1px;
+        }
+        .potion-choice-count {
+            font-size: 0.82rem;
+            font-weight: bold;
+            color: #efcf7a;
+        }
+
         /* Inventory Panel (stub) */
         #inventory-panel {
             position: fixed;
@@ -1386,17 +1876,7 @@
             100% { transform: scale(1); box-shadow: 0 0 0 rgba(239, 207, 122, 0); }
         }
 
-        /* Skills button (spellbook SVG) & panel */
-        #skills-btn svg {
-            width: 76%;
-            height: 76%;
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
-            transition: filter 0.15s ease;
-        }
-        #skills-btn:hover svg,
-        #skills-btn.active svg {
-            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 4px rgba(239, 207, 122, 0.7));
-        }
+        /* Skills panel */
         #skills-panel {
             position: fixed;
             right: 14px;
@@ -1637,11 +2117,39 @@
                 border-radius: 3px;
                 font-size: 0.6rem;
             }
-            #menu-btn {
-                gap: 3px;
-            }
             #menu-btn span {
-                width: 13px;
+                width: 12px;
+                height: 1.5px;
+            }
+            .skill-slot.potion-slot .potion-empty-text {
+                font-size: 0.44rem;
+            }
+            .potion-slot-count {
+                font-size: 7px;
+                right: 1px;
+                bottom: 0;
+            }
+            .potion-auto-badge {
+                font-size: 5px;
+                top: -3px;
+                left: -3px;
+                padding: 0 1px;
+            }
+            .micromenu-item {
+                width: 120px;
+                height: 30px;
+                padding: 0 6px;
+                gap: 6px;
+            }
+            .micromenu-item svg {
+                width: 16px;
+                height: 16px;
+            }
+            .micromenu-label {
+                font-size: 0.75rem;
+            }
+            .micromenu-key {
+                display: none;
             }
             #inventory-panel {
                 left: 10px;
@@ -1783,30 +2291,16 @@
 
     <!-- Skill Bar -->
     <div id="skill-bar" class="skill-bar">
-        <button type="button" id="menu-btn" class="skill-slot hud-btn" title="Меню (Esc)" aria-label="Меню паузы">
-            <span></span><span></span><span></span>
+        <button type="button" id="menu-btn" class="skill-slot hud-btn" title="Меню (Esc)" aria-label="Меню">
+            <span></span>
+            <span></span>
+            <span></span>
         </button>
-        <button type="button" id="map-btn" class="skill-slot hud-btn" title="Карта (M)" aria-label="Карта локации">
-            <!-- Значок карты: контурный квадрат с треугольником-меткой -->
-            <svg viewBox="0 0 32 32" aria-hidden="true" style="width:72%;height:72%">
-                <defs>
-                    <linearGradient id="mapGold" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#f6dc92"/>
-                        <stop offset="1" stop-color="#b8862f"/>
-                    </linearGradient>
-                </defs>
-                <!-- Рамка карты -->
-                <rect x="4" y="5" width="24" height="22" rx="2" ry="2"
-                      fill="#1a2f1a" stroke="url(#mapGold)" stroke-width="1.6"/>
-                <!-- Рельеф: кривые линии -->
-                <path d="M7 14 Q12 10 16 14 Q20 18 25 14"
-                      stroke="#4a7c59" stroke-width="1.1" fill="none" stroke-linecap="round" opacity="0.8"/>
-                <path d="M7 19 Q11 16 15 19 Q19 22 25 19"
-                      stroke="#4a7c59" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.6"/>
-                <!-- Метка игрока -->
-                <polygon points="16,8 13.5,13 18.5,13"
-                         fill="url(#mapGold)" opacity="0.95"/>
-            </svg>
+        <button type="button" id="potion-btn" class="skill-slot hud-btn potion-slot empty-potion" title="Зелье здоровья (нажмите для настройки)" aria-label="Зелье здоровья">
+            <span class="potion-slot-icon"></span>
+            <span class="potion-empty-text">Пусто</span>
+            <span class="potion-slot-count"></span>
+            <span class="potion-auto-badge hidden" title="Автоиспользование включено">AUTO</span>
         </button>
         <div class="skill-slot"></div>
         <div class="skill-slot"></div>
@@ -1818,25 +2312,52 @@
         <div class="skill-slot"></div>
         <div class="skill-slot"></div>
         <div class="skill-slot"></div>
-        <button type="button" id="skills-btn" class="skill-slot hud-btn" title="Навыки (K)" aria-label="Навыки" style="display:none">
-            <!-- Раскрытая книга заклинаний с руной (inline SVG, gold-on-dark) -->
-            <svg viewBox="0 0 32 32" aria-hidden="true">
-                <defs>
-                    <linearGradient id="skillsGold" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#f6dc92"/>
-                        <stop offset="1" stop-color="#b8862f"/>
-                    </linearGradient>
-                </defs>
-                <path d="M16 9.2 C12.6 6.9 8.2 6.4 3.6 7.4 V25.2 C8.2 24.2 12.6 24.7 16 27 C19.4 24.7 23.8 24.2 28.4 25.2 V7.4 C23.8 6.4 19.4 6.9 16 9.2 Z"
-                      fill="#221c14" stroke="url(#skillsGold)" stroke-width="1.5" stroke-linejoin="round"/>
-                <path d="M16 9.2 V27" stroke="url(#skillsGold)" stroke-width="1.2"/>
-                <path d="M6.2 11.2 C8.6 10.8 11 11 13.2 11.9 M6.2 14.6 C8.6 14.2 11 14.4 13.2 15.3 M6.2 18 C8.6 17.6 11 17.8 13.2 18.7"
-                      stroke="#b8862f" stroke-width="0.9" fill="none" stroke-linecap="round" opacity="0.85"/>
-                <path d="M22.3 10.6 L23.35 14.2 L26.9 14.2 L24.05 16.4 L25.1 19.9 L22.3 17.7 L19.5 19.9 L20.55 16.4 L17.7 14.2 L21.25 14.2 Z"
-                      fill="url(#skillsGold)"/>
-                <circle cx="22.3" cy="15.5" r="5.6" fill="none" stroke="#f6dc92" stroke-width="0.6" opacity="0.55"/>
-            </svg>
-        </button>
+        
+        <div class="micromenu-container">
+            <button type="button" id="micromenu-toggle-btn" class="skill-slot micromenu-toggle hud-btn" title="Микроменю героя" aria-label="Микроменю">
+                <svg class="micromenu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <polygon points="12,2 15,9 22,12 15,15 12,22 9,15 2,12 9,9" fill="#efcf7a" stroke="#d4af37"/>
+                </svg>
+            </button>
+            <div id="micromenu-dock" class="micromenu-dock hidden" role="menu">
+                <button type="button" class="micromenu-item" id="hero-btn" role="menuitem" title="Герой (C)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="7" r="4"/>
+                        <path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/>
+                    </svg>
+                    <span class="micromenu-label">Герой</span>
+                    <span class="micromenu-key">C</span>
+                </button>
+                <button type="button" class="micromenu-item" id="skills-btn" role="menuitem" title="Навыки (K)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        <path d="M9 7h6M9 11h4"/>
+                    </svg>
+                    <span class="micromenu-label">Навыки</span>
+                    <span class="micromenu-key">K</span>
+                </button>
+                <button type="button" class="micromenu-item" id="map-btn" role="menuitem" title="Карта (M)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="1 6 8 2 16 6 23 2 23 18 16 22 8 18 1 22"/>
+                        <line x1="8" y1="2" x2="8" y2="18"/>
+                        <line x1="16" y1="6" x2="16" y2="22"/>
+                    </svg>
+                    <span class="micromenu-label">Карта</span>
+                    <span class="micromenu-key">M</span>
+                </button>
+                <button type="button" class="micromenu-item" id="quests-btn" role="menuitem" title="Задания (L)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="9" y1="13" x2="15" y2="13"/>
+                        <line x1="9" y1="17" x2="13" y2="17"/>
+                    </svg>
+                    <span class="micromenu-label">Задания</span>
+                    <span class="micromenu-key">L</span>
+                </button>
+            </div>
+        </div>
         <button type="button" id="inventory-btn" class="skill-slot hud-btn" title="Инвентарь (I)" aria-label="Инвентарь">
             <!-- Сумка: собственное изображение (см. lib/JiUj2.jpg), не требует атрибуции -->
             <img src="data:image/jpeg;base64,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" alt="" aria-hidden="true">
@@ -1868,7 +2389,97 @@
             <button type="button" id="skills-close" title="Закрыть (K)" aria-label="Закрыть навыки">×</button>
         </div>
         <div id="skills-list"></div>
-        <div class="skills-hint">Перетащите навык на панель внизу</div>
+    </div>
+
+    <!-- Hero Profile Modal (C key) -->
+    <div id="hero-panel" role="dialog" aria-modal="true" aria-labelledby="hero-panel-title" aria-hidden="true">
+        <div class="panel-header">
+            <span class="panel-title" id="hero-panel-title">Герой</span>
+            <button type="button" class="panel-close" id="hero-panel-close" aria-label="Закрыть">×</button>
+        </div>
+        <div class="hero-profile-row">
+            <div class="hero-avatar-badge" id="hero-avatar">🧙</div>
+            <div class="hero-name-block">
+                <div class="hero-name" id="hero-name">Лазурный Маг</div>
+                <div class="hero-class" id="hero-class">AzureArchmage</div>
+            </div>
+        </div>
+        <div class="hero-hp-container">
+            <div class="hero-hp-header">
+                <span>Здоровье</span>
+                <span id="hero-hp-val">100 / 100</span>
+            </div>
+            <div class="hero-hp-track">
+                <div class="hero-hp-fill" id="hero-hp-fill" style="width: 100%;"></div>
+            </div>
+        </div>
+        <div class="hero-stats-grid">
+            <div class="hero-stat-card">
+                <div class="hero-stat-label">Оружие</div>
+                <div class="hero-stat-value" id="hero-stat-weapon">Посох</div>
+            </div>
+            <div class="hero-stat-card">
+                <div class="hero-stat-label">Урон в секунду</div>
+                <div class="hero-stat-value" id="hero-stat-dps">12–18</div>
+            </div>
+            <div class="hero-stat-card">
+                <div class="hero-stat-label">Локация</div>
+                <div class="hero-stat-value" id="hero-stat-loc">Долина</div>
+            </div>
+            <div class="hero-stat-card">
+                <div class="hero-stat-label">Время в пути</div>
+                <div class="hero-stat-value" id="hero-stat-time">00:00</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quests Journal Modal (L key) -->
+    <div id="quests-panel" role="dialog" aria-modal="true" aria-labelledby="quests-panel-title" aria-hidden="true">
+        <div class="panel-header">
+            <span class="panel-title" id="quests-panel-title">Задания</span>
+            <button type="button" class="panel-close" id="quests-panel-close" aria-label="Закрыть">×</button>
+        </div>
+        <div class="quest-list" id="quests-list">
+            <!-- Rendered dynamically by ui_hotbar.js -->
+        </div>
+    </div>
+
+<!-- Potion Settings & Usage Modal -->
+    <div id="potion-modal" role="dialog" aria-modal="true" aria-labelledby="potion-modal-title" aria-hidden="true">
+        <div class="panel-header">
+            <span class="panel-title" id="potion-modal-title">Зелье здоровья</span>
+            <button type="button" class="panel-close" id="potion-modal-close" aria-label="Закрыть">×</button>
+        </div>
+        <div class="potion-section-title">Выберите зелье для слота</div>
+        <div class="potion-choice-grid" id="potion-choice-grid">
+            <!-- Rendered dynamically by ui_hotbar.js -->
+        </div>
+
+        <div class="hero-stats-box" style="margin-bottom: 12px; padding: 10px 12px; background: rgba(20, 25, 28, 0.7); border: 1px solid rgba(195, 160, 95, 0.2); border-radius: 4px;">
+            <div class="settings-row" style="padding: 0 0 6px;">
+                <span class="settings-label" style="font-size: 0.85rem;">Автоиспользование</span>
+                <label class="switch">
+                    <input type="checkbox" id="potion-auto-toggle">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div style="font-size: 0.78rem; color: #ded1b8; margin: 8px 0 4px; display: flex; justify-content: space-between;">
+                <span>Пить, если здоровье ниже:</span>
+                <b id="potion-threshold-val" style="color: #efcf7a;">40%</b>
+            </div>
+            <input type="range" id="potion-threshold-slider" min="15" max="85" step="5" value="40" style="width: 100%; accent-color: #efcf7a; margin-bottom: 8px; cursor: pointer;">
+            <div class="quantity-presets" style="margin-bottom: 0;">
+                <button type="button" class="quantity-preset-btn potion-pct-preset" data-pct="25">25%</button>
+                <button type="button" class="quantity-preset-btn potion-pct-preset" data-pct="40">40%</button>
+                <button type="button" class="quantity-preset-btn potion-pct-preset" data-pct="60">60%</button>
+                <button type="button" class="quantity-preset-btn potion-pct-preset" data-pct="80">80%</button>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="pause-btn" id="potion-drink-btn" style="flex: 1; padding: 8px 4px; font-size: 0.82rem; margin-top: 0;">Выпить сейчас</button>
+            <button type="button" class="pause-btn" id="potion-close-btn" style="flex: 1; padding: 8px 4px; font-size: 0.82rem; margin-top: 0;">Закрыть</button>
+        </div>
     </div>
 
     <!-- Item/skill tooltip and drag ghost (ui_hotbar.js) -->
@@ -2058,10 +2669,10 @@
     <script src="js/harvest.js?v=20260930_1"></script>
     <script src="js/combat.js?v=20260930_1"></script>
     <script src="js/skills.js?v=20260930_1"></script>
-    <script src="js/ui_hotbar.js?v=20260930_1"></script>
+    <script src="js/ui_hotbar.js?v=20260930_4"></script>
     <script src="js/character.js?v=20260930_1"></script>
-    <script src="js/map.js?v=20260930_1"></script>
-    <script src="js/main.js?v=20260930_1"></script>
+    <script src="js/map.js?v=20260930_2"></script>
+    <script src="js/main.js?v=20260930_3"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

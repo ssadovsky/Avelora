@@ -63,6 +63,9 @@
             this.floats = [];
             this.drag = null;          // active press/drag
             this.skillsOpen = false;
+            this.heroOpen = false;
+            this.questsOpen = false;
+            this.microMenuOpen = false;
             this.cdCache = new Array(10).fill(-1);
             this.tooltipTimer = null;
             this._v = new THREE.Vector3();
@@ -81,10 +84,39 @@
             this.labelsEl = document.getElementById('world-labels');
             this.quantityModal = document.getElementById('quantity-modal');
 
+            this.microToggleBtn = document.getElementById('micromenu-toggle-btn');
+            this.microDock = document.getElementById('micromenu-dock');
+            this.heroBtn = document.getElementById('hero-btn');
+            this.questsBtn = document.getElementById('quests-btn');
+            this.heroPanel = document.getElementById('hero-panel');
+            this.questsPanel = document.getElementById('quests-panel');
+            this.heroCloseBtn = document.getElementById('hero-panel-close');
+            this.questsCloseBtn = document.getElementById('quests-panel-close');
+
+            this.potionBtn = document.getElementById('potion-btn');
+            this.potionModal = document.getElementById('potion-modal');
+            this.potionModalClose = document.getElementById('potion-modal-close');
+            this.potionCloseBtn = document.getElementById('potion-close-btn');
+            this.potionDrinkBtn = document.getElementById('potion-drink-btn');
+            this.potionAutoToggle = document.getElementById('potion-auto-toggle');
+            this.potionThresholdSlider = document.getElementById('potion-threshold-slider');
+            this.potionThresholdVal = document.getElementById('potion-threshold-val');
+            this.potionChoiceGrid = document.getElementById('potion-choice-grid');
+            this.potionPresets = Array.from(document.querySelectorAll('.potion-pct-preset'));
+            this.potionOpen = false;
+            this.autoPotion = { enabled: false, threshold: 40, itemId: 'potion_health_small' };
+            this._autoPotionCooldown = 0;
+            this.loadAutoPotionSettings();
+
             this.buildSlots();
             this.buildInventoryCells();
             this.setupCraftingTabs();
             this.setupQuantityModal();
+            this.setupMicroMenu();
+            this.setupHeroModal();
+            this.setupQuestsModal();
+            this.setupPotionSlot();
+            this.setupPotionModal();
             this.setupEvents();
         }
 
@@ -143,6 +175,8 @@
             this.renderHotbar();
             this.renderSkills();
             this.renderCrafting();
+            this.updatePotionSlot();
+            if (this.potionOpen) this.updatePotionModal();
         }
 
         renderInventory() {
@@ -424,6 +458,515 @@
             this.invBtn.classList.remove('pulse');
             void this.invBtn.offsetWidth; // restart the CSS animation
             this.invBtn.classList.add('pulse');
+        }
+
+        // -----------------------------------------------------------
+        // Health Potion Slot & Auto-Use System
+        // -----------------------------------------------------------
+        loadAutoPotionSettings() {
+            try {
+                const raw = localStorage.getItem('avelora_auto_potion');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        if (typeof parsed.enabled === 'boolean') this.autoPotion.enabled = parsed.enabled;
+                        if (typeof parsed.threshold === 'number' && parsed.threshold >= 10 && parsed.threshold <= 90) {
+                            this.autoPotion.threshold = parsed.threshold;
+                        }
+                        if (parsed.itemId === 'potion_health_small' || parsed.itemId === 'potion_health_large') {
+                            this.autoPotion.itemId = parsed.itemId;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('[Avelora] failed to load auto-potion settings', err);
+            }
+        }
+
+        saveAutoPotionSettings() {
+            try {
+                localStorage.setItem('avelora_auto_potion', JSON.stringify(this.autoPotion));
+            } catch (err) {
+                console.warn('[Avelora] failed to save auto-potion settings', err);
+            }
+        }
+
+        setupPotionSlot() {
+            if (this.potionBtn) {
+                this.potionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.inputAllowed()) {
+                        this.togglePotionModal();
+                    }
+                });
+            }
+        }
+
+        setupPotionModal() {
+            if (this.potionModalClose) {
+                this.potionModalClose.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closePotionModal();
+                });
+            }
+            if (this.potionCloseBtn) {
+                this.potionCloseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closePotionModal();
+                });
+            }
+            if (this.potionDrinkBtn) {
+                this.potionDrinkBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.drinkSelectedPotion();
+                    this.updatePotionModal();
+                });
+            }
+            if (this.potionAutoToggle) {
+                this.potionAutoToggle.addEventListener('change', (e) => {
+                    this.autoPotion.enabled = !!e.target.checked;
+                    this.saveAutoPotionSettings();
+                    this.updatePotionSlot();
+                });
+            }
+            if (this.potionThresholdSlider) {
+                this.potionThresholdSlider.addEventListener('input', (e) => {
+                    this.autoPotion.threshold = parseInt(e.target.value, 10);
+                    if (this.potionThresholdVal) this.potionThresholdVal.textContent = `${this.autoPotion.threshold}%`;
+                    this.saveAutoPotionSettings();
+                });
+            }
+            if (this.potionPresets && this.potionPresets.length) {
+                this.potionPresets.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const pct = parseInt(btn.dataset.pct, 10);
+                        this.autoPotion.threshold = pct;
+                        if (this.potionThresholdSlider) this.potionThresholdSlider.value = String(pct);
+                        if (this.potionThresholdVal) this.potionThresholdVal.textContent = `${pct}%`;
+                        this.saveAutoPotionSettings();
+                    });
+                });
+            }
+            if (this.potionModal) {
+                this.potionModal.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+            document.addEventListener('click', (e) => {
+                if (this.potionOpen && !e.target.closest('#potion-modal') && !e.target.closest('#potion-btn')) {
+                    this.closePotionModal();
+                }
+            });
+        }
+
+        isPotionOpen() {
+            return this.potionOpen;
+        }
+
+        togglePotionModal() {
+            if (this.potionOpen) this.closePotionModal();
+            else this.openPotionModal();
+        }
+
+        openPotionModal() {
+            this.potionOpen = true;
+            if (this.potionModal) {
+                this.potionModal.classList.add('open');
+                this.potionModal.setAttribute('aria-hidden', 'false');
+            }
+            if (this.microMenuOpen) this.closeMicroMenu();
+            this.updatePotionModal();
+        }
+
+        closePotionModal() {
+            this.potionOpen = false;
+            if (this.potionModal) {
+                this.potionModal.classList.remove('open');
+                this.potionModal.setAttribute('aria-hidden', 'true');
+            }
+        }
+
+        updatePotionSlot() {
+            if (!this.potionBtn) return;
+            const st = this.state;
+            const itemId = this.autoPotion.itemId || 'potion_health_small';
+            let count = st ? st.inventory.count(itemId) : 0;
+
+            // If selected potion count is 0, check if character has the other health potion
+            if (count === 0 && st) {
+                const altId = itemId === 'potion_health_small' ? 'potion_health_large' : 'potion_health_small';
+                const altCount = st.inventory.count(altId);
+                if (altCount > 0) {
+                    this.autoPotion.itemId = altId;
+                    this.saveAutoPotionSettings();
+                    count = altCount;
+                }
+            }
+
+            const activeId = this.autoPotion.itemId;
+            const def = window.AveloraItems ? window.AveloraItems.get(activeId) : null;
+            const iconSpan = this.potionBtn.querySelector('.potion-slot-icon');
+            const countSpan = this.potionBtn.querySelector('.potion-slot-count');
+            const badgeSpan = this.potionBtn.querySelector('.potion-auto-badge');
+
+            if (count > 0 && def) {
+                this.potionBtn.classList.remove('empty-potion');
+                if (iconSpan) {
+                    iconSpan.innerHTML = '';
+                    iconSpan.appendChild(makeIcon(def));
+                }
+                if (countSpan) countSpan.textContent = count > 1 ? count : '';
+                this.potionBtn.title = `${def.name} (${count} шт.) — нажмите для настройки`;
+            } else {
+                this.potionBtn.classList.add('empty-potion');
+                if (iconSpan) iconSpan.innerHTML = '';
+                if (countSpan) countSpan.textContent = '';
+                this.potionBtn.title = 'Зелье здоровья (пусто) — нажмите для настройки';
+            }
+
+            if (badgeSpan) {
+                badgeSpan.classList.toggle('hidden', !this.autoPotion.enabled);
+            }
+        }
+
+        updatePotionModal() {
+            const st = this.state;
+            const cb = this.game.combat;
+
+            if (this.potionAutoToggle) {
+                this.potionAutoToggle.checked = !!this.autoPotion.enabled;
+            }
+            if (this.potionThresholdSlider) {
+                this.potionThresholdSlider.value = String(this.autoPotion.threshold);
+            }
+            if (this.potionThresholdVal) {
+                this.potionThresholdVal.textContent = `${this.autoPotion.threshold}%`;
+            }
+
+            if (this.potionChoiceGrid) {
+                this.potionChoiceGrid.innerHTML = '';
+                const potionIds = ['potion_health_small', 'potion_health_large'];
+                potionIds.forEach(id => {
+                    const def = window.AveloraItems ? window.AveloraItems.get(id) : null;
+                    if (!def) return;
+                    const count = st ? st.inventory.count(id) : 0;
+                    const isSelected = id === this.autoPotion.itemId;
+                    const healAmount = (def.use && def.use.amount) || 50;
+
+                    const card = document.createElement('div');
+                    card.className = `potion-choice-card ${isSelected ? 'selected' : ''}`;
+                    card.dataset.id = id;
+
+                    const iconDiv = document.createElement('div');
+                    iconDiv.className = 'potion-choice-icon';
+                    iconDiv.appendChild(makeIcon(def));
+
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'potion-choice-info';
+                    infoDiv.innerHTML = `
+                        <div class="potion-choice-name">${def.name}</div>
+                        <div class="potion-choice-desc">+${healAmount} HP • ${count > 0 ? `В наличии: ${count} шт.` : '<span style="color:#b38a7a">Нет в сумке</span>'}</div>
+                    `;
+
+                    const countDiv = document.createElement('div');
+                    countDiv.className = 'potion-choice-count';
+                    countDiv.textContent = count > 0 ? `×${count}` : '0';
+
+                    card.append(iconDiv, infoDiv, countDiv);
+
+                    card.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.autoPotion.itemId = id;
+                        this.saveAutoPotionSettings();
+                        this.updatePotionSlot();
+                        this.updatePotionModal();
+                    });
+
+                    this.potionChoiceGrid.appendChild(card);
+                });
+            }
+
+            // Drink button state
+            if (this.potionDrinkBtn) {
+                const count = st ? st.inventory.count(this.autoPotion.itemId) : 0;
+                const isDead = cb && cb.isDead;
+                const isFull = cb && cb.hp >= cb.maxHp;
+                const canDrink = count > 0 && !isDead && !isFull;
+                this.potionDrinkBtn.disabled = !canDrink;
+                this.potionDrinkBtn.style.opacity = canDrink ? '1' : '0.5';
+                this.potionDrinkBtn.style.cursor = canDrink ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        drinkSelectedPotion() {
+            if (!this.inputAllowed()) return false;
+            const st = this.state;
+            const itemId = this.autoPotion.itemId || 'potion_health_small';
+            let count = st ? st.inventory.count(itemId) : 0;
+            let targetId = itemId;
+
+            if (count <= 0 && st) {
+                const altId = itemId === 'potion_health_small' ? 'potion_health_large' : 'potion_health_small';
+                if (st.inventory.count(altId) > 0) {
+                    targetId = altId;
+                    this.autoPotion.itemId = altId;
+                    this.saveAutoPotionSettings();
+                }
+            }
+
+            const success = this.consumeHeal(targetId);
+            this.updatePotionSlot();
+            if (this.potionBtn) {
+                this.flashSlot(this.potionBtn, success ? 'pressed' : 'shake');
+            }
+            return success;
+        }
+
+        updateAutoPotion(delta) {
+            if (this._autoPotionCooldown > 0) this._autoPotionCooldown -= delta;
+            if (!this.autoPotion.enabled || !this.inputAllowed()) return;
+            if (this._autoPotionCooldown > 0) return;
+
+            const cb = this.game.combat;
+            if (!cb || cb.isDead || cb.maxHp <= 0) return;
+
+            const curHp = typeof cb.hp === 'number' ? cb.hp : (typeof cb.currentHp === 'number' ? cb.currentHp : cb.maxHp);
+            const hpPct = (curHp / cb.maxHp) * 100;
+            if (hpPct <= this.autoPotion.threshold) {
+                const st = this.state;
+                if (!st) return;
+
+                let itemId = this.autoPotion.itemId || 'potion_health_small';
+                if (st.inventory.count(itemId) <= 0) {
+                    const altId = itemId === 'potion_health_small' ? 'potion_health_large' : 'potion_health_small';
+                    if (st.inventory.count(altId) > 0) {
+                        itemId = altId;
+                        this.autoPotion.itemId = altId;
+                        this.saveAutoPotionSettings();
+                    }
+                }
+
+                if (st.inventory.count(itemId) > 0) {
+                    const drank = this.consumeHeal(itemId);
+                    if (drank) {
+                        this._autoPotionCooldown = 2.0; // 2 seconds cooldown between auto heals
+                        this.updatePotionSlot();
+                        if (this.potionBtn) this.flashSlot(this.potionBtn, 'pressed');
+                    }
+                }
+            }
+        }
+
+        // -----------------------------------------------------------
+        // Micro-Menu (Slide-up Dock Bar)
+        // -----------------------------------------------------------
+        setupMicroMenu() {
+            // events hooked in setupEvents
+        }
+
+        isMicroMenuOpen() {
+            return this.microMenuOpen;
+        }
+
+        toggleMicroMenu() {
+            if (this.microMenuOpen) this.closeMicroMenu();
+            else this.openMicroMenu();
+        }
+
+        openMicroMenu() {
+            this.microMenuOpen = true;
+            if (this.microToggleBtn) this.microToggleBtn.classList.add('open');
+            if (this.microDock) {
+                this.microDock.classList.remove('hidden');
+                void this.microDock.offsetWidth;
+                this.microDock.classList.add('open');
+            }
+        }
+
+        closeMicroMenu() {
+            this.microMenuOpen = false;
+            if (this.microToggleBtn) this.microToggleBtn.classList.remove('open');
+            if (this.microDock) {
+                this.microDock.classList.remove('open');
+                setTimeout(() => {
+                    if (!this.microMenuOpen && this.microDock) this.microDock.classList.add('hidden');
+                }, 180);
+            }
+        }
+
+        // -----------------------------------------------------------
+        // Hero Modal (C key)
+        // -----------------------------------------------------------
+        setupHeroModal() {
+            if (this.heroCloseBtn) {
+                this.heroCloseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.setHeroOpen(false);
+                });
+            }
+            if (this.heroPanel) {
+                this.heroPanel.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        }
+
+        isHeroOpen() {
+            return this.heroOpen;
+        }
+
+        toggleHero() {
+            this.setHeroOpen(!this.heroOpen);
+        }
+
+        setHeroOpen(open) {
+            this.heroOpen = open;
+            if (this.heroPanel) {
+                this.heroPanel.classList.toggle('open', open);
+                this.heroPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            }
+            if (open) {
+                this.updateHeroStats();
+                if (this.questsOpen) this.setQuestsOpen(false);
+            }
+        }
+
+        updateHeroStats() {
+            const g = this.game;
+            const st = this.state;
+            const charId = (st && st.characterId) || (g && g.characterId) || 'AzureArchmage';
+            const charDef = (window.CHARACTERS && window.CHARACTERS[charId]) || {};
+
+            const elName = document.getElementById('hero-name');
+            const elClass = document.getElementById('hero-class');
+            const elAvatar = document.getElementById('hero-avatar');
+            if (elName) elName.textContent = charDef.name || 'Лазурный Маг';
+            if (elClass) elClass.textContent = charId;
+            if (elAvatar) elAvatar.textContent = charId.includes('Mage') || charId.includes('Archmage') ? '🧙' : '⚔️';
+
+            // HP
+            const curHp = g.combat ? Math.round(typeof g.combat.hp === 'number' ? g.combat.hp : (typeof g.combat.currentHp === 'number' ? g.combat.currentHp : g.combat.maxHp || 100)) : 100;
+            const maxHp = g.combat ? Math.round(g.combat.maxHp || 100) : 100;
+            const elHpVal = document.getElementById('hero-hp-val');
+            const elHpFill = document.getElementById('hero-hp-fill');
+            if (elHpVal) elHpVal.textContent = `${curHp} / ${maxHp}`;
+            if (elHpFill) elHpFill.style.width = `${Math.max(0, Math.min(100, (curHp / maxHp) * 100))}%`;
+
+            // Weapon & Damage
+            const eqId = st && st.equipped && st.equipped.right;
+            const eqDef = eqId ? window.AveloraItems.get(eqId) : null;
+            const elWeapon = document.getElementById('hero-stat-weapon');
+            const elDps = document.getElementById('hero-stat-dps');
+            if (elWeapon) elWeapon.textContent = eqDef ? eqDef.name : 'Кулаки';
+            if (elDps) {
+                const baseDmg = eqDef && eqDef.damage ? eqDef.damage : 8;
+                elDps.textContent = `${baseDmg}–${baseDmg + 6}`;
+            }
+
+            // Location
+            const elLoc = document.getElementById('hero-stat-loc');
+            if (elLoc) {
+                const locObj = g.location;
+                const locId = locObj ? (locObj.id || locObj) : 'valleys_whisper';
+                const locName = locObj && locObj.name ? locObj.name : null;
+                const locNames = {
+                    'valleys_whisper': 'Шёпот Долины',
+                    'stonewatch_cliffs': 'Скалистый пик',
+                    'default': 'Долина'
+                };
+                elLoc.textContent = locName || locNames[locId] || (typeof locId === 'string' ? locId : 'Долина');
+            }
+
+            // Time played
+            const elTime = document.getElementById('hero-stat-time');
+            if (elTime) {
+                const sec = Math.floor(st && st.playTime ? st.playTime : 0);
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                elTime.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+        }
+
+        // -----------------------------------------------------------
+        // Quests Journal Modal (L key)
+        // -----------------------------------------------------------
+        setupQuestsModal() {
+            if (this.questsCloseBtn) {
+                this.questsCloseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.setQuestsOpen(false);
+                });
+            }
+            if (this.questsPanel) {
+                this.questsPanel.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        }
+
+        isQuestsOpen() {
+            return this.questsOpen;
+        }
+
+        toggleQuests() {
+            this.setQuestsOpen(!this.questsOpen);
+        }
+
+        setQuestsOpen(open) {
+            this.questsOpen = open;
+            if (this.questsPanel) {
+                this.questsPanel.classList.toggle('open', open);
+                this.questsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+            }
+            if (open) {
+                this.updateQuestsProgress();
+                if (this.heroOpen) this.setHeroOpen(false);
+            }
+        }
+
+        updateQuestsProgress() {
+            const listEl = document.getElementById('quests-list');
+            if (!listEl) return;
+            const st = this.state;
+            const fernCount = st ? st.inventory.count('fern') : 0;
+            const potionCount = st ? (st.inventory.count('potion_health_small') + st.inventory.count('potion_health_large')) : 0;
+            const killsCount = st && st.killed ? Object.keys(st.killed).length : 0;
+
+            const quests = [
+                {
+                    title: 'Таинственные руины',
+                    desc: 'Исследуйте долину реки и найдите древний портал в скалах Стоунвотч.',
+                    completed: !!(this.game && this.game.location && (this.game.location.id === 'stonewatch_cliffs' || this.game.location === 'stonewatch_cliffs')),
+                    badge: (this.game && this.game.location && (this.game.location.id === 'stonewatch_cliffs' || this.game.location === 'stonewatch_cliffs')) ? 'Завершено' : 'В процессе'
+                },
+                {
+                    title: 'Искусство алхимии',
+                    desc: 'Соберите 5 листьев дикого папоротника и сварите в окне ремесла целебное зелье.',
+                    completed: potionCount > 0,
+                    badge: potionCount > 0 ? 'Завершено' : `Папоротник: ${Math.min(5, fernCount)}/5`
+                },
+                {
+                    title: 'Опасная фауна',
+                    desc: 'Сразитесь с дикими вепрями или обитателями скал, испытав боевые заклинания.',
+                    completed: killsCount > 0,
+                    badge: killsCount > 0 ? `Побеждено: ${killsCount}` : 'В процессе'
+                }
+            ];
+
+            listEl.innerHTML = '';
+            quests.forEach(q => {
+                const card = document.createElement('div');
+                card.className = `quest-card ${q.completed ? 'completed' : ''}`;
+                card.innerHTML = `
+                    <div class="quest-card-header">
+                        <div class="quest-card-title">${q.title}</div>
+                        <span class="quest-status-badge">${q.badge}</span>
+                    </div>
+                    <div class="quest-card-desc">${q.desc}</div>
+                `;
+                listEl.appendChild(card);
+            });
         }
 
         // -----------------------------------------------------------
@@ -913,6 +1456,7 @@
         // -----------------------------------------------------------
         update(delta) {
             this.updateFloats(delta);
+            this.updateAutoPotion(delta);
             if (!this.state) return;
             const hb = this.state.hotbar;
             for (let i = 0; i < this.slots.length; i++) {
@@ -948,12 +1492,17 @@
                     this.activateSlot(d === 0 ? 9 : d - 1);
                 } else if (e.code === 'KeyK') { // physical key: works in RU layout too (Л)
                     if (this.inputAllowed()) this.toggleSkills();
+                } else if (e.code === 'KeyC') { // physical key: works in RU layout too (С)
+                    if (this.inputAllowed()) this.toggleHero();
+                } else if (e.code === 'KeyL') { // physical key: works in RU layout too (Д)
+                    if (this.inputAllowed()) this.toggleQuests();
                 }
             });
 
             if (this.skillsBtn) {
                 this.skillsBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    this.closeMicroMenu();
                     if (this.inputAllowed()) this.toggleSkills();
                 });
             }
@@ -964,6 +1513,32 @@
                     this.setSkillsOpen(false);
                 });
             }
+
+            if (this.microToggleBtn) {
+                this.microToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleMicroMenu();
+                });
+            }
+            if (this.heroBtn) {
+                this.heroBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closeMicroMenu();
+                    if (this.inputAllowed()) this.toggleHero();
+                });
+            }
+            if (this.questsBtn) {
+                this.questsBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closeMicroMenu();
+                    if (this.inputAllowed()) this.toggleQuests();
+                });
+            }
+            document.addEventListener('click', (e) => {
+                if (this.microMenuOpen && !e.target.closest('.micromenu-container')) {
+                    this.closeMicroMenu();
+                }
+            });
 
             // Press on any drag source (delegated)
             document.addEventListener('pointerdown', (e) => {

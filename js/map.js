@@ -60,10 +60,11 @@
             this._overlay.addEventListener('click', (e) => {
                 if (e.target === this._overlay) this.close();
             });
-            // Кнопка на панели хотбара
+            // Кнопка на панели хотбара / микроменю
             if (this._mapBtn) {
                 this._mapBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    if (this.game.ui && this.game.ui.closeMicroMenu) this.game.ui.closeMicroMenu();
                     const isMenuOpen = this.game.pauseOverlay && this.game.pauseOverlay.classList.contains('open');
                     if (isMenuOpen) return;
                     this.toggle();

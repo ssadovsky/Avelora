@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar .skill-slot, #inventory-panel, #skills-panel, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -787,11 +787,19 @@ class AveloraGame {
                 e.preventDefault();
                 // Escape закрывает карту если она открыта
                 if (this.map && this.map.isOpen) { this.map.close(); return; }
-                // Escape closes open windows first (bag + skills), otherwise toggles pause
+                // Escape closes open windows first (bag + skills + hero + quests + micromenu + potion), otherwise toggles pause
                 const skillsOpen = this.ui && this.ui.isSkillsOpen();
-                if (!this.isPaused && (this.isInventoryOpen || skillsOpen)) {
-                    this.setInventoryOpen(false);
+                const heroOpen = this.ui && this.ui.isHeroOpen && this.ui.isHeroOpen();
+                const questsOpen = this.ui && this.ui.isQuestsOpen && this.ui.isQuestsOpen();
+                const microMenuOpen = this.ui && this.ui.isMicroMenuOpen && this.ui.isMicroMenuOpen();
+                const potionOpen = this.ui && this.ui.isPotionOpen && this.ui.isPotionOpen();
+                if (!this.isPaused && (this.isInventoryOpen || skillsOpen || heroOpen || questsOpen || microMenuOpen || potionOpen)) {
+                    if (this.isInventoryOpen) this.setInventoryOpen(false);
                     if (skillsOpen) this.ui.setSkillsOpen(false);
+                    if (heroOpen) this.ui.setHeroOpen(false);
+                    if (questsOpen) this.ui.setQuestsOpen(false);
+                    if (microMenuOpen) this.ui.closeMicroMenu();
+                    if (potionOpen) this.ui.closePotionModal();
                 } else if (this.isPaused && this.pauseSubview && this.pauseSubview !== 'main') {
                     this.showPausePanel('main');
                 } else {
@@ -845,6 +853,8 @@ class AveloraGame {
         if (menuBtn) {
             menuBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (this.ui && this.ui.closeMicroMenu) this.ui.closeMicroMenu();
+                if (this.ui && this.ui.closePotionModal) this.ui.closePotionModal();
                 this.togglePause();
             });
         }
