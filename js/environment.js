@@ -37,13 +37,14 @@ const HOVER_KINDS = new Set(['trees', 'boulders', 'shrubs', 'reeds', 'ferns']);
 // trees/rocks (a bigger tree/boulder proxy nearby would grab the raycast hit
 // before the smaller shrub/reed one, or the two would fight) — so they keep
 // raycasting their own visible InstancedMesh, same as before.
-const PROXY_HOVER_KINDS = new Set(['trees']);
+const PROXY_HOVER_KINDS = new Set(['trees', 'ferns']);
 
 // object.visible stays true so the raycaster tests it; material.visible=false
 // keeps it out of the render list. Sizes are in local/unscaled units — the
 // object's own `s` scale is applied on top via the normal placement matrix.
 const HOVER_PROXY_SIZE = {
-    trees: { radiusBottom: 0.7, radiusTop: 1.35, height: 3.4 }
+    trees: { radiusBottom: 0.7, radiusTop: 1.35, height: 3.4 },
+    ferns: { radiusBottom: 0.45, radiusTop: 0.4, height: 0.55 }
 };
 
 class LakesideEnvironment {
@@ -349,7 +350,7 @@ class LakesideEnvironment {
         this.loadDandelions();
         this.createAlphaCutoutReeds();
         this.createAlphaCutoutGrass();
-        this.createAtmosphericParticles();
+        // Atmospheric square particles removed per user design direction
     }
 
     loadRealisticTrees() {

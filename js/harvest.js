@@ -199,17 +199,24 @@
         /** Does the right hand hold the tool this node needs? */
         hasTool(node) {
             if (!node) return false;
+            if (node.tool === 'gather' || !node.tool) return true;
             const w = this.game.combat ? this.game.combat.weapon() : null;
             if (node.tool === 'chop') return !!(w && w.chop > 0);
-            return !node.tool;
+            return false;
         }
 
         /** Hover text for a harvestable object. */
         labelFor(entry) {
             const node = this.nodeFor(entry.kind);
             if (!node) return entry.label;
-            if (!this.hasTool(node)) return `${node.name || entry.label} — нужен топор в руке`;
-            return `${node.name || entry.label} — рубить`;
+            if (node.tool === 'gather' || !node.tool) {
+                return `${node.name || entry.label} — сорвать`;
+            }
+            if (node.tool === 'chop') {
+                if (!this.hasTool(node)) return `${node.name || entry.label} — нужен топор в руке`;
+                return `${node.name || entry.label} — рубить`;
+            }
+            return `${node.name || entry.label}`;
         }
 
         regrowSeconds(node) { return Math.max(10, (Number(node.regrowMinutes) || 10) * 60); }
@@ -219,7 +226,7 @@
         // -----------------------------------------------------------
         // Interaction
         // -----------------------------------------------------------
-        /** Click/tap on a tree: chop it with a chop tool, otherwise just walk there. */
+        /** Click/tap on a tree: chop it with a chop tool; herb: gather it; otherwise walk there. */
         request(entry) {
             const g = this.game;
             const c = g.character;
@@ -232,6 +239,22 @@
                 if (g.ui) g.ui.floatText('Нужен топор в руке', 'warn');
                 return true;
             }
+
+            if (node.tool === 'gather') {
+                const s = entry.s || 1;
+                const r = 0.35 * s;
+                const reach = Math.max(1.3, 0.45 * s + 0.6);
+                g.combat.engage({
+                    kind: 'gather', id: entry.id, label: node.name,
+                    isValid: () => entry.visible !== false && this.game.harvest === this && !this.disposed,
+                    x: () => entry.x, z: () => entry.z,
+                    radius: r,
+                    range: () => reach,
+                    onHit: () => this.gather(entry, node)
+                });
+                return true;
+            }
+
             const s = entry.s || 1;
             const trunkR = TRUNK_RADIUS * s;
             // The trunk's nav obstacle (environment.js: 0.8·s) can keep the character
@@ -246,6 +269,55 @@
                 onHit: () => this.hit(entry, node)
             });
             return true;
+        }
+
+        gather(entry, node) {
+            const g = this.game;
+            const c = g.character;
+            const st = this.state;
+            if (!c || entry.visible === false) return;
+            if (g.combat) g.combat.cancel();
+            if (c.isMoving) c.stopMovement();
+
+            if (this.env) this.env.setObjectVisible(entry.id, false);
+            if (g.hideObjectTooltip) g.hideObjectTooltip();
+            if (st) st.setFelled(this.location.id, entry.id, this.playTime);
+
+            const drops = node.drops || [{ item: 'fern', min: 1, max: 1 }];
+            const wo = g.worldObjects;
+            drops.forEach(d => {
+                const lo = Math.max(1, d.min | 0), hi = Math.max(lo, d.max | 0);
+                const count = lo + Math.floor(Math.random() * (hi - lo + 1));
+                if (count <= 0) return;
+                const itemDef = window.AveloraItems ? window.AveloraItems.get(d.item) : null;
+                const itemName = itemDef ? itemDef.name : d.item;
+
+                if (st && st.inventory) {
+                    const added = st.inventory.add(d.item, count);
+                    if (added > 0 && g.ui) {
+                        g.ui.floatText(`+${added} ${itemName}`, 'loot');
+                        g.ui.pulseInventory();
+                    }
+                    if (added < count) {
+                        const dropCount = count - added;
+                        if (wo) wo.addDrop(d.item, dropCount, c.position.x, c.position.z);
+                        if (g.ui) g.ui.floatText('Сумка полна — брошено на землю', 'warn');
+                    }
+                } else if (wo) {
+                    wo.addDrop(d.item, count, entry.x, entry.z);
+                }
+            });
+
+            // Burst a soft puff of green foliage particles at gathering spot
+            const by = this.terrain ? this.terrain.getHeightAt(entry.x, entry.z) : 0;
+            const fx = this.ensureFx();
+            for (let i = 0; i < 8; i++) {
+                fx.dust.add(entry.x + (Math.random() - 0.5) * 0.4, by + 0.35, entry.z + (Math.random() - 0.5) * 0.4,
+                    (Math.random() - 0.5) * 0.6, 0.4 + Math.random() * 0.3, (Math.random() - 0.5) * 0.6,
+                    0.8 + Math.random() * 0.4, 0.22, 1.2, 0, 0.25, 0.65, 0.28, 0.6);
+            }
+
+            window.dispatchEvent(new CustomEvent('game:nodeGathered', { detail: { id: entry.id } }));
         }
 
         hit(entry, node) {

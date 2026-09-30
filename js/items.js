@@ -147,6 +147,23 @@
                 geo = new THREE.CylinderGeometry(0.1, 0.1, 1.2, 10);
                 geo.rotateZ(Math.PI / 2); // logs lie along X
                 geo.translate(0, 0.1, 0);
+            } else if (id === 'fern') {
+                geo = new THREE.IcosahedronGeometry(0.18, 1);
+                geo.scale(1.2, 0.45, 1.2);
+                geo.translate(0, 0.08, 0);
+                mat.color.setHex(0x2e7d32);
+            } else if (id === 'potion_health_small') {
+                geo = new THREE.CylinderGeometry(0.04, 0.045, 0.22, 8);
+                geo.translate(0, 0.11, 0);
+                mat.color.setHex(0xc62828);
+                mat.roughness = 0.2;
+                mat.metalness = 0.1;
+            } else if (id === 'potion_health_large') {
+                geo = new THREE.CylinderGeometry(0.06, 0.11, 0.26, 8);
+                geo.translate(0, 0.13, 0);
+                mat.color.setHex(0xb71c1c);
+                mat.roughness = 0.2;
+                mat.metalness = 0.1;
             } else {
                 geo = new THREE.BoxGeometry(0.22, 0.16, 0.2);
                 geo.translate(0, 0.08, 0);

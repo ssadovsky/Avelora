@@ -141,7 +141,7 @@ class AveloraGame {
         this.scene.fog = new THREE.FogExp2(0xa2c0cc, 0.012);
 
         // Camera setup
-        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 300);
+        this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 600);
         // Enable layer 1 (in addition to the default layer 0) so the main
         // camera keeps seeing dense foliage that environment.js moved to
         // layer 1 to hide it from the water reflection's mirror camera —
@@ -357,7 +357,20 @@ class AveloraGame {
 
         const startId = (opts.locationId && window.LOCATIONS[opts.locationId]) ? opts.locationId : this.getStartLocationId();
         const defaultSpawn = this.buildLocation(startId, opts.spawnId || null);
-        const spawn = opts.position || defaultSpawn;
+        let spawn = opts.position || defaultSpawn;
+
+        // Auto-rescue: check if character coordinates are stuck inside mountains/cliffs/water/edge (e.g. from an older map save)
+        let rescued = false;
+        if (this.pathfinder && !this.pathfinder.isWalkableWorld(spawn.x, spawn.z)) {
+            console.warn(`[Avelora] Spawn position (${spawn.x.toFixed(1)}, ${spawn.z.toFixed(1)}) is impassable. Rescuing to safe terrain...`);
+            const safe = this.pathfinder.findNearestWalkableWorld(spawn.x, spawn.z, 120);
+            if (safe) {
+                spawn = { x: safe.x, z: safe.z, r: spawn.r || 0 };
+            } else {
+                spawn = defaultSpawn;
+            }
+            rescued = true;
+        }
 
         const characterLoaded = new Promise(resolve => {
             this.character = new MedievalCharacter(this.scene, this.terrain, characterConfig, () => resolve());
@@ -434,21 +447,30 @@ class AveloraGame {
         this.location = loc;
 
         const t = loc.terrain || {};
-        const size = t.size || 120;
+        const sizeX = t.sizeX || (Array.isArray(t.size) ? t.size[0] : t.size) || 120;
+        const sizeZ = t.sizeZ || (Array.isArray(t.size) ? t.size[1] : t.size) || 120;
 
         // Sky & fog
         const atm = loc.atmosphere || {};
-        const sky = new THREE.Color(atm.sky !== undefined ? atm.sky : 0xa2c0cc);
-        this.scene.background = sky;
-        this.scene.fog = new THREE.FogExp2(sky.getHex(), atm.fogDensity !== undefined ? atm.fogDensity : 0.012);
+        const skyColor = new THREE.Color(atm.sky !== undefined ? atm.sky : 0xc6dbe3);
+        const fogColor = new THREE.Color(atm.fogColor !== undefined ? atm.fogColor : (atm.sky !== undefined ? atm.sky : 0xc6dbe3));
+        this.scene.background = fogColor;
+        this.scene.fog = new THREE.FogExp2(fogColor.getHex(), atm.fogDensity !== undefined ? atm.fogDensity : 0.0065);
+        this.buildSkyDome(atm);
 
         this.locationRoot = new THREE.Group();
         this.locationRoot.name = `location:${id}`;
         this.scene.add(this.locationRoot);
 
+        const gridX = Math.round(sizeX / NAV_CELL_SIZE);
+        const gridZ = Math.round(sizeZ / NAV_CELL_SIZE);
+
         this.terrain = new LakesideTerrain(this.locationRoot, {}, loc);
-        this.pathfinder = new DiabloPathfinder(this.terrain, Math.round(size / NAV_CELL_SIZE), size);
+        this.pathfinder = new DiabloPathfinder(this.terrain, gridX, gridZ, sizeX, sizeZ);
         this.water.setLocation(loc);
+        this.waterfall = (loc.waterfalls && loc.waterfalls.length && window.AveloraWaterfall)
+            ? new AveloraWaterfall(this.locationRoot, loc.waterfalls[0], this.terrain, this.pathfinder)
+            : null;
         this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc);
         this.worldObjects = window.AveloraWorldObjects ? new AveloraWorldObjects(this, loc) : null;
         this.creatures = window.AveloraCreatures ? new AveloraCreatures(this, loc) : null;
@@ -464,6 +486,7 @@ class AveloraGame {
         this.exits.forEach(e => { if (e.labelEl) e.labelEl.remove(); });
         this.exits = [];
 
+        if (this.waterfall) { this.waterfall.dispose(); this.waterfall = null; }
         if (this.skills) this.skills.clearAll(); // no projectile/impact survives into the next location
         if (this.combat) { this.combat.cancel(); this.combat.clearTarget(); }
         if (this.map) this.map.clearAll();        // close map panel when leaving location
@@ -498,6 +521,50 @@ class AveloraGame {
         this.pathfinder = null;
     }
 
+    buildSkyDome(atm = {}) {
+        if (this.skyDome) {
+            this.scene.remove(this.skyDome);
+            this.skyDome.geometry.dispose();
+            this.skyDome.material.dispose();
+            this.skyDome = null;
+        }
+        const skyGeo = new THREE.SphereGeometry(460, 32, 16);
+        const topHex = atm.skyTop !== undefined ? atm.skyTop : 0x4a8fc9;
+        const btmHex = atm.sky !== undefined ? atm.sky : 0xc6dbe3;
+        const skyMat = new THREE.ShaderMaterial({
+            uniforms: {
+                topColor: { value: new THREE.Color(topHex) },
+                bottomColor: { value: new THREE.Color(btmHex) },
+                offset: { value: 14.0 },
+                exponent: { value: 0.55 }
+            },
+            vertexShader: `
+                varying vec3 vWorldPosition;
+                void main() {
+                    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                    vWorldPosition = worldPosition.xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor;
+                uniform vec3 bottomColor;
+                uniform float offset;
+                uniform float exponent;
+                varying vec3 vWorldPosition;
+                void main() {
+                    float h = normalize(vWorldPosition + offset).y;
+                    gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+                }
+            `,
+            side: THREE.BackSide,
+            depthWrite: false
+        });
+        this.skyDome = new THREE.Mesh(skyGeo, skyMat);
+        this.skyDome.name = 'skyDome';
+        this.scene.add(this.skyDome);
+    }
+
     /** Travel to another location (loading screen, rebuild, place player at spawn). */
     async changeLocation(targetId, spawnId) {
         if (this.isTransitioning) return;
@@ -520,7 +587,11 @@ class AveloraGame {
         await nextFrame();
 
         this.teardownLocation();
-        const spawn = this.buildLocation(targetId, spawnId);
+        let spawn = this.buildLocation(targetId, spawnId);
+        if (this.pathfinder && !this.pathfinder.isWalkableWorld(spawn.x, spawn.z)) {
+            const safe = this.pathfinder.findNearestWalkableWorld(spawn.x, spawn.z, 120);
+            if (safe) spawn = { x: safe.x, z: safe.z, r: spawn.r || 0 };
+        }
 
         this.character.setTerrain(this.terrain);
         this.character.teleport(spawn.x, spawn.z, spawn.r);
@@ -547,13 +618,8 @@ class AveloraGame {
         (loc.exits || []).forEach(ex => {
             const radius = ex.radius || 3;
 
-            // Sit the marker on the highest ground under the ring so it doesn't sink into slopes
-            let y = -Infinity;
-            for (let a = 0; a < 8; a++) {
-                const ang = (a / 8) * Math.PI * 2;
-                y = Math.max(y, this.terrain.getHeightAt(ex.x + Math.cos(ang) * radius, ex.z + Math.sin(ang) * radius));
-            }
-            y = Math.max(y, this.terrain.getHeightAt(ex.x, ex.z)) + 0.06;
+            // Sit the marker directly on the terrain surface at exit center
+            const y = this.terrain.getHeightAt(ex.x, ex.z) + 0.04;
 
             const group = new THREE.Group();
             group.position.set(ex.x, y, ex.z);
@@ -755,6 +821,25 @@ class AveloraGame {
         });
         if (this.pauseResumeBtn) {
             this.pauseResumeBtn.addEventListener('click', () => this.setPaused(false));
+        }
+        const pauseUnstuckBtn = document.getElementById('pause-unstuck-btn');
+        if (pauseUnstuckBtn) {
+            pauseUnstuckBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.character || !this.location) return;
+                const curPos = this.character.position;
+                let safe = null;
+                if (this.pathfinder) {
+                    safe = this.pathfinder.findNearestWalkableWorld(curPos.x, curPos.z, 120);
+                }
+                const targetPos = safe || this.resolveSpawn(this.location, 'default');
+                this.character.teleport(targetPos.x, targetPos.z, 0);
+                this.cameraTarget.copy(this.character.position);
+                this.updateCameraPosition(true);
+                this.saveProgress();
+                this.setPaused(false);
+                this.showLocationBanner('Персонаж на безопасной тропе');
+            });
         }
         const menuBtn = document.getElementById('menu-btn');
         if (menuBtn) {
@@ -1106,10 +1191,8 @@ class AveloraGame {
     }
 
     resetCameraToNorth() {
-        // Compass reset only re-centers yaw (orientation); pitch now follows
-        // zoom automatically every frame in updateCameraPosition() and isn't
-        // touched here.
-        this.targetCameraAngle = Math.PI * 0.25;
+        // Points camera directly North (-Z)
+        this.targetCameraAngle = 0.0;
     }
 
     /**
@@ -1339,6 +1422,10 @@ class AveloraGame {
             this.sunLight.target.position.copy(this.cameraTarget);
             this.sunLight.target.updateMatrixWorld();
         }
+
+        if (this.skyDome) {
+            this.skyDome.position.set(this.camera.position.x, 0, this.camera.position.z);
+        }
     }
 
     updateHUD() {
@@ -1351,7 +1438,7 @@ class AveloraGame {
         // Update compass needle orientation (pointing North)
         const needle = document.getElementById('compass-needle');
         if (needle) {
-            const deg = -(this.cameraAngle - Math.PI * 0.25) * (180 / Math.PI);
+            const deg = -(this.cameraAngle) * (180 / Math.PI);
             needle.style.transform = `rotate(${deg.toFixed(1)}deg)`;
         }
     }
@@ -1424,6 +1511,9 @@ class AveloraGame {
         if (this.harvest) this.harvest.update(delta);     // chips, shakes, falling trees, regrow
         if (this.water) {
             this.water.update(delta);
+        }
+        if (this.waterfall) {
+            this.waterfall.update(delta);
         }
         if (this.environment) {
             this.environment.update(delta);

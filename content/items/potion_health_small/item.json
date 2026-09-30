@@ -1,0 +1,16 @@
+{
+  "id": "potion_health_small",
+  "name": "Малое зелье здоровья",
+  "description": "Целебный отвар из папоротника. Восстанавливает 50 единиц здоровья при употреблении.",
+  "category": "consumable",
+  "stackMax": 10,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "heal",
+    "amount": 50
+  }
+}

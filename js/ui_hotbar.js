@@ -83,6 +83,7 @@
 
             this.buildSlots();
             this.buildInventoryCells();
+            this.setupCraftingTabs();
             this.setupQuantityModal();
             this.setupEvents();
         }
@@ -141,6 +142,7 @@
             this.renderInventory();
             this.renderHotbar();
             this.renderSkills();
+            this.renderCrafting();
         }
 
         renderInventory() {
@@ -221,6 +223,178 @@
             });
         }
 
+        setupCraftingTabs() {
+            this.tabBtnInv = document.getElementById('tab-btn-inv');
+            this.tabBtnCraft = document.getElementById('tab-btn-craft');
+            this.tabContentInv = document.getElementById('inventory-tab-content');
+            this.tabContentCraft = document.getElementById('crafting-tab-content');
+            this.craftingList = document.getElementById('crafting-recipe-list');
+
+            if (this.tabBtnInv && this.tabBtnCraft) {
+                this.tabBtnInv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.switchInventoryTab('inv');
+                });
+                this.tabBtnCraft.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.switchInventoryTab('craft');
+                });
+            }
+            this.switchInventoryTab('inv');
+        }
+
+        switchInventoryTab(tab) {
+            this.currentTab = tab;
+            if (this.tabBtnInv) this.tabBtnInv.classList.toggle('active', tab === 'inv');
+            if (this.tabBtnCraft) this.tabBtnCraft.classList.toggle('active', tab === 'craft');
+            if (this.tabContentInv) {
+                this.tabContentInv.classList.toggle('hidden', tab !== 'inv');
+                this.tabContentInv.style.display = (tab === 'inv') ? '' : 'none';
+            }
+            if (this.tabContentCraft) {
+                this.tabContentCraft.classList.toggle('hidden', tab !== 'craft');
+                this.tabContentCraft.style.display = (tab === 'craft') ? '' : 'none';
+            }
+            this.hideTooltip();
+            if (tab === 'craft') {
+                this.renderCrafting();
+            } else {
+                this.renderInventory();
+            }
+        }
+
+        renderCrafting() {
+            if (!this.craftingList) return;
+            this.craftingList.innerHTML = '';
+            const recipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+            const recipeIds = Object.keys(recipes);
+            if (!recipeIds.length) {
+                const empty = document.createElement('div');
+                empty.className = 'crafting-empty';
+                empty.textContent = 'Нет доступных рецептов';
+                this.craftingList.appendChild(empty);
+                return;
+            }
+
+            const inv = this.state ? this.state.inventory : null;
+
+            recipeIds.forEach(id => {
+                const rec = recipes[id];
+                const card = document.createElement('div');
+                card.className = 'crafting-card';
+
+                const resItemDef = window.AveloraItems.get(rec.result.item);
+                const iconDef = rec.iconData ? rec : resItemDef;
+
+                const topRow = document.createElement('div');
+                topRow.className = 'crafting-card-top';
+
+                const iconWrap = document.createElement('div');
+                iconWrap.className = 'crafting-card-icon';
+                iconWrap.appendChild(makeIcon(iconDef));
+
+                const infoWrap = document.createElement('div');
+                infoWrap.className = 'crafting-card-info';
+                const title = document.createElement('div');
+                title.className = 'crafting-card-title';
+                title.textContent = rec.name || (resItemDef ? resItemDef.name : id);
+                const desc = document.createElement('div');
+                desc.className = 'crafting-card-desc';
+                desc.textContent = rec.description || (resItemDef ? resItemDef.description : '');
+                infoWrap.append(title, desc);
+
+                topRow.append(iconWrap, infoWrap);
+
+                const ingContainer = document.createElement('div');
+                ingContainer.className = 'crafting-ingredients';
+
+                let canCraft = true;
+                const ingredients = rec.ingredients || [];
+                ingredients.forEach(ing => {
+                    const have = inv ? inv.count(ing.item) : 0;
+                    const need = ing.count;
+                    if (have < need) canCraft = false;
+
+                    const itemDef = window.AveloraItems.get(ing.item);
+                    const name = itemDef ? itemDef.name : ing.item;
+
+                    const ingRow = document.createElement('div');
+                    ingRow.className = `crafting-ingredient-row ${have >= need ? 'has-enough' : 'not-enough'}`;
+
+                    const ingIcon = document.createElement('span');
+                    ingIcon.className = 'crafting-ing-icon';
+                    ingIcon.appendChild(makeIcon(itemDef));
+
+                    const ingName = document.createElement('span');
+                    ingName.className = 'crafting-ing-name';
+                    ingName.textContent = name;
+
+                    const ingCount = document.createElement('span');
+                    ingCount.className = 'crafting-ing-count';
+                    ingCount.textContent = `${have} / ${need}`;
+
+                    ingRow.append(ingIcon, ingName, ingCount);
+                    ingContainer.appendChild(ingRow);
+                });
+
+                const btnRow = document.createElement('div');
+                btnRow.className = 'crafting-btn-row';
+
+                const craftBtn = document.createElement('button');
+                craftBtn.type = 'button';
+                craftBtn.className = `craft-action-btn ${canCraft ? 'ready' : 'disabled'}`;
+                craftBtn.textContent = 'Создать';
+                craftBtn.disabled = !canCraft;
+
+                craftBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.craftRecipe(id);
+                });
+
+                btnRow.appendChild(craftBtn);
+
+                card.append(topRow, ingContainer, btnRow);
+                this.craftingList.appendChild(card);
+            });
+        }
+
+        craftRecipe(recipeId) {
+            const recipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+            const rec = recipes[recipeId];
+            const st = this.state;
+            if (!rec || !st || !st.inventory) return;
+
+            const ingredients = rec.ingredients || [];
+            for (const ing of ingredients) {
+                if (st.inventory.count(ing.item) < ing.count) {
+                    this.floatText('Недостаточно материалов', 'warn');
+                    return;
+                }
+            }
+
+            const resItem = rec.result.item;
+            const resCount = rec.result.count || 1;
+            if (st.inventory.spaceFor(resItem) < resCount) {
+                this.floatText('В сумке нет места', 'warn');
+                return;
+            }
+
+            for (const ing of ingredients) {
+                st.inventory.remove(ing.item, ing.count);
+            }
+
+            st.inventory.add(resItem, resCount);
+            st.save();
+
+            const resDef = window.AveloraItems.get(resItem);
+            const resName = resDef ? resDef.name : resItem;
+            this.floatText(`Создано: ${resName}`, 'loot');
+            this.pulseInventory();
+
+            this.renderInventory();
+            this.renderCrafting();
+        }
+
         // -----------------------------------------------------------
         // Panels
         // -----------------------------------------------------------
@@ -280,6 +454,12 @@
             if (def.use && def.use.type === 'equip') {
                 this.toggleEquip(e.id);
                 this.flashSlot(slot, 'pressed');
+            } else if (def.use && def.use.type === 'heal') {
+                if (this.consumeHeal(e.id)) {
+                    this.flashSlot(slot, 'pressed');
+                } else {
+                    this.flashSlot(slot, 'shake');
+                }
             } else {
                 this.flashSlot(slot, 'shake'); // other use types: not implemented yet
             }
@@ -290,6 +470,34 @@
             slot.classList.remove('pressed', 'shake', 'reject');
             void slot.offsetWidth;
             slot.classList.add(cls);
+        }
+
+        consumeHeal(itemId) {
+            const st = this.state;
+            const def = window.AveloraItems.get(itemId);
+            if (!st || !def || !this.game.combat) return false;
+            if (st.inventory.count(itemId) <= 0) {
+                this.floatText('Зелье закончилось', 'warn');
+                return false;
+            }
+            const cb = this.game.combat;
+            if (cb.isDead) return false;
+            if (cb.hp >= cb.maxHp) {
+                this.floatText('Здоровье уже полно', 'warn');
+                return false;
+            }
+            const amount = (def.use && def.use.amount) || 50;
+            const healed = Math.min(amount, cb.maxHp - cb.hp);
+            cb.heal(amount);
+            st.inventory.remove(itemId, 1);
+            this.floatText(`+${healed} Здоровье`, 'heal');
+            const c = this.game.character;
+            if (c) {
+                this.floatAt(`+${healed}`, 'heal', c.position.x, c.position.y + 1.8, c.position.z);
+            }
+            this.renderInventory();
+            this.renderHotbar();
+            return true;
         }
 
         // -----------------------------------------------------------
@@ -417,12 +625,34 @@
             this.tooltip.classList.remove('warn');
             this.tooltip.classList.add('interactive');
 
-            const n = document.createElement('div'); n.className = 'tt-name'; n.textContent = def.name;
-            const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = def.description || '';
-            const m = document.createElement('div'); m.className = 'tt-meta';
+            const header = document.createElement('div');
+            header.className = 'tt-header';
+
+            const n = document.createElement('div');
+            n.className = 'tt-name';
+            n.textContent = def.name;
+
+            const btnClose = document.createElement('button');
+            btnClose.type = 'button';
+            btnClose.className = 'tt-close';
+            btnClose.textContent = '×';
+            btnClose.title = 'Закрыть';
+            btnClose.setAttribute('aria-label', 'Закрыть карточку');
+            btnClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideTooltip();
+            });
+
+            header.append(n, btnClose);
+
+            const d = document.createElement('div');
+            d.className = 'tt-desc';
+            d.textContent = def.description || '';
+            const m = document.createElement('div');
+            m.className = 'tt-meta';
             m.textContent = `Количество: ${src.count} · ${def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал'}`;
 
-            this.tooltip.append(n, d, m);
+            this.tooltip.append(header, d, m);
 
             // Action buttons row (tap on mobile or click on PC)
             const actions = document.createElement('div');
@@ -439,6 +669,18 @@
                     this.applyEquipment();
                 });
                 actions.appendChild(btnEquip);
+            }
+
+            if (def.use && def.use.type === 'heal') {
+                const btnDrink = document.createElement('button');
+                btnDrink.className = 'tt-btn primary';
+                btnDrink.textContent = 'Выпить';
+                btnDrink.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideTooltip();
+                    this.consumeHeal(src.item);
+                });
+                actions.appendChild(btnDrink);
             }
 
             if (src.count > 1) {

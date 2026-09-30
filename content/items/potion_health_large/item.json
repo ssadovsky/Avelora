@@ -1,0 +1,16 @@
+{
+  "id": "potion_health_large",
+  "name": "Большое зелье здоровья",
+  "description": "Концентрированный эликсир из отборного папоротника. Восстанавливает 100 единиц здоровья при употреблении.",
+  "category": "consumable",
+  "stackMax": 10,
+  "ground": {
+    "variants": 1,
+    "scale": 0.9,
+    "pile": "single"
+  },
+  "use": {
+    "type": "heal",
+    "amount": 100
+  }
+}

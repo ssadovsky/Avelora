@@ -126,14 +126,16 @@
             const S = MAP_SIZE;
             ctx.clearRect(0, 0, S, S);
 
-            const terrainSize = (loc.terrain && loc.terrain.size) || 120;
-            // world coords: [-half..+half]
-            const half = terrainSize / 2;
+            const t = loc.terrain || {};
+            const sizeX = t.sizeX || (Array.isArray(t.size) ? t.size[0] : t.size) || 120;
+            const sizeZ = t.sizeZ || (Array.isArray(t.size) ? t.size[1] : t.size) || 120;
+            const halfX = sizeX / 2;
+            const halfZ = sizeZ / 2;
 
             // --- Преобразование мировых координат → canvas px ---
-            const toX = (wx) => PADDING + (wx + half) / terrainSize * (S - PADDING * 2);
-            const toZ = (wz) => PADDING + (wz + half) / terrainSize * (S - PADDING * 2);
-            const toR = (wr) => wr / terrainSize * (S - PADDING * 2); // radius in px
+            const toX = (wx) => PADDING + (wx + halfX) / sizeX * (S - PADDING * 2);
+            const toZ = (wz) => PADDING + (wz + halfZ) / sizeZ * (S - PADDING * 2);
+            const toR = (wr) => wr / Math.max(sizeX, sizeZ) * (S - PADDING * 2); // radius in px
 
             // === Фон ===
             ctx.fillStyle = TERRAIN_FILL;

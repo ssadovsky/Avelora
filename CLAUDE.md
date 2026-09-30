@@ -477,3 +477,8 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
 - **No dedicated server required**: Host creates room with short code (e.g. `LAKE-42`), up to 4 guests connect directly.
 - **Data payload**: Coordinates `{x, z, r, anim}` transmitted P2P 20 times/sec with minimal latency.
 
+
+### Character yaw rule (root cause of "running backwards/sideways", fixed 2026-09-30)
+- NEVER set the character's yaw via `mesh.quaternion.setFromAxisAngle(...)` and then keep writing `mesh.rotation.y = ...`. A yaw > 90° decomposes into Euler (PI, PI - y, PI); later writes to `.rotation.y` alone leave x/z = PI and MIRROR the model (effective yaw = PI - y) -> backwards/sideways running that depended on the saved heading at load (`combat.bindCharacter()` -> `resetDeathPose()`).
+- Always use `mesh.rotation.set(0, currentRotation + facingOffset, 0)` (character.js update/teleport/resetDeathPose). Only `applyDeathPose()` may use quaternions (tilt), and `resetDeathPose()` clears it.
+- The earlier "Hips yaw -16°" and `cos(diff)` explanations were misdiagnoses of this bug.

@@ -1,0 +1,13 @@
+{
+  "id": "potion_health_small",
+  "name": "Малое зелье здоровья",
+  "description": "Целебный отвар из листьев папоротника. Восстанавливает 50 единиц здоровья.",
+  "category": "alchemy",
+  "ingredients": [
+    { "item": "fern", "count": 5 }
+  ],
+  "result": {
+    "item": "potion_health_small",
+    "count": 1
+  }
+}

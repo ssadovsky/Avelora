@@ -39,43 +39,103 @@ class MinHeap {
 }
 
 class DiabloPathfinder {
-    constructor(terrain, gridSize = 160, worldSize = 120) {
+    constructor(terrain, gridSizeX = 160, gridSizeZ = null, worldSizeX = 120, worldSizeZ = null) {
         this.terrain = terrain;
-        this.gridSize = gridSize;
-        this.worldSize = worldSize;
-        this.cellSize = worldSize / gridSize;
-        this.halfWorld = worldSize / 2;
+        if (gridSizeZ === null || worldSizeZ === null) {
+            // Backward compatibility: constructor(terrain, gridSize, worldSize)
+            const g = gridSizeX;
+            const w = gridSizeZ || worldSizeX || 120;
+            this.gridSizeX = g;
+            this.gridSizeZ = g;
+            this.worldSizeX = w;
+            this.worldSizeZ = w;
+        } else {
+            this.gridSizeX = gridSizeX;
+            this.gridSizeZ = gridSizeZ;
+            this.worldSizeX = worldSizeX;
+            this.worldSizeZ = worldSizeZ;
+        }
+        this.gridSize = this.gridSizeX;
+        this.worldSize = this.worldSizeX;
+        this.cellWidth = this.worldSizeX / this.gridSizeX;
+        this.cellHeight = this.worldSizeZ / this.gridSizeZ;
+        this.halfWorldX = this.worldSizeX / 2;
+        this.halfWorldZ = this.worldSizeZ / 2;
 
         // 0: Walkable, 1: Blocked (Water or Obstacle)
-        this.grid = new Uint8Array(gridSize * gridSize);
+        this.grid = new Uint8Array(this.gridSizeX * this.gridSizeZ);
         this.obstacles = [];
 
         this.initGrid();
     }
 
     worldToGrid(wx, wz) {
-        const gx = Math.floor((wx + this.halfWorld) / this.cellSize);
-        const gz = Math.floor((wz + this.halfWorld) / this.cellSize);
+        const gx = Math.floor((wx + this.halfWorldX) / this.cellWidth);
+        const gz = Math.floor((wz + this.halfWorldZ) / this.cellHeight);
         return {
-            x: Math.max(0, Math.min(this.gridSize - 1, gx)),
-            z: Math.max(0, Math.min(this.gridSize - 1, gz))
+            x: Math.max(0, Math.min(this.gridSizeX - 1, gx)),
+            z: Math.max(0, Math.min(this.gridSizeZ - 1, gz))
         };
     }
 
     gridToWorld(gx, gz) {
         return {
-            x: (gx + 0.5) * this.cellSize - this.halfWorld,
-            z: (gz + 0.5) * this.cellSize - this.halfWorld
+            x: (gx + 0.5) * this.cellWidth - this.halfWorldX,
+            z: (gz + 0.5) * this.cellHeight - this.halfWorldZ
         };
     }
 
     getIndex(gx, gz) {
-        return gz * this.gridSize + gx;
+        return gz * this.gridSizeX + gx;
     }
 
     isWalkable(gx, gz) {
-        if (gx < 0 || gx >= this.gridSize || gz < 0 || gz >= this.gridSize) return false;
+        if (gx < 0 || gx >= this.gridSizeX || gz < 0 || gz >= this.gridSizeZ) return false;
         return this.grid[this.getIndex(gx, gz)] === 0;
+    }
+
+    isWalkableWorld(wx, wz) {
+        const g = this.worldToGrid(wx, wz);
+        return this.isWalkable(g.x, g.z);
+    }
+
+    findNearestWalkable(gx, gz, maxRadius = 120) {
+        if (this.isWalkable(gx, gz)) return { x: gx, z: gz };
+
+        let closest = null;
+        let minDist = Infinity;
+
+        for (let r = 1; r <= maxRadius; r++) {
+            for (let d = -r; d <= r; d++) {
+                const candidates = [
+                    { x: gx + d, z: gz - r },
+                    { x: gx + d, z: gz + r },
+                    { x: gx - r, z: gz + d },
+                    { x: gx + r, z: gz + d }
+                ];
+                for (let i = 0; i < 4; i++) {
+                    const c = candidates[i];
+                    if (this.isWalkable(c.x, c.z)) {
+                        const distSq = (c.x - gx) * (c.x - gx) + (c.z - gz) * (c.z - gz);
+                        if (distSq < minDist) {
+                            minDist = distSq;
+                            closest = { x: c.x, z: c.z };
+                        }
+                    }
+                }
+            }
+            if (closest) return closest;
+        }
+        return null;
+    }
+
+    findNearestWalkableWorld(wx, wz, maxRadius = 120) {
+        const g = this.worldToGrid(wx, wz);
+        const safeG = this.findNearestWalkable(g.x, g.z, maxRadius);
+        if (safeG) {
+            return this.gridToWorld(safeG.x, safeG.z);
+        }
+        return null;
     }
 
     addObstacle(wx, wz, radius) {
@@ -95,22 +155,25 @@ class DiabloPathfinder {
     }
 
     initGrid() {
-        for (let gz = 0; gz < this.gridSize; gz++) {
-            for (let gx = 0; gx < this.gridSize; gx++) {
+        for (let gz = 0; gz < this.gridSizeZ; gz++) {
+            for (let gx = 0; gx < this.gridSizeX; gx++) {
                 const wpos = this.gridToWorld(gx, gz);
                 const height = this.terrain.getHeightAt(wpos.x, wpos.z);
                 const slope = this.terrain.getSlopeAt(wpos.x, wpos.z);
 
                 // Water level is at Y = 0.0; shallow wading allowed down to -0.25m
                 const isWater = height < -0.25;
-                // Cliffs too steep to walk (slope > 0.85)
-                const isCliff = slope > 0.95;
+                // Cliffs too steep to walk (slope > 0.18 = angle > ~28 deg, or mountain altitude > 3.6m)
+                const isCliff = slope > 0.18 || height > 3.6;
 
-                // Keep a thin walkable-free rim along the map edge
-                const edgeMargin = 1.5;
-                const isEdge = Math.abs(wpos.x) > this.halfWorld - edgeMargin || Math.abs(wpos.z) > this.halfWorld - edgeMargin;
+                // Keep a safe non-walkable rim along the map edge (player cannot reach the world edge)
+                const edgeMargin = 4.0;
+                const isEdge = Math.abs(wpos.x) > this.halfWorldX - edgeMargin || Math.abs(wpos.z) > this.halfWorldZ - edgeMargin;
 
-                if (isWater || isCliff || isEdge) {
+                // In western pass: portal is at X = -138.0. Player cannot walk past the portal into the back cliff wall
+                const isPastPortal = wpos.x < -138.8 && Math.abs(wpos.z - 8.0) < 14.0;
+
+                if (isWater || isCliff || isEdge || isPastPortal) {
                     this.grid[this.getIndex(gx, gz)] = 1;
                 } else {
                     this.grid[this.getIndex(gx, gz)] = 0;
@@ -148,52 +211,60 @@ class DiabloPathfinder {
     }
 
     findPath(startWorld, targetWorld) {
-        const start = this.worldToGrid(startWorld.x, startWorld.z);
+        let start = this.worldToGrid(startWorld.x, startWorld.z);
         let target = this.worldToGrid(targetWorld.x, targetWorld.z);
+        let startAdjusted = false;
+        let safeStartWorld = null;
 
-        // If target itself is inside water/obstacle, find closest walkable cell
-        if (!this.isWalkable(target.x, target.z)) {
-            let closest = null;
-            let minDist = Infinity;
-            for (let r = 1; r <= 8; r++) {
-                for (let dz = -r; dz <= r; dz++) {
-                    for (let dx = -r; dx <= r; dx++) {
-                        const nx = target.x + dx;
-                        const nz = target.z + dz;
-                        if (this.isWalkable(nx, nz)) {
-                            const d = dx * dx + dz * dz;
-                            if (d < minDist) {
-                                minDist = d;
-                                closest = { x: nx, z: nz };
-                            }
-                        }
-                    }
-                }
-                if (closest) break;
+        // Auto-rescue: If start itself is inside an obstacle / cliff / mountain (e.g. spawned on a high ridge or old save),
+        // resolve to closest walkable cell so character can pathfind out towards the valley!
+        if (!this.isWalkable(start.x, start.z)) {
+            const safeStart = this.findNearestWalkable(start.x, start.z, 120);
+            if (safeStart) {
+                start = safeStart;
+                startAdjusted = true;
+                const sw = this.gridToWorld(safeStart.x, safeStart.z);
+                safeStartWorld = new THREE.Vector3(sw.x, this.terrain.getHeightAt(sw.x, sw.z), sw.z);
+            } else {
+                return [];
             }
-            if (closest) {
-                target = closest;
+        }
+
+        // If target itself is inside water/obstacle/cliff, find closest walkable cell
+        if (!this.isWalkable(target.x, target.z)) {
+            const safeTarget = this.findNearestWalkable(target.x, target.z, 40);
+            if (safeTarget) {
+                target = safeTarget;
             } else {
                 return []; // No reachable point
             }
         }
 
         // Direct straight line of sight check
-        if (this.hasLineOfSight(start.x, start.z, target.x, target.z)) {
+        if (!startAdjusted && this.hasLineOfSight(start.x, start.z, target.x, target.z)) {
             const finalW = this.gridToWorld(target.x, target.z);
             return [new THREE.Vector3(finalW.x, this.terrain.getHeightAt(finalW.x, finalW.z), finalW.z)];
+        }
+
+        if (startAdjusted && this.hasLineOfSight(start.x, start.z, target.x, target.z)) {
+            const finalW = this.gridToWorld(target.x, target.z);
+            return [
+                safeStartWorld,
+                new THREE.Vector3(finalW.x, this.terrain.getHeightAt(finalW.x, finalW.z), finalW.z)
+            ];
         }
 
         // A* Pathfinding
         const startIdx = this.getIndex(start.x, start.z);
         const targetIdx = this.getIndex(target.x, target.z);
+        const totalCells = this.gridSizeX * this.gridSizeZ;
 
         const open = new MinHeap();
-        const closed = new Uint8Array(this.gridSize * this.gridSize);
+        const closed = new Uint8Array(totalCells);
         const cameFrom = new Map();
 
-        const gScore = new Float32Array(this.gridSize * this.gridSize).fill(Infinity);
-        const fScore = new Float32Array(this.gridSize * this.gridSize).fill(Infinity);
+        const gScore = new Float32Array(totalCells).fill(Infinity);
+        const fScore = new Float32Array(totalCells).fill(Infinity);
 
         gScore[startIdx] = 0;
         fScore[startIdx] = this.heuristic(start.x, start.z, target.x, target.z);
@@ -211,7 +282,7 @@ class DiabloPathfinder {
         ];
 
         let iterations = 0;
-        const MAX_ITER = this.gridSize * this.gridSize; // binary heap: whole grid is affordable
+        const MAX_ITER = totalCells; // binary heap: whole grid is affordable
 
         while (open.size > 0 && iterations++ < MAX_ITER) {
             const current = open.pop();
@@ -219,11 +290,15 @@ class DiabloPathfinder {
             closed[current] = 1;
 
             if (current === targetIdx) {
-                return this.reconstructPath(cameFrom, current);
+                const path = this.reconstructPath(cameFrom, current);
+                if (startAdjusted && safeStartWorld) {
+                    path.unshift(safeStartWorld);
+                }
+                return path;
             }
 
-            const cx = current % this.gridSize;
-            const cz = Math.floor(current / this.gridSize);
+            const cx = current % this.gridSizeX;
+            const cz = Math.floor(current / this.gridSizeX);
 
             for (const n of neighbors) {
                 const nx = cx + n.dx;
@@ -271,8 +346,8 @@ class DiabloPathfinder {
 
         // Convert to world points
         const rawPoints = gridPath.map(idx => {
-            const gx = idx % this.gridSize;
-            const gz = Math.floor(idx / this.gridSize);
+            const gx = idx % this.gridSizeX;
+            const gz = Math.floor(idx / this.gridSizeX);
             return this.gridToWorld(gx, gz);
         });
 

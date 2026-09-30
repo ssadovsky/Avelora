@@ -65,79 +65,110 @@ window.LOCATIONS = {
         name: 'Лесная опушка',
 
         terrain: {
-            size: 120,          // игровая область 120 x 120 м (от -60 до 60)
-            seed: 9127,         // другой seed = другие холмы
-            biome: 'forest',    // лесной биом
-            segments: 240,      // повышенная детализация сетки для гладких холмов
-            baseHeight: 1.7,    // земля выше уровня воды -> нет случайных луж (по умолчанию 0.85)
+            sizeX: 300,         // 300 м с запада на восток (от -150 до +150)
+            sizeZ: 200,         // 200 м с севера на юг (от -100 до +100) — соотношение 3:2 landscape
+            seed: 9127,
+            biome: 'forest',
+            segmentsX: 300,
+            segmentsZ: 200,
+            border: 0,          // без лишнего внешнего бордюра, горы доходят ровно до границы карты
+            baseHeight: 1.7,
+
+            // Естественный горный барьер по периметру (высота 6м, пики до 9м)
+            mountainRim: { width: 16.0, height: 6.0 },
+            // Горный перевал (ущелье) на запад к Озерному краю
+            mountainPasses: [
+                { x: -136.0, z: 8.0, radius: 14.0 }
+            ],
+
             waterBody: {
-                type: 'lake',   // небольшой лесной пруд
+                type: 'lake',
                 x: -20.0,
                 z: -18.0,
                 radius: 20.0,
                 depth: -1.2,
-                beachWidth: 5.0 // узкий берег (у большого озера 14)
+                beachWidth: 5.0
             },
-            hills: { amplitude: 1.6, inclineX: 0.3, inclineZ: -0.2 }
+            hills: { amplitude: 1.6, inclineX: 0.2, inclineZ: -0.15 }
         },
 
-        atmosphere: { sky: 0xa7c4c6, fogDensity: 0.013 },
+        atmosphere: { sky: 0xc6dbe3, skyTop: 0x4a8fc9, fogDensity: 0.0055 },
 
         spawns: {
-            default:  { x: 6.0,   z: 12.0 },
-            fromLake: { x: -36.5, z: 7.5, r: 4.71 }   // r — куда смотрит персонаж (радианы)
-                                                       // отодвинуто от портала - вепрь агрится с 8 м
+            default:   { x: 6.0,    z: 12.0 },
+            fromLake:  { x: -126.0, z: 8.0, r: 4.71 },  // персонаж выходит из ущелья в долину
+            waterfall: { x: 104.0,  z: 6.0, r: 4.71 }   // с видом на восточный каскадный водопад
         },
 
-        exits: [
-            { id: 'toLake', x: -55.0, z: 8.0, radius: 3.0, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' }
+        waterfalls: [
+            {
+                id: 'east_stonewatch_falls',
+                modelKey: 'waterfall_cliffs',   // Stonewatch Cliffs: скалы-подкова, вода строится в waterfall.js
+                x: 134.5,                       // спина скал (x ~146) утоплена в восточный горный обод
+                z: 6.0,
+                scale: 16.0,
+                rotationY: -Math.PI / 2         // чаша (локальный +Z) смотрит на запад
+            }
         ],
 
-        // Тропа от прохода к поляне: здесь группы ничего не ставят
+        exits: [
+            // Проход в Озерный край через горный каньон на западе
+            { id: 'toLake', x: -138.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' }
+        ],
+
+        // Тропы и поляны (свободные от плотных деревьев)
         clearings: [
-            { x: -48.0, z: 8.0, radius: 6.0 },
-            { x: -38.0, z: 7.0, radius: 5.0 },
-            { x: -28.0, z: 6.0, radius: 5.0 }
+            { x: -136.0, z: 8.0, radius: 8.0 },
+            { x: -122.0, z: 8.0, radius: 8.0 },
+            { x: -108.0, z: 8.0, radius: 7.0 },
+            { x: -80.0,  z: 8.0, radius: 7.0 },
+            { x: -48.0,  z: 8.0, radius: 6.0 },
+            { x: -38.0,  z: 7.0, radius: 5.0 },
+            { x: -28.0,  z: 6.0, radius: 5.0 },
+            { x: 124.0,  z: 6.0, radius: 18.0 }  // водопад и чаша горного озера на востоке
         ],
 
         groups: [
-            // Лес по краям карты (закрывает границу мира)
-            { id: 'north_forest',     type: 'forest', x: 2.0,   z: -51.0, rx: 52.0, rz: 9.0,  count: 24, seed: 11 },
-            { id: 'northwest_forest', type: 'forest', x: -49.0, z: -30.0, rx: 11.0, rz: 19.0, count: 12, seed: 12 },
-            { id: 'southwest_forest', type: 'forest', x: -47.0, z: 40.0,  rx: 13.0, rz: 17.0, count: 12, seed: 13 },
-            { id: 'south_forest',     type: 'forest', x: 8.0,   z: 51.0,  rx: 48.0, rz: 9.0,  count: 20, seed: 14 },
-            { id: 'east_forest',      type: 'forest', x: 51.0,  z: 0.0,   rx: 9.0,  rz: 48.0, count: 20, seed: 15 },
+            // Горные леса у подножия хребта
+            { id: 'north_rim_forest', type: 'forest', x: 0.0,    z: -78.0, rx: 110.0, rz: 14.0, count: 45, seed: 11 },
+            { id: 'south_rim_forest', type: 'forest', x: 0.0,    z: 78.0,  rx: 110.0, rz: 14.0, count: 45, seed: 14 },
+            { id: 'east_rim_forest',  type: 'forest', x: 118.0,  z: -35.0, rx: 16.0,  rz: 40.0, count: 22, seed: 15 },
+            { id: 'east_south_forest',type: 'forest', x: 118.0,  z: 42.0,  rx: 16.0,  rz: 35.0, count: 20, seed: 16 },
+            { id: 'west_north_forest',type: 'forest', x: -125.0, z: -55.0, rx: 16.0,  rz: 30.0, count: 20, seed: 17 },
+            { id: 'west_south_forest',type: 'forest', x: -125.0, z: 62.0,  rx: 16.0,  rz: 28.0, count: 20, seed: 18 },
 
-            // Рощи внутри опушки
-            { id: 'oak_grove',   type: 'forest', x: 26.0,  z: -20.0, radius: 9.0, count: 8, seed: 21 },
-            { id: 'birch_copse', type: 'forest', x: -12.0, z: 28.0,  radius: 6.0, count: 5, seed: 22, undergrowth: true },
+            // Рощи внутри просторной долины
+            { id: 'oak_grove',   type: 'forest', x: 26.0,  z: -20.0, radius: 11.0, count: 12, seed: 21 },
+            { id: 'birch_copse', type: 'forest', x: -12.0, z: 32.0,  radius: 8.0,  count: 8,  seed: 22, undergrowth: true },
+            { id: 'west_grove',  type: 'forest', x: -65.0, z: -25.0, radius: 10.0, count: 9,  seed: 23 },
 
             // Лесной пруд: заросли камыша
             { id: 'pond_reeds', type: 'reeds', x: -20.0, z: -18.0, radius: 12.0, count: 60, seed: 31 },
 
-            // Каменистый холм и камни у пруда
-            { id: 'stone_hill', type: 'rocks', x: 30.0,  z: 22.0,  radius: 7.0, count: 3, seed: 41 },
-            { id: 'pond_rocks', type: 'rocks', x: -9.0,  z: -27.0, radius: 4.0, count: 2, seed: 42 },
+            // Каменистые холмы и валуны
+            { id: 'stone_hill',     type: 'rocks', x: 30.0,  z: 22.0,  radius: 7.0, count: 4, seed: 41 },
+            { id: 'pond_rocks',     type: 'rocks', x: -9.0,  z: -27.0, radius: 4.0, count: 3, seed: 42 },
 
-            // Луговая поляна в центре
-            { id: 'glade',       type: 'meadow', x: 4.0,   z: 4.0,  radius: 22.0, count: 90, flowers: 14, seed: 51 },
-            { id: 'path_meadow', type: 'meadow', x: -34.0, z: 14.0, radius: 9.0,  count: 25, flowers: 3,  seed: 52 }
+            // Заросли папоротника для сбора целебных трав
+            { id: 'camp_ferns',  type: 'fernPatch', x: 15.0, z: 16.0, radius: 8.0, count: 14, seed: 71 },
+            { id: 'grove_ferns', type: 'fernPatch', x: 28.0, z: -16.0, radius: 7.0, count: 10, seed: 72 },
+
+            // Луговая поляна в центре и тропа
+            { id: 'glade',       type: 'meadow', x: 4.0,   z: 4.0,  radius: 26.0, count: 120, flowers: 20, seed: 51 },
+            { id: 'path_meadow', type: 'meadow', x: -34.0, z: 14.0, radius: 10.0, count: 35,  flowers: 5,  seed: 52 },
+            { id: 'east_meadow', type: 'meadow', x: 80.0,  z: 6.0,  radius: 18.0, count: 60,  flowers: 10, seed: 53 }
         ],
 
-        // Предметы на земле рядом со стартом: кучка камней, стопка брёвен,
-        // топор, воткнутый в пень. Подобранное запоминается для каждого
-        // персонажа отдельно (по id кучки) — не переименовывайте id зря.
-        // Существа (content/creatures): крысы бродят у пруда и на каменистом холме —
-        // мирные, пока их не ударить, потом дают сдачи. Стартовая поляна безопасна.
-        // Вепрь-страж стоит у прохода к Озерному краю (aggressive, aggroRadius 8 м) -
-        // поэтому spawns.fromLake отодвинут от портала на безопасное расстояние.
+        // Существа в долине:
+        // Вепрь-страж охраняет вход в горный каньон к Озерному краю
         creatures: [
-            { id: 'pond_rat_1',  type: 'rat',  x: -3.0,  z: -8.0 },
-            { id: 'pond_rat_2',  type: 'rat',  x: -9.0,  z: -1.0 },
-            { id: 'hill_rat_1',  type: 'rat',  x: 27.0,  z: 19.0 },
-            { id: 'hill_rat_2',  type: 'rat',  x: 29.5,  z: 26.0 },
-            { id: 'portal_boar', type: 'boar', x: -49.5, z: 9.5,  r: 1.57 },
-            { id: 'stump_fawn',  type: 'fawn', x: -8.0,  z: -12.0, r: 1.2 }
+            { id: 'pond_rat_1',  type: 'rat',  x: -3.0,   z: -8.0 },
+            { id: 'pond_rat_2',  type: 'rat',  x: -9.0,   z: -1.0 },
+            { id: 'hill_rat_1',  type: 'rat',  x: 27.0,   z: 19.0 },
+            { id: 'hill_rat_2',  type: 'rat',  x: 29.5,   z: 26.0 },
+            { id: 'waterfall_fawn', type: 'fawn', x: 110.0, z: 12.0, r: 2.8 },
+            { id: 'portal_boar', type: 'boar', x: -118.0, z: 8.0,  r: 1.57 },
+            { id: 'stump_fawn',  type: 'fawn', x: -8.0,   z: -12.0, r: 1.2 }
         ],
 
         pickups: [
@@ -161,11 +192,27 @@ window.LOCATIONS = {
             trees: [
                 { x: 14.0, z: 2.0, s: 1.6, r: 0.3 }
             ],
-            boulders: [],
+            boulders: [
+                // Каменные врата каньона на западном перевале
+                { x: -124.0, z: 1.5, s: 2.2, r: 0.6 },
+                { x: -124.0, z: 14.5, s: 2.2, r: 2.1 },
+                { x: -132.0, z: 1.5, s: 2.0, r: 1.4 },
+                { x: -132.0, z: 14.5, s: 2.0, r: 0.9 },
+                { x: -140.0, z: 2.0, s: 1.8, r: 0.3 },
+                { x: -140.0, z: 14.0, s: 1.8, r: 2.8 }
+            ],
             shrubs: [
                 { x: 18.0, z: 6.5, s: 1.6, r: 1.1 }
             ],
-            ferns: [],
+            ferns: [
+                // Заметные кусты папоротника рядом с лагерем игрока для удобного сбора
+                { x: 11.0, z: 15.0, s: 3.0, r: 0.4 },
+                { x: 13.5, z: 17.0, s: 3.2, r: 1.2 },
+                { x: 8.0,  z: 18.5, s: 2.8, r: 2.5 },
+                { x: -7.0, z: 10.0, s: 3.0, r: 0.8 },
+                { x: -4.0, z: 8.0,  s: 3.2, r: 1.7 },
+                { x: 20.0, z: 13.0, s: 3.0, r: 2.1 }
+            ],
             dandelions: [],
             reeds: [],
             grass: []

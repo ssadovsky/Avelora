@@ -504,7 +504,9 @@ class MedievalCharacter {
 
     resetDeathPose() {
         this.deathT = -1;
-        if (this.mesh) this.mesh.quaternion.setFromAxisAngle(this._up, this.currentRotation + this.facingOffset);
+        // rotation.set(0, y, 0), НЕ quaternion.setFromAxisAngle: кватернион с углом > 90° раскладывается
+        // в Euler (PI, PI - y, PI), и дальнейшие rotation.y = ... зеркалят модель («бег задом/боком»).
+        if (this.mesh) this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0);
     }
 
     get isDeadPose() { return this.deathT >= 0; }
@@ -636,7 +638,7 @@ class MedievalCharacter {
         }
         if (this.mesh) {
             this.mesh.position.copy(this.position);
-            this.mesh.rotation.y = this.currentRotation + this.facingOffset;
+            this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0); // x/z всегда 0 — см. resetDeathPose()
         }
     }
 
@@ -778,7 +780,7 @@ class MedievalCharacter {
         if (this.mesh) {
             this.mesh.position.copy(this.position);
             // !!! НЕ ТРОГАТЬ: расчет рыскания меша жестко привязан к currentRotation и facingOffset !!!
-            this.mesh.rotation.y = this.currentRotation + this.facingOffset;
+            this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0); // x/z всегда 0 — см. resetDeathPose()
             if (this.swing) this.applySwingOverlay(delta);
         }
 

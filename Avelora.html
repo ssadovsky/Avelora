@@ -730,6 +730,34 @@
             align-items: center;
             margin-bottom: 12px;
         }
+        .inventory-tabs {
+            display: flex;
+            gap: 6px;
+        }
+        .inv-tab-btn {
+            font-family: inherit;
+            font-size: 0.85rem;
+            letter-spacing: 0.12rem;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            background: rgba(22, 27, 29, 0.75);
+            border: 1px solid rgba(195, 160, 95, 0.25);
+            border-radius: 3px;
+            color: #b9a47a;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .inv-tab-btn:hover {
+            color: #f1e2c8;
+            border-color: rgba(195, 160, 95, 0.6);
+        }
+        .inv-tab-btn.active {
+            background: rgba(195, 160, 95, 0.2);
+            border-color: #efcf7a;
+            color: #efcf7a;
+            font-weight: bold;
+            box-shadow: inset 0 0 8px rgba(239, 207, 122, 0.15);
+        }
         .inventory-title {
             font-size: 1.05rem;
             letter-spacing: 0.2rem;
@@ -770,6 +798,149 @@
             font-style: italic;
             color: #7e8a89;
             text-align: center;
+        }
+
+        .hidden,
+        #inventory-tab-content.hidden,
+        #crafting-tab-content.hidden {
+            display: none !important;
+        }
+
+        /* Crafting tab styles */
+        #crafting-recipe-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .crafting-card {
+            background: rgba(22, 27, 29, 0.95);
+            border: 1px solid rgba(195, 160, 95, 0.25);
+            border-radius: 4px;
+            padding: 8px 10px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .crafting-card-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .crafting-card-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+            background: rgba(10, 14, 16, 0.9);
+            border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .crafting-card-icon .ui-icon {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .crafting-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .crafting-card-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #f1e2c8;
+            letter-spacing: 0.05rem;
+        }
+        .crafting-card-desc {
+            font-size: 0.72rem;
+            color: #9ea8a7;
+            line-height: 1.25;
+            margin-top: 1px;
+        }
+        .crafting-ingredients {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            background: rgba(10, 14, 16, 0.6);
+            border: 1px solid rgba(195, 160, 95, 0.12);
+            border-radius: 3px;
+            padding: 4px 6px;
+        }
+        .crafting-ingredient-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+        }
+        .crafting-ingredient-row.has-enough {
+            color: #8bc34a;
+        }
+        .crafting-ingredient-row.not-enough {
+            color: #e57373;
+        }
+        .crafting-ing-icon {
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .crafting-ing-icon .ui-icon {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .crafting-ing-name {
+            flex: 1;
+            color: #d1d8d7;
+        }
+        .crafting-ing-count {
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+        .crafting-btn-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 2px;
+        }
+        .craft-action-btn {
+            font-family: inherit;
+            font-size: 0.78rem;
+            letter-spacing: 0.08rem;
+            text-transform: uppercase;
+            padding: 4px 14px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .craft-action-btn.ready {
+            background: linear-gradient(180deg, #c39a3f 0%, #87621c 100%);
+            border: 1px solid #efcf7a;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .craft-action-btn.ready:hover {
+            background: linear-gradient(180deg, #d8ac47 0%, #9a7122 100%);
+            box-shadow: 0 2px 8px rgba(239, 207, 122, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+        .craft-action-btn.disabled {
+            background: rgba(30, 35, 38, 0.6);
+            border: 1px solid rgba(100, 110, 115, 0.3);
+            color: #6c787b;
+            cursor: not-allowed;
+        }
+        .crafting-empty {
+            text-align: center;
+            font-style: italic;
+            font-size: 0.82rem;
+            color: #7e8a89;
+            padding: 16px 0;
         }
 
         /* ---------------------------------------------------------------
@@ -894,11 +1065,42 @@
         }
         #item-tooltip.interactive {
             pointer-events: auto;
+            min-width: 210px;
         }
         #item-tooltip.hidden { display: none; }
         #item-tooltip.warn { border-color: #e63946; }
         #item-tooltip.warn .tt-name { color: #ffb3b8; font-size: 0.78rem; }
+        .tt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
         .tt-name { font-size: 0.9rem; color: #efcf7a; letter-spacing: 0.05rem; }
+        .tt-close {
+            font-family: inherit;
+            font-size: 1.15rem;
+            line-height: 1;
+            width: 20px;
+            height: 20px;
+            color: #b9a47a;
+            background: transparent;
+            border: 1px solid rgba(195, 160, 95, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+        .tt-close:hover {
+            color: #efcf7a;
+            border-color: #efcf7a;
+            background: rgba(212, 175, 55, 0.2);
+        }
         .tt-desc { font-size: 0.75rem; color: #d8cbb5; margin-top: 3px; line-height: 1.3; }
         .tt-desc:empty { display: none; }
         .tt-meta { font-size: 0.7rem; color: #8f9c9b; margin-top: 4px; font-style: italic; }
@@ -939,6 +1141,17 @@
         .tt-btn.drop:hover {
             border-color: #e63946;
             color: #ffb0b0;
+        }
+        .tt-btn.primary {
+            background: linear-gradient(180deg, rgba(46, 125, 50, 0.8) 0%, rgba(27, 94, 32, 0.9) 100%);
+            border-color: #66bb6a;
+            color: #e8f5e9;
+            font-weight: 600;
+        }
+        .tt-btn.primary:hover {
+            border-color: #81c784;
+            color: #fff;
+            background: linear-gradient(180deg, rgba(56, 142, 60, 0.9) 0%, rgba(46, 125, 50, 1) 100%);
         }
 
         /* Quantity Modal (Split & Drop) */
@@ -1255,6 +1468,8 @@
             pointer-events: none;
         }
         .float-text.gain { color: #b8f0a0; }
+        .float-text.loot { color: #b8f0a0; font-size: 1.05rem; }
+        .float-text.heal { color: #69f0ae; font-size: 1.05rem; text-shadow: 0 0 10px rgba(105, 240, 174, 0.6), 0 2px 4px #000; }
         .float-text.warn { color: #ff9ea5; }
         .float-text.info { color: #efcf7a; font-size: 0.9rem; }
 
@@ -1628,14 +1843,22 @@
         </button>
     </div>
 
-    <!-- Inventory Panel (cells are (re)built by ui_hotbar.js: 32 cells, 8 columns) -->
+    <!-- Inventory & Crafting Panel -->
     <div id="inventory-panel" role="dialog" aria-labelledby="inventory-title" aria-hidden="true">
         <div class="inventory-header">
-            <div class="inventory-title" id="inventory-title">Инвентарь</div>
+            <div class="inventory-tabs">
+                <button type="button" class="inv-tab-btn active" id="tab-btn-inv">Сумка</button>
+                <button type="button" class="inv-tab-btn" id="tab-btn-craft">Ремесло</button>
+            </div>
             <button type="button" id="inventory-close" title="Закрыть (I)" aria-label="Закрыть инвентарь">×</button>
         </div>
-        <div class="inventory-grid"><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div><div class="inventory-cell"></div></div>
-        <div class="inventory-empty">Сумка пуста</div>
+        <div id="inventory-tab-content">
+            <div class="inventory-grid"></div>
+            <div class="inventory-empty">Сумка пуста</div>
+        </div>
+        <div id="crafting-tab-content" class="hidden">
+            <div id="crafting-recipe-list"></div>
+        </div>
     </div>
 
     <!-- Skills Panel (K): the character's skills, drag them onto the hotbar -->
@@ -1728,6 +1951,7 @@
 
             <div class="pause-buttons">
                 <button type="button" class="pause-btn primary" id="pause-resume">Продолжить</button>
+                <button type="button" class="pause-btn" id="pause-unstuck-btn" title="Переместить персонажа на безопасную тропу если он застрял в скалах">Выбраться на тропу</button>
                 <button type="button" class="pause-btn" id="pause-character-select">Выбор персонажа</button>
                 <button type="button" class="pause-btn" id="pause-settings-btn">Настройки</button>
                 <button type="button" class="pause-btn" id="pause-controls-btn">Управление</button>
@@ -1816,27 +2040,28 @@
     <script src="js/lib/GLTFLoader.js"></script>
     <script src="js/lib/Water.js"></script>
     <script src="js/lib/simplex-noise.js"></script>
-    <script src="js/assets_data.js?v=20260928_13"></script>
-    <script src="js/content_data.js?v=20260928_13"></script>
-    <script src="js/world_data.js?v=20260928_13"></script>
-    <script src="js/location_groups.js?v=20260928_13"></script>
-    <script src="js/pathfinding.js?v=20260928_13"></script>
-    <script src="js/terrain.js?v=20260928_13"></script>
-    <script src="js/water.js?v=20260928_13"></script>
-    <script src="js/environment.js?v=20260928_13"></script>
-    <script src="js/characters.js?v=20260928_13"></script>
-    <script src="js/save.js?v=20260928_13"></script>
-    <script src="js/items.js?v=20260928_13"></script>
-    <script src="js/game_state.js?v=20260928_13"></script>
-    <script src="js/world_objects.js?v=20260928_13"></script>
-    <script src="js/creatures.js?v=20260928_13"></script>
-    <script src="js/harvest.js?v=20260928_13"></script>
-    <script src="js/combat.js?v=20260928_13"></script>
-    <script src="js/skills.js?v=20260928_13"></script>
-    <script src="js/ui_hotbar.js?v=20260928_13"></script>
-    <script src="js/character.js?v=20260928_13"></script>
-    <script src="js/map.js?v=20260928_13"></script>
-    <script src="js/main.js?v=20260928_13"></script>
+    <script src="js/assets_data.js?v=20260930_1"></script>
+    <script src="js/content_data.js?v=20260930_1"></script>
+    <script src="js/world_data.js?v=20260930_1"></script>
+    <script src="js/location_groups.js?v=20260930_1"></script>
+    <script src="js/pathfinding.js?v=20260930_1"></script>
+    <script src="js/terrain.js?v=20260930_1"></script>
+    <script src="js/water.js?v=20260930_1"></script>
+    <script src="js/waterfall.js?v=20260930_1"></script>
+    <script src="js/environment.js?v=20260930_1"></script>
+    <script src="js/characters.js?v=20260930_1"></script>
+    <script src="js/save.js?v=20260930_1"></script>
+    <script src="js/items.js?v=20260930_1"></script>
+    <script src="js/game_state.js?v=20260930_1"></script>
+    <script src="js/world_objects.js?v=20260930_1"></script>
+    <script src="js/creatures.js?v=20260930_1"></script>
+    <script src="js/harvest.js?v=20260930_1"></script>
+    <script src="js/combat.js?v=20260930_1"></script>
+    <script src="js/skills.js?v=20260930_1"></script>
+    <script src="js/ui_hotbar.js?v=20260930_1"></script>
+    <script src="js/character.js?v=20260930_1"></script>
+    <script src="js/map.js?v=20260930_1"></script>
+    <script src="js/main.js?v=20260930_1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

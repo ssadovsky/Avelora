@@ -1,0 +1,13 @@
+{
+  "id": "potion_health_large",
+  "name": "Большое зелье здоровья",
+  "description": "Концентрированный эликсир из 10 побегов папоротника. Восстанавливает 100 единиц здоровья.",
+  "category": "alchemy",
+  "ingredients": [
+    { "item": "fern", "count": 10 }
+  ],
+  "result": {
+    "item": "potion_health_large",
+    "count": 1
+  }
+}

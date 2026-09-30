@@ -11,11 +11,21 @@ class LakesideTerrain {
 
         const loc = location || window.CURRENT_LOCATION || {};
         const locTerrain = loc.terrain || {};
-        // `size` = playable square (meters). The visible terrain mesh extends `border`
-        // meters beyond it on every side, so the camera never shows the edge of the world.
-        this.size = options.size || locTerrain.size || 120;
-        this.segments = options.segments || locTerrain.segments || 240; // 240x240 сетка для плавных холмов без low-poly ступеней
-        this.border = (locTerrain.border !== undefined) ? locTerrain.border : 28;
+        this.location = loc;
+        this.locTerrain = locTerrain;
+
+        // Support rectangular dimensions (e.g. 300x200, 3:2 landscape) with fallback to square
+        this.sizeX = locTerrain.sizeX || (Array.isArray(locTerrain.size) ? locTerrain.size[0] : locTerrain.size) || options.size || 120;
+        this.sizeZ = locTerrain.sizeZ || (Array.isArray(locTerrain.size) ? locTerrain.size[1] : locTerrain.size) || options.size || 120;
+        this.size = Math.max(this.sizeX, this.sizeZ);
+        this.halfX = this.sizeX / 2;
+        this.halfZ = this.sizeZ / 2;
+
+        this.segmentsX = locTerrain.segmentsX || locTerrain.segments || options.segments || 240;
+        this.segmentsZ = locTerrain.segmentsZ || locTerrain.segments || options.segments || 240;
+        this.segments = Math.max(this.segmentsX, this.segmentsZ);
+
+        this.border = (locTerrain.border !== undefined) ? locTerrain.border : 0;
         this.biome = locTerrain.biome || 'forest';
 
         // Water body configuration (lake, coast, island)
@@ -40,8 +50,8 @@ class LakesideTerrain {
 
     // Continuous, deterministic terrain elevation evaluation
     getHeightAt(x, z) {
-        const nx = x / this.size;
-        const nz = z / this.size;
+        const nx = x / this.sizeX;
+        const nz = z / this.sizeZ;
 
         // Base rolling meadow (hills)
         let meadowHills = this.noise.fbm(nx * 1.8, nz * 1.8, 3, 2.0, 0.45) * this.hillsConfig.amplitude;
@@ -125,6 +135,55 @@ class LakesideTerrain {
             height = THREE.MathUtils.lerp(0.1, height, smoothT);
         }
 
+        // Natural mountain barrier rim along the perimeter
+        if (this.locTerrain.mountains !== false) {
+            const rimWidth = (this.locTerrain.mountainRim && this.locTerrain.mountainRim.width) || 16.0;
+
+            const distFromEdgeX = this.halfX - Math.abs(x);
+            const distFromEdgeZ = this.halfZ - Math.abs(z);
+            const distFromEdge = Math.min(distFromEdgeX, distFromEdgeZ);
+
+            if (distFromEdge < rimWidth) {
+                // Rising smoothly from 0 at rimWidth to 1 at distance 1.5m from boundary
+                const t = Math.min(1.0, Math.max(0.0, (rimWidth - distFromEdge) / (rimWidth - 1.5)));
+                const smoothFactor = t * t * (3.0 - 2.0 * t);
+
+                // Multi-frequency peak and saddle modulation:
+                // Generates diverse heights from ~5.5m up to ~9.5m across the perimeter
+                const nx = x / this.sizeX, nz = z / this.sizeZ;
+                const peakMod = Math.sin(nx * 18.0 + nz * 12.0) * 1.6 + Math.cos(nx * 26.0 - nz * 22.0) * 1.1;
+                const baseHeight = 5.5 + peakMod;
+
+                // Sharp ridged multifractal crags (creates sharp angular alpine ridges instead of smooth round mounds)
+                const sharpRidge = 1.0 - Math.abs(this.noise.noise2D(x * 0.075, z * 0.075));
+                const crags = Math.pow(sharpRidge, 1.8) * 2.4;
+                const microCrags = Math.abs(this.noise.noise2D(x * 0.15, z * 0.15)) * 0.85;
+
+                let mHeight = smoothFactor * baseHeight + smoothFactor * (crags + microCrags);
+
+                // Mountain passes (western canyon cut to Lake Land)
+                const passes = this.locTerrain.mountainPasses || [];
+                for (let i = 0; i < passes.length; i++) {
+                    const pass = passes[i];
+                    // Pass cuts from valley into the mountain up to the portal at pass.x (-138)
+                    // Behind the portal (x < pass.x), the canyon terminates into a solid mountain wall
+                    const minPassX = (pass.minX !== undefined) ? pass.minX : -141.0;
+                    if (x >= minPassX && x <= (pass.x + 12.0)) {
+                        const dz = Math.abs(z - pass.z);
+                        const pRadius = pass.radius || 14.0;
+                        if (dz < pRadius) {
+                            const passFactor = Math.cos((dz / pRadius) * (Math.PI / 2));
+                            // Taper off behind the portal so canyon ends in a dramatic rock wall
+                            const depthFactor = (x < pass.x) ? Math.max(0.0, (x - minPassX) / (pass.x - minPassX)) : 1.0;
+                            mHeight *= (1.0 - Math.pow(passFactor * depthFactor, 1.8));
+                        }
+                    }
+                }
+
+                height += mHeight;
+            }
+        }
+
         return height;
     }
 
@@ -145,9 +204,11 @@ class LakesideTerrain {
     }
 
     init() {
-        const meshSize = this.size + this.border * 2;
-        const meshSegments = Math.round(this.segments * meshSize / this.size);
-        const geo = new THREE.PlaneGeometry(meshSize, meshSize, meshSegments, meshSegments);
+        const meshSizeX = this.sizeX + this.border * 2;
+        const meshSizeZ = this.sizeZ + this.border * 2;
+        const meshSegmentsX = Math.round(this.segmentsX * meshSizeX / this.sizeX);
+        const meshSegmentsZ = Math.round(this.segmentsZ * meshSizeZ / this.sizeZ);
+        const geo = new THREE.PlaneGeometry(meshSizeX, meshSizeZ, meshSegmentsX, meshSegmentsZ);
         geo.rotateX(-Math.PI / 2); // Lay flat on XZ plane
 
         const posAttr = geo.attributes.position;
@@ -157,7 +218,15 @@ class LakesideTerrain {
         for (let i = 0; i < posAttr.count; i++) {
             const x = posAttr.getX(i);
             const z = posAttr.getZ(i);
-            const y = this.getHeightAt(x, z);
+            let y = this.getHeightAt(x, z);
+
+            // Perimeter skirt: pull the outermost boundary vertices down below ground (-6m)
+            // This forms a solid vertical rock back-wall, eliminating any open cross-section/void
+            const atOuterEdge = Math.abs(x) >= (this.halfX - 0.25) || Math.abs(z) >= (this.halfZ - 0.25);
+            if (atOuterEdge) {
+                y = -6.0;
+            }
+
             posAttr.setY(i, y);
 
             const n = this.getNormalAt(x, z);
@@ -169,7 +238,7 @@ class LakesideTerrain {
 
         // Load PBR Textures from base64 assets based on active biome
         const texLoader = new THREE.TextureLoader();
-        let grassDiff, grassNor, trailDiff, rockDiff, beachDiff;
+        let grassDiff, grassNor, trailDiff, rockDiff, rockNor, beachDiff;
 
         const assets = window.GAME_ASSETS && window.GAME_ASSETS.textures ? window.GAME_ASSETS.textures : {};
 
@@ -178,6 +247,7 @@ class LakesideTerrain {
             grassNor = texLoader.load(assets.goldshireGrassNor || assets.meadowNor);
             trailDiff = texLoader.load(assets.goldshireTrailDiff || assets.gravelDiff || assets.beachDiff);
             rockDiff = texLoader.load(assets.rockDiff);
+            rockNor = texLoader.load(assets.rockNor || assets.beachNor);
             beachDiff = texLoader.load(assets.beachDiff);
         } else {
             // forest / default
@@ -185,10 +255,11 @@ class LakesideTerrain {
             grassNor = texLoader.load(assets.meadowNor);
             trailDiff = texLoader.load(assets.gravelDiff || assets.beachDiff);
             rockDiff = texLoader.load(assets.rockDiff);
+            rockNor = texLoader.load(assets.rockNor || assets.beachNor);
             beachDiff = texLoader.load(assets.beachDiff);
         }
 
-        this.textures = [grassDiff, grassNor, trailDiff, rockDiff, beachDiff];
+        this.textures = [grassDiff, grassNor, trailDiff, rockDiff, rockNor, beachDiff];
         this.textures.forEach(tex => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
@@ -200,8 +271,7 @@ class LakesideTerrain {
         beachDiff.repeat.set(14, 14);
         rockDiff.repeat.set(16, 16);
         // Normal map uses mesh UVs: keep ~6 m tiles regardless of map size
-        const norRepeat = 20 * meshSize / 120;
-        grassNor.repeat.set(norRepeat, norRepeat);
+        grassNor.repeat.set(20 * meshSizeX / 120, 20 * meshSizeZ / 120);
 
         // Standard Material with smooth PBR blending
         this.material = new THREE.MeshStandardMaterial({
@@ -214,7 +284,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v7`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
 
@@ -222,6 +292,7 @@ class LakesideTerrain {
             shader.uniforms.uGrassDiff = { value: grassDiff };
             shader.uniforms.uTrailDiff = { value: trailDiff };
             shader.uniforms.uRockDiff = { value: rockDiff };
+            shader.uniforms.uRockNor = { value: rockNor };
             shader.uniforms.uBeachDiff = { value: beachDiff };
             shader.uniforms.uBiome = { value: biomeId };
 
@@ -243,6 +314,7 @@ class LakesideTerrain {
                 uniform sampler2D uGrassDiff;
                 uniform sampler2D uTrailDiff;
                 uniform sampler2D uRockDiff;
+                uniform sampler2D uRockNor;
                 uniform sampler2D uBeachDiff;
                 uniform float uBiome;
 
@@ -257,18 +329,23 @@ class LakesideTerrain {
                 vec2 uvShore = vWorldPosition.xz * 0.12;
                 vec2 uvGrass = vWorldPosition.xz * 0.16;
                 vec2 uvTrail = vWorldPosition.xz * 0.18;
-                vec2 uvRock  = vWorldPosition.xz * 0.14;
+
+                // Двухмасштабная проекция скальной породы с компенсацией уклона (без растягивания)
+                vec2 uvRockMacro = vWorldPosition.xz * 0.22 + vec2(vWorldPosition.y * 0.10, 0.0);
+                vec2 uvRockMicro = vWorldPosition.xz * 0.68 + vec2(0.0, vWorldPosition.y * 0.35);
 
                 vec4 colBeach = texture2D(uBeachDiff, uvShore);
                 vec4 colGrass = texture2D(uGrassDiff, uvGrass);
                 vec4 colTrail = texture2D(uTrailDiff, uvTrail);
-                vec4 colRock  = texture2D(uRockDiff, uvRock);
+                vec4 colRock1 = texture2D(uRockDiff, uvRockMacro);
+                vec4 colRock2 = texture2D(uRockDiff, uvRockMicro);
+                vec3 rockTex = mix(colRock1.rgb, colRock2.rgb * 1.15, 0.50);
 
                 // Shore weight: highest near water level Y in [-0.5, 0.8]
                 float shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
 
-                // Rocky outcrop weight: moderate slope (normal.y < 0.84)
-                float cliffWeight = 1.0 - smoothstep(0.68, 0.86, vWorldNormal.y);
+                // Rocky outcrop weight: moderate slope (normal.y < 0.90)
+                float cliffWeight = 1.0 - smoothstep(0.70, 0.90, vWorldNormal.y);
 
                 vec3 terrainColor;
 
@@ -288,21 +365,42 @@ class LakesideTerrain {
                     terrainColor = mix(baseCol, colBeach.rgb, shoreWeight);
 
                     // Скальные выходы на крутых склонах
-                    terrainColor = mix(terrainColor, colRock.rgb, cliffWeight * 0.80);
+                    terrainColor = mix(terrainColor, rockTex, cliffWeight * 0.80);
 
                     // Насыщенность и контраст Poly Haven PBR
                     terrainColor = pow(terrainColor, vec3(1.10));
                 } else if (uBiome > 1.5) {
                     // === BIOME: VOLCANIC (Future Extensibility) ===
-                    vec3 ashCol = colRock.rgb * 0.35;
+                    vec3 ashCol = rockTex * 0.35;
                     vec3 lavaGlow = vec3(1.0, 0.35, 0.05);
                     float lavaCracks = smoothstep(0.85, 0.98, sin(vWorldPosition.x * 0.25) * cos(vWorldPosition.z * 0.25));
                     terrainColor = mix(ashCol, lavaGlow, lavaCracks * 0.85);
-                    terrainColor = mix(terrainColor, colRock.rgb * 0.5, cliffWeight);
+                    terrainColor = mix(terrainColor, rockTex * 0.5, cliffWeight);
                 } else {
-                    // === BIOME: FOREST (Classic Meadow) ===
-                    terrainColor = mix(colGrass.rgb, colBeach.rgb, shoreWeight);
-                    terrainColor = mix(terrainColor, colRock.rgb, cliffWeight * 0.65);
+                    // === BIOME: FOREST (Classic Meadow + Alpine Mountain Rim) ===
+                    // Четкая грунтовая тропа на запад к горному каньону (Z ~ 8, X от -10 до -146)
+                    float passTrailZ = 8.0 + sin(vWorldPosition.x * 0.055) * 2.2;
+                    float passTrailDist = abs(vWorldPosition.z - passTrailZ);
+                    float passTrailMask = 1.0 - smoothstep(1.8, 3.8, passTrailDist);
+                    passTrailMask *= smoothstep(6.0, -12.0, vWorldPosition.x);
+                    passTrailMask *= 1.0 - smoothstep(-148.0, -140.0, vWorldPosition.x);
+
+                    // Смешивание луговой травы и грунтовой дороги к перевалу
+                    vec3 meadowBase = mix(colGrass.rgb, colTrail.rgb, passTrailMask * 0.88);
+
+                    // Скальные уступы на крутых склонах и на высоте горного массива
+                    float altitudeRock = smoothstep(2.4, 4.6, vWorldPosition.y);
+                    float totalRock = clamp(cliffWeight * 1.5 + altitudeRock * 1.3, 0.0, 1.0);
+
+                    // Выразительный скальный микрорельеф на пиках:
+                    // На пиках скалы получают объемное затенение в трещинах и контраст
+                    float peakAltitude = smoothstep(3.8, 8.5, vWorldPosition.y);
+                    float rockRelief = 0.82 + 0.38 * smoothstep(0.40, 0.95, vWorldNormal.y);
+                    vec3 peakRock = rockTex * rockRelief;
+                    peakRock = mix(peakRock, pow(peakRock, vec3(1.18)) * 1.12, peakAltitude * 0.80);
+
+                    vec3 baseCol = mix(meadowBase, colBeach.rgb, shoreWeight);
+                    terrainColor = mix(baseCol, peakRock, totalRock);
                     terrainColor = pow(terrainColor, vec3(1.05));
                 }
 
