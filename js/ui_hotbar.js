@@ -74,6 +74,11 @@
             this.slots = Array.from(document.querySelectorAll('#skill-bar .skill-slot:not(.hud-btn)')).slice(0, 10);
             this.invPanel = document.getElementById('inventory-panel');
             this.invGrid = this.invPanel ? this.invPanel.querySelector('.inventory-grid') : null;
+            this.chestPanel = document.getElementById('chest-panel');
+            this.chestGrid = this.chestPanel ? this.chestPanel.querySelector('.chest-grid') : null;
+            this.chestTitle = document.getElementById('chest-title');
+            this.chestInv = null;      // Inventory of the open chest (game_state.chestInventory)
+            this.chestCells = [];
             this.invEmpty = this.invPanel ? this.invPanel.querySelector('.inventory-empty') : null;
             this.invBtn = document.getElementById('inventory-btn');
             this.skillsBtn = document.getElementById('skills-btn');
@@ -117,6 +122,8 @@
             this.setupQuestsModal();
             this.setupPotionSlot();
             this.setupPotionModal();
+            this.setupChest();
+            this.dialog = window.AveloraDialog ? new window.AveloraDialog(game, this) : null;
             this.setupEvents();
         }
 
@@ -150,6 +157,114 @@
             }
         }
 
+
+        // -----------------------------------------------------------
+        // Chest panel (world_objects.js openChest/closeChest)
+        // -----------------------------------------------------------
+        setupChest() {
+            const btn = document.getElementById('chest-close');
+            if (btn) btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.game.worldObjects) this.game.worldObjects.closeChest(); else this.closeChest();
+            });
+        }
+
+        isChestOpen() { return !!this.chestInv; }
+
+        // NPC dialog / shop window (dialog.js)
+        isDialogOpen() { return !!(this.dialog && this.dialog.isOpen()); }
+        openDialog(npc) { if (this.dialog) this.dialog.open(npc); }
+        closeDialog() { if (this.dialog) this.dialog.close(); }
+
+        openChest(title, inv) {
+            if (!this.chestPanel || !this.chestGrid) return;
+            this.chestInv = inv;
+            if (this.chestTitle) this.chestTitle.textContent = title || 'Сундук';
+            this.chestGrid.innerHTML = '';
+            this.chestCells = [];
+            for (let i = 0; i < inv.cells.length; i++) {
+                const c = document.createElement('div');
+                c.className = 'chest-cell';
+                c.dataset.cell = String(i);
+                this.chestGrid.appendChild(c);
+                this.chestCells.push(c);
+            }
+            this.chestPanel.classList.add('open');
+            this.chestPanel.setAttribute('aria-hidden', 'false');
+            this.game.setInventoryOpen(true); // bag opens next to the chest
+            if (this.switchInventoryTab) this.switchInventoryTab('inv');
+            this.renderChest();
+        }
+
+        closeChest() {
+            this.chestInv = null;
+            this.cancelDrag();
+            if (this.chestPanel) {
+                this.chestPanel.classList.remove('open');
+                this.chestPanel.setAttribute('aria-hidden', 'true');
+            }
+            this.hideTooltip();
+        }
+
+        renderChest() {
+            if (!this.chestInv) return;
+            this.chestCells.forEach((cell, i) => {
+                const c = this.chestInv.cells[i];
+                cell.innerHTML = '';
+                cell.classList.toggle('filled', !!c);
+                if (!c) return;
+                cell.appendChild(makeIcon(window.AveloraItems.get(c.item)));
+                if (c.count > 1) {
+                    const b = document.createElement('span');
+                    b.className = 'cell-count';
+                    b.textContent = String(c.count);
+                    cell.appendChild(b);
+                }
+            });
+        }
+
+        /** Moves/merges/swaps one cell between two inventories (bag <-> chest or inside one). */
+        transferCell(from, fi, to, ti) {
+            const Items = window.AveloraItems;
+            if (from === to) return from.move(fi, ti);
+            const a = from.cells[fi], b = to.cells[ti];
+            if (!a) return false;
+            if (b && b.item === a.item) {
+                const k = Math.min(a.count, Items.stackMax(a.item) - b.count);
+                if (k > 0) {
+                    b.count += k; a.count -= k;
+                    if (a.count <= 0) from.cells[fi] = null;
+                } else { from.cells[fi] = b; to.cells[ti] = a; }
+            } else {
+                from.cells[fi] = b; to.cells[ti] = a;
+            }
+            this.afterTransfer(from, to);
+            return true;
+        }
+
+        /** Whole stack of one cell into the first place that fits in the other inventory. */
+        quickMove(from, fi, to) {
+            const a = from.cells[fi];
+            if (!a) return;
+            const n = Math.min(a.count, to.spaceFor(a.item));
+            if (n <= 0) {
+                this.floatText(to === this.chestInv ? 'Сундук полон' : 'Сумка полна', 'warn');
+                return;
+            }
+            a.count -= n;
+            if (a.count <= 0) from.cells[fi] = null;
+            to.add(a.item, n);
+            this.afterTransfer(from, to);
+        }
+
+        afterTransfer(from, to) {
+            const st = this.state;
+            // The equipped tool must stay in the bag
+            if (st && st.equipped.right && st.inventory.count(st.equipped.right) <= 0) st.equipped.right = null;
+            from.changed();
+            if (to !== from) to.changed();
+        }
+
         // -----------------------------------------------------------
         // Character binding
         // -----------------------------------------------------------
@@ -172,6 +287,8 @@
 
         renderAll() {
             this.renderInventory();
+            if (this.dialog) this.dialog.refresh();
+            this.renderChest();
             this.renderHotbar();
             this.renderSkills();
             this.renderCrafting();
@@ -250,7 +367,9 @@
                 desc.textContent = def.description || '';
                 const meta = document.createElement('div');
                 meta.className = 'skill-entry-meta';
-                meta.textContent = `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м`;
+                meta.textContent = def.type === 'teleport'
+                    ? `Каст ${def.castTime || 0} с · Перезарядка ${def.cooldown || 0} с`
+                    : `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м`;
                 text.append(name, desc, meta);
                 row.append(iconWrap, text);
                 this.skillsList.appendChild(row);
@@ -344,9 +463,13 @@
 
                 let canCraft = true;
                 const ingredients = rec.ingredients || [];
+                const maxQty = this.maxCraftable(rec);
+                if (!this.craftQty) this.craftQty = {};
+                const qty = Math.max(1, Math.min(this.craftQty[id] || 1, Math.max(1, maxQty)));
+                this.craftQty[id] = qty;
                 ingredients.forEach(ing => {
                     const have = inv ? inv.count(ing.item) : 0;
-                    const need = ing.count;
+                    const need = ing.count * qty;
                     if (have < need) canCraft = false;
 
                     const itemDef = window.AveloraItems.get(ing.item);
@@ -377,44 +500,83 @@
                 const craftBtn = document.createElement('button');
                 craftBtn.type = 'button';
                 craftBtn.className = `craft-action-btn ${canCraft ? 'ready' : 'disabled'}`;
-                craftBtn.textContent = 'Создать';
+                craftBtn.textContent = '⚒';
+                craftBtn.title = qty > 1 ? `Создать ×${qty}` : 'Создать';
+                craftBtn.setAttribute('aria-label', craftBtn.title);
                 craftBtn.disabled = !canCraft;
 
                 craftBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this.craftRecipe(id);
+                    this.craftRecipe(id, qty);
                 });
 
-                btnRow.appendChild(craftBtn);
+                // Quantity picker: craft a whole batch with one click
+                const qtyBox = document.createElement('div');
+                qtyBox.className = 'craft-qty';
+                const mkBtn = (txt, title, fn) => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'craft-qty-btn'; b.textContent = txt; b.title = title;
+                    b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+                    return b;
+                };
+                const setQty = (v) => {
+                    this.craftQty[id] = Math.max(1, Math.min(Math.max(1, maxQty), v));
+                    this.renderCrafting();
+                };
+                const qInput = document.createElement('input');
+                qInput.type = 'number'; qInput.className = 'craft-qty-input';
+                qInput.min = '1'; qInput.max = String(Math.max(1, maxQty)); qInput.value = String(qty);
+                qInput.addEventListener('click', (e) => e.stopPropagation());
+                qInput.addEventListener('change', () => setQty(parseInt(qInput.value, 10) || 1));
+                qtyBox.append(
+                    mkBtn('−', 'Меньше', () => setQty(qty - 1)),
+                    qInput,
+                    mkBtn('+', 'Больше', () => setQty(qty + 1)),
+                    mkBtn('Макс', 'Сколько хватает материалов', () => setQty(maxQty))
+                );
+
+                btnRow.append(qtyBox, craftBtn);
 
                 card.append(topRow, ingContainer, btnRow);
                 this.craftingList.appendChild(card);
             });
         }
 
-        craftRecipe(recipeId) {
+        /** How many times a recipe can be crafted right now (materials and bag space). */
+        maxCraftable(rec) {
+            const inv = this.state ? this.state.inventory : null;
+            if (!inv) return 0;
+            let n = Infinity;
+            (rec.ingredients || []).forEach(ing => { n = Math.min(n, Math.floor(inv.count(ing.item) / Math.max(1, ing.count))); });
+            const resCount = rec.result.count || 1;
+            n = Math.min(n, Math.floor(inv.spaceFor(rec.result.item) / resCount));
+            return Number.isFinite(n) ? Math.max(0, n) : 0;
+        }
+
+        craftRecipe(recipeId, times) {
             const recipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
             const rec = recipes[recipeId];
             const st = this.state;
             if (!rec || !st || !st.inventory) return;
 
             const ingredients = rec.ingredients || [];
+            const n = Math.max(1, Math.floor(times || 1));
             for (const ing of ingredients) {
-                if (st.inventory.count(ing.item) < ing.count) {
+                if (st.inventory.count(ing.item) < ing.count * n) {
                     this.floatText('Недостаточно материалов', 'warn');
                     return;
                 }
             }
 
             const resItem = rec.result.item;
-            const resCount = rec.result.count || 1;
+            const resCount = (rec.result.count || 1) * n;
             if (st.inventory.spaceFor(resItem) < resCount) {
                 this.floatText('В сумке нет места', 'warn');
                 return;
             }
 
             for (const ing of ingredients) {
-                st.inventory.remove(ing.item, ing.count);
+                st.inventory.remove(ing.item, ing.count * n);
             }
 
             st.inventory.add(resItem, resCount);
@@ -422,7 +584,7 @@
 
             const resDef = window.AveloraItems.get(resItem);
             const resName = resDef ? resDef.name : resItem;
-            this.floatText(`Создано: ${resName}`, 'loot');
+            this.floatText(resCount > 1 ? `Создано: ${resName} ×${resCount}` : `Создано: ${resName}`, 'loot');
             this.pulseInventory();
 
             this.renderInventory();
@@ -1226,7 +1388,8 @@
                 actions.appendChild(btnDrink);
             }
 
-            if (src.count > 1) {
+            const shopOpen = !!(this.dialog && this.dialog.isShopOpen()); // trading: no split / drop in the card
+            if (src.count > 1 && !shopOpen) {
                 const btnSplit = document.createElement('button');
                 btnSplit.className = 'tt-btn';
                 btnSplit.textContent = '✂ Разделить';
@@ -1252,6 +1415,38 @@
                 actions.appendChild(btnSplit);
             }
 
+            if (this.dialog && this.dialog.isShopOpen()) {
+                const price = this.dialog.sellPriceOf(src.item);
+                if (price > 0) {
+                    const mkSell = (label, all) => {
+                        const b = document.createElement('button');
+                        b.className = 'tt-btn primary';
+                        b.textContent = label;
+                        b.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.hideTooltip();
+                            this.dialog.sellFromBag(src.index, all);
+                        });
+                        actions.appendChild(b);
+                    };
+                    mkSell(`Продать за ${price}`, false);
+                    if (src.count > 1) mkSell(`Продать все (${price * src.count})`, true);
+                }
+            }
+
+            if (this.chestInv) {
+                // Chest is open: "Выбросить" would drop the stack on the ground — offer the chest instead
+                const btnPut = document.createElement('button');
+                btnPut.className = 'tt-btn primary';
+                btnPut.textContent = '⇲ В сундук';
+                btnPut.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideTooltip();
+                    if (this.chestInv && st) this.quickMove(st.inventory, src.index, this.chestInv);
+                });
+                actions.appendChild(btnPut);
+            }
+
             const btnDrop = document.createElement('button');
             btnDrop.className = 'tt-btn drop';
             btnDrop.textContent = '⏏ Выбросить';
@@ -1273,7 +1468,7 @@
                     });
                 }
             });
-            actions.appendChild(btnDrop);
+            if (!shopOpen) actions.appendChild(btnDrop);
 
             this.tooltip.appendChild(actions);
             this.placeTooltip(src.el);
@@ -1425,6 +1620,21 @@
             // Small random sideways jitter so rapid numbers don't stack exactly
             this.floats.push({ el, age: 0, stack: 0, anchor: { x: x + (Math.random() - 0.5) * 0.35, y, z } });
             if (this.floats.length > 40) { const f = this.floats.shift(); f.el.remove(); }
+        }
+
+        /** "+1 Мясо" rising over the BAG button (loot that went straight into the bag). */
+        bagFloat(text, delay) {
+            if (!this.invBtn) { this.floatText(text, 'gain', delay); return; }
+            const r = this.invBtn.getBoundingClientRect();
+            const n = (this._bagFloats = (this._bagFloats || 0) + 1);
+            const el = document.createElement('div');
+            el.className = 'bag-float';
+            el.textContent = text;
+            el.style.left = (r.left + r.width / 2) + 'px';
+            el.style.top = (r.top - 6 - ((n - 1) % 4) * 22) + 'px';
+            el.style.animationDelay = (delay || 0) + 's';
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => { el.remove(); this._bagFloats = Math.max(0, (this._bagFloats || 1) - 1); });
         }
 
         clearFloats() {
@@ -1579,6 +1789,12 @@
                 const e = this.state.hotbar[i];
                 return { kind: 'slot', index: i, entry: e, el: slot };
             }
+            const ccell = target.closest('.chest-cell');
+            if (ccell && this.chestInv) {
+                const i = parseInt(ccell.dataset.cell, 10);
+                const c = this.chestInv.cells[i];
+                return c ? { kind: 'chest', index: i, item: c.item, count: c.count, el: ccell } : null;
+            }
             const cell = target.closest('.inventory-cell');
             if (cell && this.state) {
                 const i = parseInt(cell.dataset.cell, 10);
@@ -1591,13 +1807,13 @@
         }
 
         showSourceTooltip(src) {
-            if (src.kind === 'inv') this.showTooltipFor(src.el, 'item', src.item, src.count);
+            if (src.kind === 'inv' || src.kind === 'chest') this.showTooltipFor(src.el, 'item', src.item, src.count);
             else if (src.kind === 'skill') this.showTooltipFor(src.el, 'skill', src.id);
             else if (src.kind === 'slot' && src.entry) this.showTooltipFor(src.el, src.entry.type === 'skill' ? 'skill' : 'item', src.entry.id);
         }
 
         sourceIconDef(src) {
-            if (src.kind === 'inv') return window.AveloraItems.get(src.item);
+            if (src.kind === 'inv' || src.kind === 'chest') return window.AveloraItems.get(src.item);
             if (src.kind === 'skill') return this.game.skills.get(src.id);
             if (src.kind === 'slot' && src.entry) {
                 return src.entry.type === 'skill' ? this.game.skills.get(src.entry.id) : window.AveloraItems.get(src.entry.id);
@@ -1648,7 +1864,13 @@
                 // Plain tap/click
                 if (d.src.kind === 'slot') {
                     this.activateSlot(d.src.index);
+                } else if (d.src.kind === 'chest') {
+                    if (this.state) this.quickMove(this.chestInv, d.src.index, this.state.inventory);
                 } else if (d.src.kind === 'inv') {
+                    if (this.chestInv && this.state && (e.ctrlKey || e.metaKey)) {
+                        this.quickMove(this.state.inventory, d.src.index, this.chestInv);
+                        return;
+                    }
                     if (e.shiftKey && d.src.count > 1) {
                         // Desktop Shift+Click on stack -> instant split dialog!
                         const emptyIdx = this.state ? this.state.inventory.firstEmpty() : -1;
@@ -1710,6 +1932,8 @@
             if (!el || !el.closest) return null;
             const slot = el.closest('.hotbar-slot');
             if (slot) return { kind: 'slot', index: parseInt(slot.dataset.slot, 10), el: slot };
+            const cc = el.closest('.chest-cell');
+            if (cc && this.chestInv) return { kind: 'chest', index: parseInt(cc.dataset.cell, 10), el: cc };
             const cell = el.closest('.inventory-cell');
             if (cell) return { kind: 'inv', index: parseInt(cell.dataset.cell, 10), el: cell };
             if (el.closest('#skill-bar')) return { kind: 'bar', el: null };
@@ -1723,7 +1947,8 @@
                 if (src.kind === 'skill' || src.kind === 'slot') return true;
                 if (src.kind === 'inv') return window.AveloraItems.canHotbar(src.item);
             }
-            if (tgt.kind === 'inv') return src.kind === 'inv' ? true : null;
+            if (tgt.kind === 'inv') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
+            if (tgt.kind === 'chest') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
             return null;
         }
 
@@ -1760,6 +1985,12 @@
                 }
                 return;
             }
+            if (tgt && (tgt.kind === 'chest' || tgt.kind === 'inv') && (src.kind === 'chest' || (src.kind === 'inv' && tgt.kind === 'chest') || (src.kind === 'chest' && tgt.kind === 'inv'))) {
+                const fromInv = src.kind === 'chest' ? this.chestInv : st.inventory;
+                const toInv = tgt.kind === 'chest' ? this.chestInv : st.inventory;
+                if (fromInv && toInv) this.transferCell(fromInv, src.index, toInv, tgt.index);
+                return;
+            }
             if (tgt && tgt.kind === 'inv' && src.kind === 'inv') {
                 if (d.shiftKey && src.count > 1 && src.index !== tgt.index) {
                     // Shift-drag in backpack: split onto this specific target cell!
@@ -1779,9 +2010,15 @@
                 return;
             }
             // Dropped a hotbar binding anywhere off the bar -> clear it
+            if (src.kind === 'chest') return;
             if (src.kind === 'slot' && !(tgt && tgt.kind === 'bar')) {
                 st.setHotbar(src.index, null);
                 return;
+            }
+            // Bag cell dropped onto the open shop window -> sell the whole stack
+            if (src.kind === 'inv' && this.dialog && this.dialog.isShopOpen()) {
+                const el = document.elementFromPoint(x, y);
+                if (el && el.closest && el.closest('#dialog-panel')) { this.dialog.sellFromBag(src.index, true); return; }
             }
             // Bag cell released over the game world (not over any panel/HUD) -> drop the stack there
             if (src.kind === 'inv' && !tgt && this.isOverWorld(x, y) && this.game.worldObjects) {
@@ -1813,7 +2050,7 @@
             if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
             const el = document.elementFromPoint(x, y);
             if (!el) return false;
-            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #skills-panel, #quantity-modal, #item-tooltip';
+            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #quantity-modal, #item-tooltip';
             return !(el.closest && el.closest(sel));
         }
 

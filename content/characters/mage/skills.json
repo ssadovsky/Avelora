@@ -1,4 +1,8 @@
 {
   "character": "mage",
-  "skills": ["spark"]
-}
+  "skills": [
+    "spark",
+    "fire_arrow",
+    "fireball"
+  ]
+}

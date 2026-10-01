@@ -12,5 +12,6 @@
   "use": {
     "type": "heal",
     "amount": 50
-  }
+  },
+  "value": 10
 }

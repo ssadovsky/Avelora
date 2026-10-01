@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelora-v5'; // bump when the file list changes
+const CACHE_NAME = 'avelora-v7'; // bump when the file list changes
 const ASSETS_TO_CACHE = [
   './',
   'Avelora.html',
@@ -18,6 +18,9 @@ const ASSETS_TO_CACHE = [
   'js/terrain.js',
   'js/water.js',
   'js/waterfall.js',
+  'js/fire.js',
+  'js/recall_fx.js',
+  'js/dialog.js',
   'js/environment.js',
   'js/characters.js',
   'js/save.js',

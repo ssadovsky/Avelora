@@ -59,7 +59,9 @@
     // ---------------------------------------------------------------
     function makeContext(location, terrain) {
         const t = location.terrain || {};
-        const half = (t.size || 120) / 2 - 1.0;
+        // rectangular locations (forestEdge) give sizeX/sizeZ instead of a square `size`
+        const halfX = (t.sizeX || t.size || 120) / 2 - 1.0;
+        const halfZ = (t.sizeZ || t.size || 120) / 2 - 1.0;
 
         const reserved = [];
         (location.exits || []).forEach(e => reserved.push({ x: e.x, z: e.z, r: (e.radius || 3) + 2.5 }));
@@ -77,7 +79,7 @@
         return {
             terrain,
             placed,
-            isInsideMap(x, z) { return Math.abs(x) < half && Math.abs(z) < half; },
+            isInsideMap(x, z) { return Math.abs(x) < halfX && Math.abs(z) < halfZ; },
             isReserved(x, z) {
                 for (const r of reserved) {
                     const dx = x - r.x, dz = z - r.z;
@@ -331,6 +333,14 @@
                     obj.group = groupId;
                     result[kind].push(obj);
                 });
+            });
+        });
+
+        // 3) Zones where no ferns may grow (location.noFerns: ellipses {x, z, rx, rz})
+        (location.noFerns || []).forEach(zn => {
+            result.ferns = result.ferns.filter(f => {
+                const dx = (f.x - zn.x) / zn.rx, dz = (f.z - zn.z) / zn.rz;
+                return dx * dx + dz * dz > 1;
             });
         });
 

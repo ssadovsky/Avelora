@@ -34,6 +34,7 @@
 (function () {
     'use strict';
 
+    const CONTAINER_REACH = 1.7;  // meters from the chest's edge at which it can be opened
     const PICKUP_RANGE = 1.6;     // meters (2D) — auto pickup distance
     const MAX_PILE_VISUAL = 8;    // never draw more than this many models per pile
     const MIN_NAV_OBSTACLE = 0.55; // nav cells are 0.75 m — smaller radii might block no cell at all
@@ -54,6 +55,9 @@
         return window.aveloraSeededRandom ? window.aveloraSeededRandom(hashString(String(id))) : Math.random;
     }
 
+    const NPC_TMP_Q = new THREE.Quaternion();
+    const NPC_TMP_E = new THREE.Euler();
+
     class AveloraWorldObjects {
         constructor(game, location) {
             this.game = game;
@@ -64,17 +68,26 @@
 
             this.piles = new Map();   // pickupId -> pile record
             this.props = [];          // { id, x, z, r, h, group }
+            this.fires = [];          // AveloraFire instances (props with a `fire` block in prop.json)
             this.proxies = [];        // invisible hit-cylinders for hover/click (one per visible pile)
             this.templates = {};      // 'items/<id>' | 'props/<id>' -> Promise<[variant Object3D]> (templates are never added to the scene)
             this.allTemplates = [];   // resolved templates, for disposal (a fully collected pile's GPU buffers are no longer under locationRoot)
             this.pendingPileId = null;
+            this.containerProxies = []; // invisible hit-boxes of props with a `container` block (chests)
+            this.pendingContainerId = null;
+            this.openContainer = null;  // record of the chest whose panel is open
             this.disposed = false;
+            this.npcMixers = [];
             this.version = 0;         // bumped whenever props change (skills.js blocker cache)
 
             const jobs = [];
+            this.buildBridges();
             (location.props || []).forEach(p => jobs.push(this.buildProp(p)));
-            (location.pickups || []).forEach(p => jobs.push(this.addPickup(p)));
+            // `only: '<characterId>'` pickups exist for that character alone (the mage's staff)
+            const who = this.state && this.state.characterId;
+            (location.pickups || []).filter(p => !p.only || p.only === who).forEach(p => jobs.push(this.addPickup(p)));
             // Dynamic piles persisted for this character (dropped items, tree drops)
+            if (this.state) this.state.expireGround(location.id);
             if (this.state) this.state.groundOf(location.id).forEach(g => jobs.push(this.addGroundPile(g)));
             this.ready = Promise.all(jobs).then(() => undefined);
         }
@@ -113,6 +126,66 @@
         }
 
         // -----------------------------------------------------------
+        // Bridges (location.terrain.bridges): walkable deck height comes from terrain.getHeightAt,
+        // this only draws the planks, beams and rails as ONE merged mesh (no assets needed).
+        // -----------------------------------------------------------
+        buildBridges() {
+            const list = (this.location.terrain && this.location.terrain.bridges) || [];
+            list.forEach((b, bi) => {
+                const boxes = [];
+                const W = b.width, L = b.length, Y = b.deckY;
+                const add = (cx, cy, cz, sx, sy, sz, col) => boxes.push({ cx, cy, cz, sx, sy, sz, col });
+                const rnd = rngFor(`bridge${bi}`);
+                // planks
+                const step = 0.31;
+                const n = Math.floor(L / step);
+                for (let i = 0; i < n; i++) {
+                    const z = -L / 2 + step * (i + 0.5);
+                    const k = 0.86 + rnd() * 0.22;
+                    add(0, Y - 0.06, z, W, 0.12, step - 0.035, [0.52 * k, 0.37 * k, 0.22 * k]);
+                }
+                // stringers under the deck and end piers into the river bed
+                const sx = W / 2 - 0.22;
+                [-1, 1].forEach(side => {
+                    add(side * sx, Y - 0.27, 0, 0.2, 0.22, L, [0.36, 0.25, 0.15]);
+                    for (let j = 0; j <= 4; j++) {
+                        const z = -L / 2 + 1.0 + (L - 2.0) * j / 4;
+                        add(side * sx, (Y - 0.3 - 1.4) / 2 - 0.0, z, 0.22, Y + 1.1, 0.22, [0.3, 0.21, 0.12]);
+                    }
+                    // rails: posts every ~1.6 m, two horizontal rails
+                    const posts = Math.max(2, Math.round(L / 1.6));
+                    for (let j = 0; j <= posts; j++) {
+                        const z = -L / 2 + 0.15 + (L - 0.3) * j / posts;
+                        add(side * (W / 2 - 0.08), Y + 0.5, z, 0.14, 1.0, 0.14, [0.34, 0.24, 0.14]);
+                    }
+                    add(side * (W / 2 - 0.08), Y + 0.95, 0, 0.11, 0.11, L, [0.45, 0.32, 0.19]);
+                    add(side * (W / 2 - 0.08), Y + 0.5, 0, 0.09, 0.09, L, [0.4, 0.28, 0.17]);
+                });
+                const pos = [], nor = [], col = [];
+                boxes.forEach(bx => {
+                    const g = new THREE.BoxGeometry(bx.sx, bx.sy, bx.sz).toNonIndexed();
+                    const pa = g.attributes.position, na = g.attributes.normal;
+                    for (let i = 0; i < pa.count; i++) {
+                        pos.push(pa.getX(i) + bx.cx, pa.getY(i) + bx.cy, pa.getZ(i) + bx.cz);
+                        nor.push(na.getX(i), na.getY(i), na.getZ(i));
+                        col.push(bx.col[0], bx.col[1], bx.col[2]);
+                    }
+                    g.dispose();
+                });
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+                geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+                geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+                const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(b.x, 0, b.z);
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                mesh.name = `bridge${bi}`;
+                this.root.add(mesh);
+            });
+        }
+
+        // -----------------------------------------------------------
         // Props
         // -----------------------------------------------------------
         buildProp(p) {
@@ -146,8 +219,129 @@
                 };
                 this.props.push(rec);
                 this.version++;
+                if (def.container || def.npc) {
+                    if (def.container) rec.container = { slots: Math.max(1, Math.min(64, def.container.slots || 12)), title: def.container.title || def.name };
+                    if (def.npc) rec.npc = window.GAME_CONTENT && window.GAME_CONTENT.npcs ? window.GAME_CONTENT.npcs[def.npc] || null : null;
+                    rec.def = def;
+                    const rr = Math.max(0.6, rec.r);
+                    const pg = new THREE.CylinderGeometry(rr, rr, Math.max(0.9, rec.h), 10, 1);
+                    pg.translate(0, Math.max(0.9, rec.h) / 2, 0);
+                    const proxy = new THREE.Mesh(pg, AveloraWorldObjects.proxyMaterial());
+                    proxy.position.set(p.x, obj.position.y, p.z);
+                    proxy.userData.containerId = rec.id;
+                    this.root.add(proxy);
+                    this.containerProxies.push(proxy);
+                    rec.proxy = proxy;
+                    if (rec.npc && rec.npc.modelKey) this.attachNpcModel(rec, p);
+                }
+                if (def.fire && window.AveloraFire) {
+                    let seed = 7;
+                    for (let i = 0; i < rec.id.length; i++) seed = (seed * 31 + rec.id.charCodeAt(i)) >>> 0;
+                    this.fires.push(new window.AveloraFire(this.root, {
+                        x: p.x, z: p.z, y: obj.position.y + 0.02 + (def.fire.y || 0) * s,
+                        size: (def.fire.size || 1) * s, seed
+                    }));
+                }
                 return rec;
             });
+        }
+
+        /**
+         * Replaces the placeholder prop of an NPC with its rigged model
+         * (content/npcs/<id>/model.glb, animations 'Idle' and 'Talk').
+         */
+        attachNpcModel(rec, p) {
+            const buffer = window.LakesideEnvironment && window.LakesideEnvironment.getModelBuffer(rec.npc.modelKey);
+            if (!buffer) return;
+            const done = new Promise(resolve => {
+                new THREE.GLTFLoader().parse(buffer, '', gltf => {
+                    if (this.disposed) { resolve(); return; }
+                    const model = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const height = Math.max(0.01, box.max.y - box.min.y);
+                    const target = rec.npc.height || 1.75;
+                    const k = target / height;
+                    const holder = new THREE.Group();
+                    model.scale.setScalar(k);
+                    model.position.y = -box.min.y * k;
+                    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
+                    holder.add(model);
+                    holder.position.set(p.x, this.terrain.getHeightAt(p.x, p.z), p.z);
+                    holder.rotation.y = p.r || 0;
+                    holder.name = `npc:${rec.id}`;
+                    this.root.add(holder);
+                    if (rec.object) rec.object.visible = false;
+                    rec.model = holder;
+                    rec.h = target;
+                    const mixer = new THREE.AnimationMixer(model);
+                    const actions = {};
+                    (gltf.animations || []).forEach(c => { actions[c.name] = mixer.clipAction(c); });
+                    // Idle = the relaxed first pose of 'Talk' (the stock Idle clip is a stiff A-pose),
+                    // brought to life with a breathing sway in updateNpcs().
+                    rec.bones = {};
+                    model.traverse(o => { if (o.isBone) rec.bones[o.name] = o; });
+                    rec.mixer = mixer; rec.actions = actions; rec.baseYaw = p.r || 0;
+                    this.npcMixers.push(rec);
+                    this.setNpcAnim(rec, 'Idle');
+                    resolve();
+                }, err => { console.warn('[Avelora] npc model failed', err); resolve(); });
+            });
+            this.pending && this.pending.push && this.pending.push(done);
+        }
+
+        setNpcAnim(rec, name) {
+            // One looping clip ('Talk'): Idle = frozen on its relaxed first pose,
+            // Talk = playing; when the talk ends it plays on (faster) to the loop
+            // point first, so the arms never snap. No cross-fades (they twisted the rig).
+            const act = rec.actions && rec.actions.Talk;
+            if (!act) return;
+            if (!rec.playing) { act.reset().play(); act.time = 0; act.timeScale = 0; rec.playing = true; }
+            name = 'Idle'; // the talk gesture clip bends the rig badly in-game: she just stands (breathing sway only)
+            rec.want = name;
+            if (name === 'Talk' && rec.phase !== 'talk') { act.timeScale = 1; rec.phase = 'talk'; }
+            rec.anim = name === 'Talk' ? 'Talk' : (rec.phase === 'talk' ? 'Talk' : 'Idle');
+        }
+
+        updateNpcs(delta) {
+            const c = this.game.character;
+            const talking = this.game.ui && this.game.ui.isDialogOpen && this.game.ui.isDialogOpen();
+            for (const rec of this.npcMixers) {
+                const act = rec.actions && rec.actions.Talk;
+                if (act && rec.phase === 'talk' && rec.want === 'Idle') {
+                    act.timeScale = 2.5;
+                    const dur = act.getClip().duration;
+                    if (act.time >= dur - 0.25 || act.time < 0.05) { act.time = 0; act.timeScale = 0; rec.phase = 'idle'; rec.anim = 'Idle'; }
+                }
+                rec.mixer.update(delta || 0);
+                rec.t = (rec.t || 0) + (delta || 0);
+                // Breathing sway: ABSOLUTE offsets on the frozen pose (never accumulate on the bones —
+                // a frozen action stops writing them, so `+=` made her bend further every frame).
+                const b = rec.bones || {};
+                if (!rec.baseQ) { rec.baseQ = {}; Object.keys(b).forEach(k => { rec.baseQ[k] = b[k].quaternion.clone(); }); }
+                const sway = (name, ex, ey, ez) => {
+                    const bone = b[name];
+                    if (!bone || !rec.baseQ[name]) return;
+                    bone.quaternion.copy(rec.baseQ[name]).multiply(NPC_TMP_Q.setFromEuler(NPC_TMP_E.set(ex, ey, ez)));
+                };
+                sway('mixamorigSpine1', Math.sin(rec.t * 1.5) * 0.012, 0, 0);
+                sway('mixamorigSpine2', Math.sin(rec.t * 1.5 + 0.4) * 0.01, 0, 0);
+                sway('mixamorigHead', Math.sin(rec.t * 0.9) * 0.01, Math.sin(rec.t * 0.5) * 0.05, 0);
+                if (!c || !rec.model) continue;
+                const dx = c.position.x - rec.x, dz = c.position.z - rec.z;
+                const near = dx * dx + dz * dz < 36;
+                const isTalkTarget = talking && this.game.ui.dialog && this.game.ui.dialog.npc === rec.npc;
+                this.setNpcAnim(rec, isTalkTarget ? 'Talk' : 'Idle');
+                if (near || isTalkTarget) {
+                    const want = Math.atan2(dx, dz);
+                    let d = want - rec.model.rotation.y;
+                    d = Math.atan2(Math.sin(d), Math.cos(d));
+                    rec.model.rotation.y += d * Math.min(1, (delta || 0) * 4);
+                } else {
+                    let d = rec.baseYaw - rec.model.rotation.y;
+                    d = Math.atan2(Math.sin(d), Math.cos(d));
+                    rec.model.rotation.y += d * Math.min(1, (delta || 0) * 2);
+                }
+            }
         }
 
         /**
@@ -408,6 +602,66 @@
             return hit ? this.piles.get(hit.object.userData.pickupId) || null : null;
         }
 
+        // -----------------------------------------------------------
+        // Containers (chests): click -> walk up -> open bag + chest panels (ui_hotbar.js openChest)
+        // -----------------------------------------------------------
+        pickContainerAt(raycaster) {
+            if (!this.containerProxies.length) return null;
+            const hit = raycaster.intersectObjects(this.containerProxies, false)[0];
+            return hit ? this.props.find(r => r.id === hit.object.userData.containerId) || null : null;
+        }
+
+        containerDistance(rec) {
+            const c = this.game.character;
+            return c ? Math.hypot(c.position.x - rec.x, c.position.z - rec.z) : Infinity;
+        }
+
+        containerReach(rec) { return Math.max(rec.r, 0.5) + CONTAINER_REACH; }
+
+        requestOpenContainer(rec) {
+            const c = this.game.character;
+            if (!c || !rec || !(rec.container || rec.npc)) return;
+            if (this.containerDistance(rec) <= this.containerReach(rec)) {
+                this.pendingContainerId = null;
+                c.stopMovement();
+                this.activate(rec);
+                return;
+            }
+            const path = this.pathfinder ? this.pathfinder.findPath(c.position, new THREE.Vector3(rec.x, 0, rec.z)) : [];
+            if (path && path.length) {
+                c.setPath(path);
+                this.pendingContainerId = rec.id;
+            }
+        }
+
+        /** Chest -> bag + chest panels, NPC -> dialog window. */
+        activate(rec) {
+            if (rec.npc) {
+                if (!this.game.ui || !this.game.ui.openDialog) return;
+                this.openContainer = rec;
+                this.game.ui.openDialog(rec.npc);
+            } else this.openChest(rec);
+        }
+
+        openChest(rec) {
+            const st = this.state;
+            if (!st || !this.game.ui || !this.game.ui.openChest) return;
+            const inv = st.chestInventory(`${this.location.id}/${rec.id}`, rec.container.slots);
+            this.openContainer = rec;
+            this.game.ui.openChest(rec.container.title, inv);
+        }
+
+        closeChest() {
+            if (!this.openContainer) return;
+            this.openContainer = null;
+            if (this.game.ui) {
+                if (this.game.ui.closeChest) this.game.ui.closeChest();
+                if (this.game.ui.closeDialog) this.game.ui.closeDialog();
+            }
+        }
+
+        labelOfContainer(rec) { return rec.npc ? rec.npc.name : rec.container.title; }
+
         labelOf(pile) {
             return pile.remaining > 1 ? `${pile.def.name} ×${pile.remaining}` : pile.def.name;
         }
@@ -436,9 +690,35 @@
             }
         }
 
-        cancelPending() { this.pendingPileId = null; }
+        cancelPending() { this.pendingPileId = null; this.pendingContainerId = null; }
 
-        update() {
+        update(delta) {
+            for (let i = 0; i < this.fires.length; i++) this.fires[i].update(delta || 0);
+            if (this.npcMixers.length) this.updateNpcs(delta);
+            // monster loot lying on the ground disappears after its despawnMinutes
+            this.expireT = (this.expireT || 0) + (delta || 0);
+            if (this.expireT >= 4 && this.state) {
+                this.expireT = 0;
+                this.state.expireGround(this.location.id).forEach(uid => {
+                    const pile = this.piles.get('ground:' + uid);
+                    if (!pile) return;
+                    pile.data.count = 0;
+                    this.rebuildPile(pile);
+                    this.piles.delete(pile.id);
+                });
+            }
+            // chest: open on arrival; close when the player walks away
+            const c0 = this.game.character;
+            if (this.pendingContainerId && c0) {
+                const rec = this.props.find(r => r.id === this.pendingContainerId);
+                if (!rec) this.pendingContainerId = null;
+                else if (this.containerDistance(rec) <= this.containerReach(rec)) {
+                    this.pendingContainerId = null;
+                    c0.stopMovement();
+                    this.activate(rec);
+                } else if (!c0.isMoving) this.pendingContainerId = null;
+            }
+            if (this.openContainer && c0 && this.containerDistance(this.openContainer) > this.containerReach(this.openContainer) + 1.5) this.closeChest();
             if (!this.pendingPileId) return;
             const pile = this.piles.get(this.pendingPileId);
             const c = this.game.character;
@@ -485,6 +765,7 @@
         /** State for a different character was loaded (or reset): rebuild every pile from it. */
         refreshAll() {
             this.pendingPileId = null;
+            this.closeChest();
             this.piles.forEach(pile => this.rebuildPile(pile));
         }
 
@@ -590,9 +871,14 @@
             // teardownLocation(); here we only drop references and stop pending work.
             this.disposed = true;
             this.pendingPileId = null;
+            this.pendingContainerId = null;
+            this.closeChest();
+            this.containerProxies.length = 0;
             this.piles.clear();
             this.proxies.length = 0;
             this.props.length = 0;
+            this.fires.forEach(f => f.dispose());
+            this.fires.length = 0;
             const geos = new Set(), mats = new Set();
             this.allTemplates.forEach(t => t.traverse(o => {
                 if (o.geometry) geos.add(o.geometry);

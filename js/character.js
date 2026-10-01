@@ -90,6 +90,10 @@ class MedievalCharacter {
         this.isGreeting = false;
         this.isCasting = false;
         this.isAttacking = false;
+        // Held channel (skills.js home_recall): the cast clip is frozen at its peak pose until
+        // stopChannel(); any movement / attack / death ends it (skills.js polls this flag).
+        this.isChanneling = false;
+        this.channelAction = null;
         this.greetingMixerListener = null;
 
         // Turn-in-place (e.g. casting a skill toward a target while standing):
@@ -361,6 +365,7 @@ class MedievalCharacter {
 
     /** Starts one procedural weapon swing lasting `duration` s (restarts if one is running). */
     startSwing(duration) {
+        this._endChannel();
         this.swing = { t: 0, d: Math.max(0.25, duration || 0.8) };
         this.idleTimer = 0;
         if (this.isGreeting) {
@@ -393,8 +398,47 @@ class MedievalCharacter {
         }
     }
 
+    /**
+     * Long held cast (home_recall, several seconds): plays the 'cast' clip up to its peak pose
+     * (config.channelHoldTime, s) and HOLDS it until stopChannel(); characters without a cast
+     * clip simply keep standing in idle. Movement, attacks, swings and death end it.
+     */
+    startChannel() {
+        this.idleTimer = 0;
+        this.isGreeting = false;
+        this.isChanneling = true;
+        this.channelAction = null;
+        const castAction = this.resolveAction('cast');
+        if (castAction && this.currentAction) {
+            castAction.reset();
+            castAction.paused = false;
+            castAction.setLoop(THREE.LoopOnce, 1);
+            castAction.clampWhenFinished = true;
+            castAction.timeScale = 1;
+            castAction.fadeIn(0.2).play();
+            if (this.currentAction !== castAction) this.currentAction.fadeOut(0.2);
+            this.currentAction = castAction;
+            this.channelAction = castAction;
+        }
+    }
+
+    /** Ends the channel WITHOUT choosing the next animation (callers that start their own one). */
+    _endChannel() {
+        if (!this.isChanneling) return;
+        this.isChanneling = false;
+        if (this.channelAction) { this.channelAction.paused = false; this.channelAction = null; }
+    }
+
+    /** Ends the channel and lowers the arm back to idle. */
+    stopChannel() {
+        if (!this.isChanneling) return;
+        this._endChannel();
+        if (!this.isMoving && this.deathT < 0) this.fadeToLogical('idle', 0.3);
+    }
+
     /** Plays the character's 'attack' animation clip if available, otherwise falls back to procedural startSwing. */
     playAttack(duration = 0.8) {
+        this._endChannel();
         this.idleTimer = 0;
         if (this.isGreeting) {
             this.isGreeting = false;
@@ -493,6 +537,7 @@ class MedievalCharacter {
     // the feet with an accelerating fall + tiny bounce, then lie still.
     // ---------------------------------------------------------------
     startDeathFall() {
+        this._endChannel();
         this.deathT = 0;
         this.swing = null;
         this.isCasting = false;
@@ -644,6 +689,7 @@ class MedievalCharacter {
 
     setPath(waypoints) {
         if (!waypoints || waypoints.length === 0) return;
+        this._endChannel();
         this.path = waypoints;
         this.currentWaypointIdx = 0;
         this.isMoving = true;
@@ -702,6 +748,10 @@ class MedievalCharacter {
         this.restoreOverlay();
         if (this.mixer) {
             this.mixer.update(delta);
+        }
+        if (this.isChanneling && this.channelAction && !this.channelAction.paused) {
+            const hold = this.config.channelHoldTime !== undefined ? this.config.channelHoldTime : 0.4;
+            if (this.channelAction.time >= hold) { this.channelAction.time = hold; this.channelAction.paused = true; }
         }
 
         // Dead: no movement/turning; lie down procedurally (combat.js respawns)

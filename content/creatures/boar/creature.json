@@ -2,7 +2,10 @@
   "id": "boar",
   "name": "Вепрь",
   "hp": 70,
-  "damage": [6, 11],
+  "damage": [
+    6,
+    11
+  ],
   "attackRange": 1.3,
   "attackCooldown": 1.6,
   "walkSpeed": 1.3,
@@ -13,5 +16,19 @@
   "wanderRadius": 2.5,
   "respawnMinutes": 5,
   "hitRadius": 1.1,
-  "scale": 1.0
-}
+  "scale": 1.0,
+  "gold": [
+    3,
+    6
+  ],
+  "drops": [
+    {
+      "item": "boar_tusk",
+      "count": 1
+    },
+    {
+      "item": "meat",
+      "count": 3
+    }
+  ]
+}

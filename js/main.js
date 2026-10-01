@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -333,6 +333,11 @@ class AveloraGame {
      * (locationId + exact position) or empty for a brand new game (world's
      * default start location + default spawn).
      */
+    /** Locations with `cameraAngle` start (and are entered) with the camera at that yaw; 0 = looking north (−Z). */
+    applyLocationCamera(loc) {
+        if (loc && typeof loc.cameraAngle === 'number') this.cameraAngle = this.targetCameraAngle = loc.cameraAngle;
+    }
+
     async startGame(characterConfig, opts) {
         opts = opts || {};
         this.showLoading('Avelora', characterConfig.name ? `Входит ${characterConfig.name}...` : 'Вход в средневековый мир...');
@@ -377,6 +382,7 @@ class AveloraGame {
         });
         this.character.teleport(spawn.x, spawn.z, spawn.r);
         this.cameraTarget.copy(this.character.position);
+        this.applyLocationCamera(this.location);
         this.updateCameraPosition(true);
 
         await Promise.all([characterLoaded, this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
@@ -566,7 +572,7 @@ class AveloraGame {
     }
 
     /** Travel to another location (loading screen, rebuild, place player at spawn). */
-    async changeLocation(targetId, spawnId) {
+    async changeLocation(targetId, spawnId, loadingText) {
         if (this.isTransitioning) return;
         const target = window.LOCATIONS && window.LOCATIONS[targetId];
         if (!target) {
@@ -581,7 +587,7 @@ class AveloraGame {
         if (this.ui) this.ui.setSkillsOpen(false);
         if (this.character) this.character.stopMovement();
 
-        this.showLoading(target.name || targetId, 'Дорога ведёт дальше…');
+        this.showLoading(target.name || targetId, loadingText || 'Дорога ведёт дальше…');
         if (this.gameState) this.gameState.save(); // persists playTime (the respawn/regrow clock)
         await nextFrame();
         await nextFrame();
@@ -596,6 +602,7 @@ class AveloraGame {
         this.character.setTerrain(this.terrain);
         this.character.teleport(spawn.x, spawn.z, spawn.r);
         this.cameraTarget.copy(this.character.position);
+        this.applyLocationCamera(this.location);
         this.updateCameraPosition(true);
 
         await Promise.all([this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
@@ -793,7 +800,11 @@ class AveloraGame {
                 const questsOpen = this.ui && this.ui.isQuestsOpen && this.ui.isQuestsOpen();
                 const microMenuOpen = this.ui && this.ui.isMicroMenuOpen && this.ui.isMicroMenuOpen();
                 const potionOpen = this.ui && this.ui.isPotionOpen && this.ui.isPotionOpen();
-                if (!this.isPaused && (this.isInventoryOpen || skillsOpen || heroOpen || questsOpen || microMenuOpen || potionOpen)) {
+                const chestOpen = this.ui && ((this.ui.isChestOpen && this.ui.isChestOpen()) || (this.ui.isDialogOpen && this.ui.isDialogOpen()));
+                if (!this.isPaused && chestOpen) {
+                    if (this.worldObjects) this.worldObjects.closeChest(); else this.ui.closeChest();
+                    if (this.isInventoryOpen) this.setInventoryOpen(false);
+                } else if (!this.isPaused && (this.isInventoryOpen || skillsOpen || heroOpen || questsOpen || microMenuOpen || potionOpen)) {
                     if (this.isInventoryOpen) this.setInventoryOpen(false);
                     if (skillsOpen) this.ui.setSkillsOpen(false);
                     if (heroOpen) this.ui.setHeroOpen(false);
@@ -1015,6 +1026,7 @@ class AveloraGame {
         // PC Mouse Wheel Zoom
         window.addEventListener('wheel', (e) => {
             if (this.isPaused) return;
+            if (e.target && e.target.closest && e.target.closest(UI_SELECTOR)) return; // scrolling a panel/list must not zoom the camera
             this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.cameraDistance + e.deltaY * 0.02));
         }, { passive: true });
 
@@ -1238,6 +1250,12 @@ class AveloraGame {
             return;
         }
 
+        // A click out in the world closes the chest window (unless it is the chest itself)
+        if (this.worldObjects && this.worldObjects.openContainer) {
+            const hitChest = this.worldObjects.pickContainerAt(this.raycaster);
+            if (!hitChest || hitChest !== this.worldObjects.openContainer) this.worldObjects.closeChest();
+        }
+
         // Clicked on something other than a creature: deselect target
         if (this.combat) {
             this.combat.clearTarget();
@@ -1249,6 +1267,11 @@ class AveloraGame {
             const pile = this.worldObjects.pickAt(this.raycaster);
             if (pile) {
                 this.worldObjects.requestPickup(pile);
+                return;
+            }
+            const chest = this.worldObjects.pickContainerAt(this.raycaster);
+            if (chest) {
+                this.worldObjects.requestOpenContainer(chest);
                 return;
             }
             this.worldObjects.cancelPending(); // clicked elsewhere: forget the pending pickup
@@ -1309,6 +1332,11 @@ class AveloraGame {
         const pile = this.worldObjects ? this.worldObjects.pickAt(this.raycaster) : null;
         if (pile) {
             this.showObjectTooltip(this.worldObjects.labelOf(pile), e.clientX, e.clientY);
+            return;
+        }
+        const chestHover = this.worldObjects ? this.worldObjects.pickContainerAt(this.raycaster) : null;
+        if (chestHover) {
+            this.showObjectTooltip(this.worldObjects.labelOfContainer(chestHover), e.clientX, e.clientY);
             return;
         }
         const entry = this.pickEnvironmentObject();

@@ -1196,6 +1196,106 @@
             color: #efcf7a;
         }
 
+
+
+        /* Gold counter + coin glyph */
+        .coin {
+            display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px;
+            background: radial-gradient(circle at 35% 30%, #fff3c4 0%, #e8b93c 45%, #8a5f12 100%);
+            box-shadow: 0 0 0 1px rgba(60, 38, 6, 0.8);
+        }
+        .inventory-gold { margin-top: 10px; font-size: 0.85rem; color: #d9c79a; text-align: right; }
+        .inventory-gold b { color: #efcf7a; font-weight: bold; }
+
+        /* NPC dialog / shop window */
+        #dialog-panel {
+            position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
+            width: min(660px, 94vw); z-index: 160; display: none; cursor: default;
+            background: rgba(12, 16, 18, 0.94); border: 1px solid rgba(195, 160, 95, 0.55); border-radius: 4px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 24px rgba(0, 0, 0, 0.6);
+            padding: 14px; gap: 14px;
+        }
+        #dialog-panel.open { display: flex; }
+        .dlg-side { flex: 0 0 120px; text-align: center; }
+        .dlg-portrait { width: 120px; height: 120px; border: 1px solid rgba(195, 160, 95, 0.6); border-radius: 3px; overflow: hidden; background: #1a2022; }
+        .dlg-portrait img { width: 100%; height: 100%; display: block; }
+        .dlg-name { margin-top: 8px; font-size: 0.95rem; color: #efcf7a; letter-spacing: 0.06rem; }
+        .dlg-title { font-size: 0.72rem; font-style: italic; color: #8f9c9a; }
+        .dlg-main { flex: 1; min-width: 0; position: relative; }
+        .dlg-close {
+            position: absolute; top: -6px; right: -4px; font-family: inherit; font-size: 1.2rem;
+            background: none; border: none; color: #b9a47a; cursor: pointer;
+        }
+        .dlg-close:hover { color: #f1e2c8; }
+        .dlg-text { font-size: 1rem; line-height: 1.45; color: #e7dcc3; padding: 2px 22px 12px 0; }
+        .dlg-options { display: flex; flex-direction: column; gap: 6px; }
+        .dlg-opt, .dlg-tab, .dlg-buy {
+            font-family: inherit; cursor: pointer; color: #d9c79a; text-align: left;
+            background: rgba(22, 27, 29, 0.85); border: 1px solid rgba(195, 160, 95, 0.3); border-radius: 3px;
+        }
+        .dlg-opt { padding: 8px 12px; font-size: 0.92rem; }
+        .dlg-opt:hover, .dlg-tab:hover, .dlg-buy:hover:not(.disabled) { border-color: #efcf7a; color: #f6ebd0; background: rgba(195, 160, 95, 0.14); }
+        .dlg-opt.shop { color: #efcf7a; }
+        .dlg-tabs { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; padding-right: 22px; }
+        .dlg-tab { padding: 4px 12px; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08rem; }
+        .dlg-tab.active { border-color: #efcf7a; color: #efcf7a; background: rgba(195, 160, 95, 0.2); }
+        .dlg-tab.back { margin-left: 8px; }
+        .dlg-opt.quest { color: #f3dc8c; border-color: rgba(214,170,60,0.7); }
+        #quest-tracker { position: fixed; top: 84px; right: 14px; z-index: 40; min-width: 170px; max-width: 240px; padding: 8px 10px; display: none; pointer-events: none;
+            background: rgba(14,16,20,0.72); border: 1px solid rgba(214,170,60,0.45); border-radius: 6px; color: #e8e2d0; font-size: 0.82rem; }
+        #quest-tracker .qt-title { color: #efcf7a; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+        #quest-tracker .qt-row { display: flex; flex-direction: column; gap: 1px; }
+        #quest-tracker .qt-row span { color: #b9c3b0; }
+        #quest-tracker .qt-row.ready span { color: #9fe28a; }
+        .dlg-gold { margin-left: auto; color: #efcf7a; font-size: 0.9rem; }
+        .dlg-list { max-height: 34vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+        .dlg-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: rgba(22, 27, 29, 0.7); border: 1px solid rgba(195, 160, 95, 0.15); border-radius: 3px; }
+        .dlg-icon { flex: 0 0 34px; width: 34px; height: 34px; background: rgba(10, 13, 14, 0.9); border: 1px solid rgba(195, 160, 95, 0.25); border-radius: 2px; }
+        .dlg-icon img { width: 100%; height: 100%; display: block; }
+        .dlg-row-name { flex: 1; min-width: 0; font-size: 0.9rem; color: #e7dcc3; }
+        .dlg-row-desc { font-size: 0.74rem; color: #8f9c9a; line-height: 1.25; }
+        .dlg-row-price { font-size: 0.88rem; color: #efcf7a; min-width: 48px; text-align: right; }
+        .dlg-buy { padding: 4px 10px; font-size: 0.8rem; }
+        .dlg-buy.disabled { opacity: 0.45; cursor: not-allowed; }
+        .dlg-empty { color: #7e8a89; font-style: italic; padding: 8px; }
+        @media (max-width: 720px) { .dlg-side { flex-basis: 76px; } .dlg-portrait { width: 76px; height: 76px; } }
+
+        /* Chest panel (opens left of the bag) */
+        #chest-panel {
+            position: fixed;
+            right: 326px;
+            bottom: 70px;
+            width: 300px;
+            background: rgba(12, 16, 18, 0.92);
+            border: 1px solid rgba(195, 160, 95, 0.45);
+            border-radius: 4px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.6);
+            padding: 14px 14px 12px;
+            z-index: 150;
+            display: none;
+            cursor: default;
+        }
+        #chest-panel.open { display: block; }
+        #chest-close {
+            font-family: inherit; font-size: 1.2rem; background: none; border: none;
+            color: #b9a47a; cursor: pointer; padding: 0 4px;
+        }
+        #chest-close:hover { color: #f1e2c8; }
+        .chest-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+        .chest-cell {
+            position: relative; aspect-ratio: 1; touch-action: none;
+            background: rgba(22, 27, 29, 0.9);
+            border: 1px solid rgba(195, 160, 95, 0.18);
+            border-radius: 2px;
+            box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.8);
+        }
+        .chest-cell.filled { cursor: grab; padding: 2px; border-color: rgba(195, 160, 95, 0.4); }
+        .chest-cell.filled:hover { border-color: rgba(239, 207, 122, 0.8); }
+        .chest-hint { margin-top: 8px; font-size: 0.72rem; font-style: italic; color: #7e8a89; text-align: center; }
+        @media (max-width: 720px) {
+            #chest-panel { left: 10px; right: 10px; width: auto; bottom: auto; top: 60px; }
+        }
+
         /* Inventory Panel (stub) */
         #inventory-panel {
             position: fixed;
@@ -1393,6 +1493,23 @@
         .crafting-ing-count {
             font-weight: 600;
             font-variant-numeric: tabular-nums;
+        }
+        .craft-action-btn { white-space: nowrap; }
+        .craft-action-btn.ready, .craft-action-btn.disabled { width: 34px; height: 28px; padding: 0; font-size: 1rem; letter-spacing: 0; flex: 0 0 auto; }
+        .crafting-btn-row { align-items: center; gap: 6px; }
+        .craft-qty-input::-webkit-outer-spin-button, .craft-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .craft-qty-input { -moz-appearance: textfield; appearance: textfield; }
+        .craft-qty { display: flex; align-items: center; gap: 3px; margin-right: auto; }
+        .craft-qty-btn {
+            font-family: inherit; font-size: 0.8rem; min-width: 26px; height: 28px; padding: 0 5px; flex: 0 0 auto;
+            background: rgba(22, 27, 29, 0.85); border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 3px; color: #d9c79a; cursor: pointer;
+        }
+        .craft-qty-btn:hover { border-color: #efcf7a; color: #f1e2c8; }
+        .craft-qty-input {
+            width: 38px; height: 28px; padding: 0; text-align: center; font-family: inherit; font-size: 0.9rem;
+            background: rgba(10, 13, 14, 0.9); border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 3px; color: #f1e2c8;
         }
         .crafting-btn-row {
             display: flex;
@@ -1947,6 +2064,10 @@
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8);
             pointer-events: none;
         }
+        .bag-float { position: fixed; z-index: 60; pointer-events: none; transform: translate(-50%, -100%); white-space: nowrap;
+            color: #b8f0a0; font-size: 1.0rem; font-weight: 600; text-shadow: 0 2px 4px #000, 0 0 8px rgba(0,0,0,0.7);
+            opacity: 0; animation: bagFloatUp 1.7s ease-out forwards; }
+        @keyframes bagFloatUp { 0% { opacity: 0; margin-top: 8px; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; margin-top: -42px; } }
         .float-text.gain { color: #b8f0a0; }
         .float-text.loot { color: #b8f0a0; font-size: 1.05rem; }
         .float-text.heal { color: #69f0ae; font-size: 1.05rem; text-shadow: 0 0 10px rgba(105, 240, 174, 0.6), 0 2px 4px #000; }
@@ -2364,6 +2485,29 @@
         </button>
     </div>
 
+    <!-- NPC dialog / shop -->
+    <div id="dialog-panel" role="dialog" aria-hidden="true">
+        <div class="dlg-side">
+            <div class="dlg-portrait"></div>
+            <div class="dlg-name"></div>
+            <div class="dlg-title"></div>
+        </div>
+        <div class="dlg-main">
+            <button type="button" class="dlg-close" title="Закрыть (Esc)" aria-label="Закрыть диалог">×</button>
+            <div class="dlg-body"></div>
+        </div>
+    </div>
+
+    <!-- Chest panel -->
+    <div id="chest-panel" role="dialog" aria-hidden="true">
+        <div class="inventory-header">
+            <div class="inventory-title" id="chest-title">Сундук</div>
+            <button type="button" id="chest-close" title="Закрыть" aria-label="Закрыть сундук">×</button>
+        </div>
+        <div class="chest-grid"></div>
+        <div class="chest-hint">Перетащите предметы между сундуком и сумкой. Клик — переложить стопку.</div>
+    </div>
+
     <!-- Inventory & Crafting Panel -->
     <div id="inventory-panel" role="dialog" aria-labelledby="inventory-title" aria-hidden="true">
         <div class="inventory-header">
@@ -2376,6 +2520,7 @@
         <div id="inventory-tab-content">
             <div class="inventory-grid"></div>
             <div class="inventory-empty">Сумка пуста</div>
+            <div class="inventory-gold"><span class="coin"></span> Золото: <b id="gold-amount">0</b></div>
         </div>
         <div id="crafting-tab-content" class="hidden">
             <div id="crafting-recipe-list"></div>
@@ -2651,28 +2796,31 @@
     <script src="js/lib/GLTFLoader.js"></script>
     <script src="js/lib/Water.js"></script>
     <script src="js/lib/simplex-noise.js"></script>
-    <script src="js/assets_data.js?v=20260930_1"></script>
-    <script src="js/content_data.js?v=20260930_1"></script>
-    <script src="js/world_data.js?v=20260930_1"></script>
-    <script src="js/location_groups.js?v=20260930_1"></script>
-    <script src="js/pathfinding.js?v=20260930_1"></script>
-    <script src="js/terrain.js?v=20260930_1"></script>
-    <script src="js/water.js?v=20260930_1"></script>
-    <script src="js/waterfall.js?v=20260930_1"></script>
-    <script src="js/environment.js?v=20260930_1"></script>
-    <script src="js/characters.js?v=20260930_1"></script>
-    <script src="js/save.js?v=20260930_1"></script>
-    <script src="js/items.js?v=20260930_1"></script>
-    <script src="js/game_state.js?v=20260930_1"></script>
-    <script src="js/world_objects.js?v=20260930_1"></script>
-    <script src="js/creatures.js?v=20260930_1"></script>
-    <script src="js/harvest.js?v=20260930_1"></script>
-    <script src="js/combat.js?v=20260930_1"></script>
-    <script src="js/skills.js?v=20260930_1"></script>
-    <script src="js/ui_hotbar.js?v=20260930_4"></script>
-    <script src="js/character.js?v=20260930_1"></script>
-    <script src="js/map.js?v=20260930_2"></script>
-    <script src="js/main.js?v=20260930_3"></script>
+    <script src="js/assets_data.js?v=20261001_1"></script>
+    <script src="js/content_data.js?v=20261001_1"></script>
+    <script src="js/world_data.js?v=20261001_1"></script>
+    <script src="js/location_groups.js?v=20261001_1"></script>
+    <script src="js/pathfinding.js?v=20261001_1"></script>
+    <script src="js/terrain.js?v=20261001_1"></script>
+    <script src="js/water.js?v=20261001_1"></script>
+    <script src="js/waterfall.js?v=20261001_1"></script>
+    <script src="js/fire.js?v=20261001_1"></script>
+    <script src="js/environment.js?v=20261001_1"></script>
+    <script src="js/characters.js?v=20261001_1"></script>
+    <script src="js/save.js?v=20261001_1"></script>
+    <script src="js/items.js?v=20261001_1"></script>
+    <script src="js/game_state.js?v=20261001_1"></script>
+    <script src="js/world_objects.js?v=20261001_1"></script>
+    <script src="js/creatures.js?v=20261001_1"></script>
+    <script src="js/harvest.js?v=20261001_1"></script>
+    <script src="js/combat.js?v=20261001_1"></script>
+    <script src="js/recall_fx.js?v=20261001_1"></script>
+    <script src="js/dialog.js?v=20261001_1"></script>
+    <script src="js/skills.js?v=20261001_1"></script>
+    <script src="js/ui_hotbar.js?v=20261001_1"></script>
+    <script src="js/character.js?v=20261001_1"></script>
+    <script src="js/map.js?v=20261001_1"></script>
+    <script src="js/main.js?v=20261001_1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

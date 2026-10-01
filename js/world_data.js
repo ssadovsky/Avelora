@@ -89,13 +89,21 @@ window.LOCATIONS = {
                 depth: -1.2,
                 beachWidth: 5.0
             },
-            hills: { amplitude: 1.6, inclineX: 0.2, inclineZ: -0.15 }
+            hills: { amplitude: 1.6, inclineX: 0.2, inclineZ: -0.15 },
+            // Тропа от точки появления нового героя к Лираэль у водопада
+            paths: [
+                { width: 2.6, points: [[127.0, 76.0], [124.5, 66.0], [126.5, 55.0], [124.0, 44.0], [127.0, 33.0], [128.0, 24.0], [129.0, 21.6]] }
+            ]
         },
 
         atmosphere: { sky: 0xc6dbe3, skyTop: 0x4a8fc9, fogDensity: 0.0055 },
+        cameraAngle: 0.0,           // на старте камера смотрит на север (по тропе к Лираэль)
+        // Зоны без папоротников (поляна барсуков): эллипсы {x, z, rx, rz}
+        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }],
 
         spawns: {
-            default:   { x: 6.0,    z: 12.0 },
+            default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
+            camp:      { x: 6.0,    z: 12.0 },
             fromLake:  { x: -126.0, z: 8.0, r: 4.71 },  // персонаж выходит из ущелья в долину
             waterfall: { x: 104.0,  z: 6.0, r: 4.71 }   // с видом на восточный каскадный водопад
         },
@@ -125,7 +133,14 @@ window.LOCATIONS = {
             { x: -48.0,  z: 8.0, radius: 6.0 },
             { x: -38.0,  z: 7.0, radius: 5.0 },
             { x: -28.0,  z: 6.0, radius: 5.0 },
-            { x: 124.0,  z: 6.0, radius: 18.0 }  // водопад и чаша горного озера на востоке
+            { x: 124.0,  z: 6.0, radius: 18.0 },  // водопад и чаша горного озера на востоке
+            // Просека вдоль тропы от точки появления к Лираэль (лес не растёт на тропе)
+            { x: 127.0, z: 75.0, radius: 6.0 }, { x: 125.0, z: 66.0, radius: 5.0 }, { x: 126.0, z: 56.0, radius: 5.0 },
+            { x: 125.0, z: 46.0, radius: 5.0 }, { x: 126.0, z: 36.0, radius: 5.0 }, { x: 128.0, z: 26.0, radius: 6.0 },
+            { x: 129.0, z: 19.5, radius: 6.0 },
+            { x: 72.0, z: 55.0, radius: 12.0 },  // открытая поляна барсуков
+            { x: 72.0, z: 72.0, radius: 11.0 }, { x: 55.0, z: 64.0, radius: 8.0 }, { x: 90.0, z: 64.0, radius: 8.0 },
+            { x: 107.0, z: 67.5, radius: 6.5 }   // стартовый лагерь: пень с топором, брёвна, камни, посох
         ],
 
         groups: [
@@ -136,6 +151,9 @@ window.LOCATIONS = {
             { id: 'east_south_forest',type: 'forest', x: 118.0,  z: 42.0,  rx: 16.0,  rz: 35.0, count: 20, seed: 16 },
             { id: 'west_north_forest',type: 'forest', x: -125.0, z: -55.0, rx: 16.0,  rz: 30.0, count: 20, seed: 17 },
             { id: 'west_south_forest',type: 'forest', x: -125.0, z: 62.0,  rx: 16.0,  rz: 28.0, count: 20, seed: 18 },
+
+            // Лесочек вокруг поляны барсуков (без подлеска — папоротники здесь не растут)
+            { id: 'badger_wood', type: 'forest', x: 72.0, z: 62.0, rx: 38.0, rz: 30.0, count: 30, seed: 91 },
 
             // Рощи внутри просторной долины
             { id: 'oak_grove',   type: 'forest', x: 26.0,  z: -20.0, radius: 11.0, count: 12, seed: 21 },
@@ -152,6 +170,8 @@ window.LOCATIONS = {
             // Заросли папоротника для сбора целебных трав
             { id: 'camp_ferns',  type: 'fernPatch', x: 15.0, z: 16.0, radius: 8.0, count: 14, seed: 71 },
             { id: 'grove_ferns', type: 'fernPatch', x: 28.0, z: -16.0, radius: 7.0, count: 10, seed: 72 },
+            // Поляна папоротников на юго-востоке: цель квеста Лираэль «Принеси 10 папоротника»
+            { id: 'quest_ferns', type: 'fernPatch', x: 97.5, z: 77.5, radius: 7.0, count: 18, seed: 73 },
 
             // Луговая поляна в центре и тропа
             { id: 'glade',       type: 'meadow', x: 4.0,   z: 4.0,  radius: 26.0, count: 120, flowers: 20, seed: 51 },
@@ -162,29 +182,54 @@ window.LOCATIONS = {
         // Существа в долине:
         // Вепрь-страж охраняет вход в горный каньон к Озерному краю
         creatures: [
-            { id: 'pond_rat_1',  type: 'rat',  x: -3.0,   z: -8.0 },
-            { id: 'pond_rat_2',  type: 'rat',  x: -9.0,   z: -1.0 },
-            { id: 'hill_rat_1',  type: 'rat',  x: 27.0,   z: 19.0 },
-            { id: 'hill_rat_2',  type: 'rat',  x: 29.5,   z: 26.0 },
+            // Десяток крыс (все с локации собраны сюда, вокруг 90; 19)
+            { id: 'rat_1', type: 'rat', x: 78.0, z: 21.9, r: 5.8 },
+            { id: 'rat_2', type: 'rat', x: 84.0, z: 16.1, r: 3.21 },
+            { id: 'rat_3', type: 'rat', x: 79.8, z: 10.6, r: 0.59 },
+            { id: 'rat_4', type: 'rat', x: 88.5, z: 22.7, r: 5.08 },
+            { id: 'rat_5', type: 'rat', x: 106.8, z: 17.6, r: 4.11 },
+            { id: 'rat_6', type: 'rat', x: 97.1, z: 21.1, r: 1.52 },
+            { id: 'rat_7', type: 'rat', x: 97.9, z: 9.8, r: 1.98 },
+            { id: 'rat_8', type: 'rat', x: 103.7, z: 23.9, r: 2.51 },
+            { id: 'rat_9', type: 'rat', x: 91.8, z: 12.4, r: 0.55 },
+            { id: 'rat_10', type: 'rat', x: 81.9, z: 30.1, r: 4.76 },
+            // Радужные барсуки в лесочке на юге (на них — квест Лираэль)
+            { id: 'badger_1', type: 'badger', x: 83.8, z: 77.0, r: 3.99 },
+            { id: 'badger_2', type: 'badger', x: 59.1, z: 63.3, r: 4.98 },
+            { id: 'badger_3', type: 'badger', x: 79.1, z: 47.9, r: 3.17 },
+            { id: 'badger_4', type: 'badger', x: 72.1, z: 63.2, r: 2.33 },
+            { id: 'badger_5', type: 'badger', x: 65.7, z: 59.2, r: 4.98 },
+            { id: 'badger_6', type: 'badger', x: 73.5, z: 72.1, r: 0.27 },
+            { id: 'badger_7', type: 'badger', x: 96.1, z: 61.7, r: 5.5 },
+            { id: 'badger_8', type: 'badger', x: 62.6, z: 75.0, r: 0.73 },
+            { id: 'badger_9', type: 'badger', x: 88.2, z: 58.2, r: 0.97 },
+            { id: 'badger_10', type: 'badger', x: 76.1, z: 55.2, r: 5.83 },
+            { id: 'badger_11', type: 'badger', x: 52.1, z: 66.5, r: 2.15 },
+            { id: 'badger_12', type: 'badger', x: 74.3, z: 80.5, r: 1.31 },
+            { id: 'badger_13', type: 'badger', x: 72.7, z: 43.7, r: 3.65 },
+            { id: 'badger_14', type: 'badger', x: 51.0, z: 75.8, r: 2.43 },
+            { id: 'badger_15', type: 'badger', x: 80.4, z: 63.1, r: 4.51 },
             { id: 'waterfall_fawn', type: 'fawn', x: 110.0, z: 12.0, r: 2.8 },
             { id: 'portal_boar', type: 'boar', x: -118.0, z: 8.0,  r: 1.57 },
             { id: 'stump_fawn',  type: 'fawn', x: -8.0,   z: -12.0, r: 1.2 }
         ],
 
         pickups: [
-            { id: 'start_stones', item: 'stone', count: 5, x: 9.5, z: 14.5 },
-            { id: 'start_logs',   item: 'log',   count: 3, x: 2.5, z: 15.5, r: 0.5 },
+            { id: 'start_stones', item: 'stone', count: 5, x: 105.0, z: 65.8 },
+            { id: 'start_logs',   item: 'log',   count: 3, x: 109.0, z: 65.8, r: 0.5 },
             // Топор воткнут лезвием в срез пня (пень — в props ниже, центр 1.0/18.0).
             // x, z, y — точка хвата (низ топорища), y — высота над землёй;
             // rotation — наклон [x, y, z]: топорище смотрит вверх-наружу, лезвие в дереве.
-            { id: 'stump_axe',    item: 'axe',   count: 1, x: 1.35, z: 18.12, y: 0.72, rotation: [3.142, 0.347, 1.082] },
+            { id: 'stump_axe',    item: 'axe',   count: 1, x: 107.35, z: 68.12, y: 0.72, rotation: [3.142, 0.347, 1.082] },
             // Посох лежит в траве у камней: rotation [0, поворот, -π/2] кладёт древко
             // (+Y модели) горизонтально; y — толщина древка, чтобы не утонул в земле.
-            { id: 'start_staff',  item: 'staff', count: 1, x: 7.2,  z: 16.6, y: 0.04, rotation: [0, 0.6, -1.571] }
+            { id: 'start_staff',  item: 'staff', count: 1, only: 'mage', x: 105.4, z: 70.2, y: 0.04, rotation: [0, 0.6, -1.571] }
         ],
 
         props: [
-            { id: 'start_stump', prop: 'stump', x: 1.0, z: 18.0, r: 0.4, s: 1.0 }
+            { id: 'start_stump', prop: 'stump', x: 107.0, z: 68.0, r: 0.4, s: 1.0 },
+            // Лираэль, Хранительница Каменного Дозора (NPC у водопада)
+            { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 }
         ],
 
         decorations: {
@@ -364,6 +409,81 @@ window.LOCATIONS = {
             reeds: [],
             grass: []
         }
+    },
+
+    // ------------------------------------------------------------------
+    // Домашний лагерь — тихая солнечная поляна с речкой. Попасть сюда можно только навыком
+    // «Возвращение домой» (content/skills/home_recall); им же возвращаются в прежнюю локацию.
+    // ------------------------------------------------------------------
+    homeCamp: {
+        id: 'homeCamp',
+        name: 'Домашний лагерь',
+
+        terrain: {
+            size: 160,
+            seed: 7311,
+            biome: 'forest',      // та же трава, что в первой локации
+            segments: 240,
+            baseHeight: 1.1,        // суша заметно выше воды: без луж вне русла
+            groundNoise: 0.0,       // ровная земля под будущую застройку (горы по краю и русло остаются)
+            // РЕЧКА: русло вдоль сглаженной линии points [x, z]; вода (Y = 0) закрывает карту целиком,
+            // но видна только там, где рельеф ниже нуля. Перейти вброд нельзя (глубина): через речку — мост.
+            waterBody: {
+                type: 'river',
+                width: 5.5,
+                depth: -0.9,
+                beachWidth: 3.2,
+                points: [[-84, -18], [-56, -26], [-30, -21], [-8, -25], [0, -25], [8, -25], [32, -30], [58, -23], [84, -28]]
+            },
+            // Мост через речку в центре карты (палуба = проходимая высота, см. terrain.getHeightAt)
+            bridges: [{ x: 0.0, z: -25.0, length: 12.0, width: 3.0, deckY: 1.25 }],
+            hills: { amplitude: 0.0, inclineX: 0.0, inclineZ: 0.0 }
+        },
+
+        cameraAngle: 0.0,           // на старте камера смотрит на север по компасу (север = −Z)
+
+        atmosphere: { sky: 0xd6e6dc, skyTop: 0x4f97d6, fogDensity: 0.0045 },
+
+        spawns: {
+            default: { x: -10.0, z: -8.5, r: -1.7 }   // южный берег, слева от моста, лицом к костру
+        },
+
+        exits: [],
+
+        clearings: [
+            { x: -14.0, z: -9.0, radius: 4.0 },    // костровище
+            { x: -10.0, z: -8.5, radius: 2.2 },    // точка появления
+            { x: -18.5, z: -9.5, radius: 1.6 },    // сундук
+            { x: 0.0, z: -16.0, radius: 3.5 },     // подход к мосту (юг)
+            { x: 0.0, z: -34.0, radius: 3.5 }      // подход к мосту (север)
+        ],
+
+        groups: [
+            // Южный берег (лагерь): чистая земля под застройку — никакой травы-кустиков, камней и деревьев
+
+            // Северный берег: луг, камни и лес
+            { id: 'meadow_n1',  type: 'meadow', x: -28.0, z: -38.0, radius: 9.0, count: 35, flowers: 5, seed: 304 },
+            { id: 'meadow_n2',  type: 'meadow', x: 26.0,  z: -42.0, radius: 9.0, count: 35, flowers: 5, seed: 305 },
+            { id: 'rocks_n1',   type: 'rocks',  x: -40.0, z: -44.0, radius: 6.0, count: 4, seed: 321 },
+            { id: 'rocks_n2',   type: 'rocks',  x: 42.0,  z: -38.0, radius: 6.0, count: 3, seed: 322 },
+            { id: 'forest_n1',  type: 'forest', x: -34.0, z: -54.0, rx: 22.0, rz: 6.0, count: 12, seed: 331 },
+            { id: 'forest_n2',  type: 'forest', x: 34.0,  z: -54.0, rx: 22.0, rz: 6.0, count: 12, seed: 332 },
+            { id: 'ferns_n',    type: 'fernPatch', x: 12.0, z: -44.0, radius: 5.0, count: 10, seed: 311 },
+
+            // Камыш вдоль речки
+            { id: 'reeds_a',    type: 'reeds', x: -56.0, z: -26.0, radius: 6.0, count: 25, seed: 341 },
+            { id: 'reeds_b',    type: 'reeds', x: -30.0, z: -21.0, radius: 6.0, count: 35, seed: 342 },
+            { id: 'reeds_c',    type: 'reeds', x: -14.0, z: -25.0, radius: 4.0, count: 20, seed: 343 },
+            { id: 'reeds_d',    type: 'reeds', x: 20.0,  z: -27.0, radius: 6.0, count: 30, seed: 344 },
+            { id: 'reeds_e',    type: 'reeds', x: 56.0,  z: -24.0, radius: 6.0, count: 30, seed: 345 }
+        ],
+
+        // Костровище: огонь и брёвна-сиденья (content/props/campfire, огонь — js/fire.js)
+        props: [
+            { id: 'homeCamp.campfire', prop: 'campfire', x: -14.0, z: -9.0, r: 0.5, s: 1.7 },
+            // Сундук для излишков (содержимое хранится в сохранении персонажа)
+            { id: 'homeCamp.chest1', prop: 'chest', x: -18.5, z: -9.5, r: 0.5 }
+        ]
     }
 };
 

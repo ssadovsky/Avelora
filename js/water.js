@@ -97,6 +97,9 @@ class LakesideWater {
         } else if (wType === 'island') {
             sizeX = mapSize * 1.8;
             sizeZ = mapSize * 1.8;
+        } else if (wType === 'river') {
+            // one plane over the whole map at Y = 0: only the carved channel lies below it
+            sizeX = sizeZ = (locTerrain.size || 120) + 6;
         } else {
             // Lake basin
             posX = (waterConfig.x !== undefined) ? waterConfig.x : -14.0;
@@ -110,7 +113,10 @@ class LakesideWater {
         this.water.geometry = new THREE.PlaneGeometry(sizeX, sizeZ);
         this.water.position.set(posX, 0.0, posZ);
 
-        // Shore foam effect
+        // Shore foam effect (none for rivers: a ring/line would not follow the channel)
+        if (wType === 'river') {
+            return;
+        }
         if (wType === 'coast') {
             const side = waterConfig.side || 'west';
             const shoreLine = (waterConfig.shoreLine !== undefined) ? waterConfig.shoreLine : -10.0;

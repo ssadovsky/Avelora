@@ -222,3 +222,12 @@
 
 - [x] **2026-09-30: найдена настоящая причина «бега задом/боком»** — `resetDeathPose()` ставил поворот кватернионом -> Euler (PI, PI-y, PI) -> модель зеркалилась. Заменено на `mesh.rotation.set(0, y, 0)` в character.js (3 места). См. GEMINI.md / CLAUDE.md.
 - [x] **2026-09-30: водопад заменён на Stonewatch Cliffs** — скалы `models/environment/stonewatch_cliffs.glb` (из temp_work/lib/3d/Stonewatch_Cliffs_texture.glb, gltf-transform simplify 112k -> 40.5k тр., текстуры 2048/1024 JPEG, 12.9 -> 2.6 МБ), ключ `waterfall_cliffs`. Вода — своя геометрия в `js/waterfall.js` (ленты струй с прокруткой, чаша, брызги/туман на GPU-частицах), шейдер на модели больше не нужен. Стоит на x 134.5, спиной в восточном ободе, rotationY -PI/2, scale 16. Старая модель waterfall_rocky_cascade убрана из сборки (файл остался на диске).
+
+## Возвращение домой (шаг 1, готово)
+- Навык home_recall (type:teleport, castTime 4 с) для всех персонажей, всегда последний (UNIVERSAL_SKILLS в game_state.js). Запоминается только returnTo; на базе тот же навык ведёт назад.
+- homeCamp: река (terrain type river), костёр (prop campfire, блок fire -> js/fire.js), руны js/recall_fx.js. Рецепт "Доска" из бревна.
+- Дальше: сундук (шаг 2).
+
+## Шаг 2: сундук, мост, ровный homeCamp (готово)
+- homeCamp 160x160, ровная земля (terrain.groundNoise), мост (terrain.bridges: палуба = проходимая высота), южный берег только трава.
+- Сундук: prop с блоком container {slots,title}; клик -> подойти -> панели сундука и сумки; содержимое в state.chests (на персонажа). Без model.glb рисуется коробка.

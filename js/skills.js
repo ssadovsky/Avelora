@@ -38,6 +38,13 @@
  * per-frame path allocates nothing. No THREE lights are ever added (a new light
  * would force every lit material to recompile). All of it advances only via
  * update(delta) -> frozen while paused. clearAll() on location change / teardown.
+ *
+ * type "teleport" ("Возвращение домой", home_recall): a held channel (`castTime` seconds,
+ * character.startChannel() holds the cast pose; golden rune VFX in recall_fx.js), broken by
+ * movement / attack / damage / death. Completing it starts the cooldown, remembers the current
+ * location (state.returnTo) and calls game.changeLocation(). Used on its own destination
+ * (`destination`, e.g. homeCamp) it goes back to state.returnTo instead (fallback: the start
+ * location). An "arrival" rune burst plays at the destination (`game:location` event).
  */
 (function () {
     'use strict';
@@ -246,6 +253,9 @@
             this.readyAt = {};        // skillId -> gameTime when usable again
             this.cdDuration = {};     // skillId -> last cooldown length (for the UI sweep)
             this.casting = null;      // { def, target: Vector3, t }
+            this.channel = null;      // teleport channel: { def, dest, spawn, from, t, dur, fx }
+            this.pendingArrival = null; // { def } — play the arrival burst once the new location is up
+            this.recallFx = null;     // lazily created AveloraRecallFX
             this.res = null;          // lazily created VFX resources (pools)
 
             // Scratch objects (no per-frame allocation)
@@ -258,6 +268,10 @@
             this._bufSize = new THREE.Vector2();
             this._blockers = null;
             this._blockersEnv = null;
+
+            // Damage breaks a teleport channel; the arrival burst waits for the new location.
+            window.addEventListener('game:playerDamaged', () => this.interruptChannel('damage'));
+            window.addEventListener('game:location', () => this.playArrival());
         }
 
         get(id) {
@@ -267,7 +281,9 @@
 
         /** Skill defs of a character (empty -> the skills button is hidden). */
         forCharacter(charId) {
-            const ids = window.AveloraState ? window.AveloraState.characterSkills(charId) : [];
+            const st = this.game.gameState;
+            const learned = (st && st.characterId === charId) ? st.learnedSkills : [];
+            const ids = window.AveloraState ? window.AveloraState.characterSkills(charId, learned) : [];
             return ids.map(id => this.get(id)).filter(Boolean);
         }
 
@@ -293,8 +309,11 @@
             const charCfg = g.currentCharacterConfig;
             if (!def || !g.character || !charCfg || !this.hasSkill(charCfg.id, skillId)) return 'unavailable';
             if (!g.isReady || g.isPaused || g.isTransitioning || !g.terrain) return 'unavailable';
-            if (this.casting) return 'busy';
+            if (this.casting || this.channel) return 'busy';
             if (this.cooldownRemaining(skillId) > 0) return 'cooldown';
+            if (g.combat && g.combat.isDead) return 'unavailable';
+
+            if (def.type === 'teleport') return this.startTeleport(def);
 
             if (def.type === 'projectile') {
                 const target = this.pickTarget(def, new THREE.Vector3());
@@ -312,6 +331,86 @@
             }
             console.warn(`[Avelora] skill "${skillId}": type "${def.type}" is not implemented`);
             return 'unavailable';
+        }
+
+        // ---------------------------------------------------------------
+        // Teleport ("Возвращение домой")
+        // ---------------------------------------------------------------
+        getRecallFx() {
+            if (!this.recallFx && window.AveloraRecallFX) this.recallFx = new window.AveloraRecallFX(this.game);
+            return this.recallFx;
+        }
+
+        /** Where a teleport skill leads from the current location: { dest, spawn } or null. */
+        teleportRoute(def) {
+            const g = this.game, here = g.location && g.location.id;
+            if (here === def.destination) {
+                const back = g.gameState && g.gameState.returnTo;
+                let dest = (back && back !== here && window.LOCATIONS[back]) ? back : (window.START_LOCATION || null);
+                if (!dest || dest === here || !window.LOCATIONS[dest]) return null;
+                return { dest, spawn: null };   // null -> the location's default spawn
+            }
+            if (!window.LOCATIONS[def.destination]) return null;
+            return { dest: def.destination, spawn: def.spawn || null };
+        }
+
+        startTeleport(def) {
+            const g = this.game, c = g.character;
+            const route = this.teleportRoute(def);
+            const fxSys = this.getRecallFx();
+            if (!route || !fxSys) return 'unavailable';
+            if (c.isMoving) c.stopMovement();
+            if (g.worldObjects) g.worldObjects.cancelPending();
+            if (g.combat) { g.combat.cancel(); }
+            const dur = Math.max(0.5, def.castTime || 4);
+            const vfx = def.vfx || {};
+            c.startChannel();
+            const fx = fxSys.start(c.position.x, c.position.z, { mode: 'channel', duration: dur, radius: vfx.radius, color: vfx.color, core: vfx.core });
+            this.channel = { def, dest: route.dest, spawn: route.spawn, from: g.location ? g.location.id : null, t: dur, dur, fx };
+            if (g.ui && g.ui.floatText) g.ui.floatText(def.name + '…', 'info');
+            return 'ok';
+        }
+
+        updateChannel(delta) {
+            const ch = this.channel, g = this.game, c = g.character;
+            if (!c || !c.isChanneling || c.isMoving || g.isTransitioning || (g.combat && g.combat.isDead)) {
+                this.interruptChannel('move');
+                return;
+            }
+            ch.t -= delta;
+            if (ch.t <= 0) this.completeChannel();
+        }
+
+        /** Breaks a running teleport channel (movement, attack, damage, death). Safe to call any time. */
+        interruptChannel(reason) {
+            const ch = this.channel;
+            if (!ch) return;
+            this.channel = null;
+            if (ch.fx) ch.fx.stop();
+            const c = this.game.character;
+            if (c && c.isChanneling) c.stopChannel();
+            if (reason !== 'silent' && this.game.ui && this.game.ui.floatText) this.game.ui.floatText('Заклинание прервано', 'warn');
+        }
+
+        completeChannel() {
+            const ch = this.channel, g = this.game;
+            this.channel = null;
+            this.startCooldown(ch.def);
+            if (g.character) g.character.stopChannel();
+            // Going TO the destination: remember where from, so the same skill can bring us back.
+            if (g.gameState && ch.from && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from);
+            this.pendingArrival = { def: ch.def };
+            g.changeLocation(ch.dest, ch.spawn, 'Золотые руны уносят вас…');
+        }
+
+        playArrival() {
+            const pa = this.pendingArrival;
+            if (!pa) return;
+            this.pendingArrival = null;
+            const g = this.game, c = g.character, fxSys = this.getRecallFx();
+            if (!c || !fxSys) return;
+            const vfx = pa.def.vfx || {};
+            fxSys.start(c.position.x, c.position.z, { mode: 'arrival', duration: 1.8, radius: vfx.radius, color: vfx.color, core: vfx.core });
         }
 
         startCooldown(def) {
@@ -510,7 +609,8 @@
             p.shadeSprite.material.color.copy(p.color).multiplyScalar(0.12);
             this._color.copy(p.color).lerp(this._white, 0.45);
             p.filaments.material.color.copy(this._color);
-            p.coreSprite.visible = p.glowSprite.visible = p.shadeSprite.visible = p.filaments.visible = true;
+            p.coreSprite.visible = p.glowSprite.visible = p.shadeSprite.visible = true;
+            p.filaments.visible = vfx.filaments !== false; // fire / arrows: no lightning crackle
             this.placeProjectileVisuals(p, 0);
         }
 
@@ -537,6 +637,7 @@
             this._color.copy(color).lerp(this._white, 0.55);
             m.arcs.material.color.copy(this._color);
             m.flash.visible = m.bloom.visible = m.arcs.visible = true;
+            if (vfx.arcs === false) m.arcs.visible = false;
             m.ring.visible = m.decal.visible = m.scorch.visible = onGround;
             writeBolts(m.arcs, ARCS, ARC_SEGS, (vfx.impactRadius || 1.4) * 0.5, (vfx.impactRadius || 1.4) * 1.05, onGround ? 0.35 : 1, 0.45);
 
@@ -566,6 +667,9 @@
         // Per-frame
         // -----------------------------------------------------------
         update(delta) {
+            if (this.channel) this.updateChannel(delta);
+            if (this.recallFx) this.recallFx.update(delta);
+
             // Cast in progress: spawn when castTime elapses (game time)
             if (this.casting) {
                 this.casting.t -= delta;
@@ -858,6 +962,8 @@
         /** Location change / character switch: drop the cast, every projectile, impact and spark. */
         clearAll() {
             this.casting = null;
+            this.channel = null;
+            if (this.recallFx) this.recallFx.clearAll();
             this._blockers = null;
             this._blockersEnv = null;
             const r = this.res;

@@ -1,0 +1,16 @@
+{
+  "id": "badger_tail",
+  "name": "Пушистый хвост",
+  "description": "Мягкий радужный хвост барсука. Ценится у меховщиков.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 3,
+  "sellPrice": 3,
+  "despawnMinutes": 10
+}

@@ -4,6 +4,11 @@
   "description": "Сухая ветка. Растопка, древки, плетни.",
   "category": "material",
   "stackMax": 20,
-  "ground": { "variants": 3, "scale": 1.0, "pile": "heap" },
-  "use": null
+  "ground": {
+    "variants": 3,
+    "scale": 1.0,
+    "pile": "heap"
+  },
+  "use": null,
+  "value": 1
 }

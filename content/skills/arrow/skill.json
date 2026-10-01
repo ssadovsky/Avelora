@@ -1,0 +1,25 @@
+{
+  "id": "arrow",
+  "name": "Меткий выстрел",
+  "description": "Быстрая стрела летит в указанную точку и поражает цель.",
+  "type": "projectile",
+  "cooldown": 0.9,
+  "range": 22,
+  "speed": 34,
+  "castTime": 0.25,
+  "damage": {
+    "min": 6,
+    "max": 11,
+    "type": "physical"
+  },
+  "vfx": {
+    "color": "#e9d9a6",
+    "core": "#ffffff",
+    "size": 0.3,
+    "trail": 10,
+    "impactSparks": 10,
+    "impactRadius": 0.9,
+    "filaments": false,
+    "arcs": false
+  }
+}

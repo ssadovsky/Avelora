@@ -1,0 +1,25 @@
+{
+  "id": "fire_arrow",
+  "name": "Огненная стрела",
+  "description": "Пылающая стрела магии. Мощнее искры, взрывается вспышкой пламени.",
+  "type": "projectile",
+  "cooldown": 1.6,
+  "range": 20,
+  "speed": 26,
+  "castTime": 0.3,
+  "damage": {
+    "min": 11,
+    "max": 18,
+    "type": "fire"
+  },
+  "vfx": {
+    "color": "#ff8a2a",
+    "core": "#fff1b0",
+    "size": 0.7,
+    "trail": 20,
+    "impactSparks": 38,
+    "impactRadius": 1.8,
+    "filaments": false,
+    "arcs": false
+  }
+}

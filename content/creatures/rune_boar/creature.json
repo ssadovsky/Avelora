@@ -2,7 +2,10 @@
   "id": "rune_boar",
   "name": "Рунный вепрь",
   "hp": 130,
-  "damage": [10, 18],
+  "damage": [
+    10,
+    18
+  ],
   "attackRange": 1.4,
   "attackCooldown": 1.5,
   "walkSpeed": 1.4,
@@ -13,5 +16,9 @@
   "wanderRadius": 3.0,
   "respawnMinutes": 6,
   "hitRadius": 1.2,
-  "scale": 1.05
+  "scale": 1.05,
+  "gold": [
+    6,
+    10
+  ]
 }

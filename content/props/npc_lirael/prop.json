@@ -1,0 +1,6 @@
+{
+  "id": "npc_lirael",
+  "name": "Лираэль",
+  "obstacle": 0.5,
+  "npc": "lirael"
+}

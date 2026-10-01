@@ -1,0 +1,14 @@
+{
+  "id": "plank",
+  "name": "Доска",
+  "description": "Гладко обтёсанная доска. Материал для постройки.",
+  "category": "material",
+  "stackMax": 20,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "stack"
+  },
+  "use": null,
+  "value": 3
+}

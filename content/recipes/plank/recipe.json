@@ -1,0 +1,13 @@
+{
+  "id": "plank",
+  "name": "Доски",
+  "description": "Бревно распиливается на несколько досок.",
+  "category": "carpentry",
+  "ingredients": [
+    { "item": "log", "count": 1 }
+  ],
+  "result": {
+    "item": "plank",
+    "count": 4
+  }
+}

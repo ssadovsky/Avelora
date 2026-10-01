@@ -1,0 +1,6 @@
+{
+  "id": "campfire",
+  "name": "Кострище",
+  "obstacle": 0.5,
+  "fire": { "y": 0.1, "size": 1.0 }
+}

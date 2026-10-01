@@ -1,0 +1,11 @@
+{
+  "id": "home_recall",
+  "name": "Возвращение домой",
+  "description": "Золотые руны уносят вас на вашу базу. Использованное на базе, возвращает в прежнюю локацию. Движение или удар прерывают заклинание.",
+  "type": "teleport",
+  "destination": "homeCamp",
+  "spawn": "default",
+  "cooldown": 30,
+  "castTime": 4,
+  "vfx": { "color": "#ffc94d", "core": "#fff3c4", "radius": 1.7 }
+}

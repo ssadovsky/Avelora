@@ -3,6 +3,9 @@
  * - 'coast': Sea / Ocean along any edge ('west', 'east', 'north', 'south')
  * - 'lake': Enclosed lake basin with custom center and radius
  * - 'island': Land island surrounded by ocean
+ * - 'river': A winding channel carved along a centre-line: waterBody { type:'river', points:[[x,z],...]
+ *             (Catmull-Rom smoothed), width (m), depth (<0), beachWidth (bank slope, m) }. The water plane
+ *             (water.js) covers the whole map at Y = 0; land above 0 simply hides it.
  * Smooth beach, rolling meadow (0.4m to 1.8m), seamless photographic PBR textures
  */
 class LakesideTerrain {
@@ -40,16 +43,75 @@ class LakesideTerrain {
         this.hillsConfig = locTerrain.hills || { amplitude: 1.4, inclineX: 0.8, inclineZ: 0.4 };
         // Average ground level above the water plane (Y = 0). Higher = drier land, fewer puddles.
         this.baseHeight = (locTerrain.baseHeight !== undefined) ? locTerrain.baseHeight : 0.85;
+        // Dirt paths (forest biome): [{points:[[x,z],...], width}] drawn by the terrain shader (max 12 segments)
+        this.paths = locTerrain.paths || null;
+        this.bridges = locTerrain.bridges || null; // [{x, z, length (along Z), width, deckY}]
         this.noise = new SimplexNoise(locTerrain.seed !== undefined ? locTerrain.seed : 4242);
 
         this.mesh = null;
         this.material = null;
 
+        if (this.waterConfig.type === 'river') this.buildRiver();
+
         this.init();
     }
 
+    /** River: smooth the control points into a dense polyline (flat arrays: fast distance queries). */
+    buildRiver() {
+        const pts = (this.waterConfig.points || [[-40, 0], [40, 0]]).map(p => new THREE.Vector3(p[0], 0, p[1]));
+        const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+        const n = Math.max(40, pts.length * 24);
+        this.riverX = new Float32Array(n + 1);
+        this.riverZ = new Float32Array(n + 1);
+        const v = new THREE.Vector3();
+        for (let i = 0; i <= n; i++) {
+            curve.getPointAt(i / n, v);
+            this.riverX[i] = v.x; this.riverZ[i] = v.z;
+        }
+    }
+
+    /** Distance (m) from (x, z) to the river centre-line. */
+    riverDistance(x, z) {
+        const X = this.riverX, Z = this.riverZ;
+        let best = Infinity;
+        for (let i = 0; i < X.length - 1; i++) {
+            const ax = X[i], az = Z[i], bx = X[i + 1] - ax, bz = Z[i + 1] - az;
+            const len2 = bx * bx + bz * bz;
+            let t = len2 > 0 ? ((x - ax) * bx + (z - az) * bz) / len2 : 0;
+            t = t < 0 ? 0 : (t > 1 ? 1 : t);
+            const dx = x - (ax + bx * t), dz = z - (az + bz * t);
+            const d2 = dx * dx + dz * dz;
+            if (d2 < best) best = d2;
+        }
+        return Math.sqrt(best);
+    }
+
     // Continuous, deterministic terrain elevation evaluation
+    /**
+     * Ground height used by gameplay (characters, pathfinding, props). Bridges (locTerrain.bridges)
+     * lift the walkable surface over the river; the terrain MESH is built from getRawHeightAt so the
+     * channel stays visible under the deck.
+     */
     getHeightAt(x, z) {
+        const h = this.getRawHeightAt(x, z);
+        const br = this.bridges;
+        if (!br || this._rawOnly) return h;
+        for (let i = 0; i < br.length; i++) {
+            const b = br[i];
+            const ax = Math.abs(x - b.x), az = Math.abs(z - b.z);
+            const hw = b.width / 2 + 0.6, hl = b.length / 2;
+            if (ax >= hw || az >= hl) continue;
+            const fx = Math.min(1, (hw - ax) / 0.6);
+            const fz = Math.min(1, (hl - az) / 1.2);
+            const f = Math.min(fx, fz);
+            const k = f * f * (3 - 2 * f);
+            const deckY = b.deckY;
+            return h + (deckY - h) * k;
+        }
+        return h;
+    }
+
+    getRawHeightAt(x, z) {
         const nx = x / this.sizeX;
         const nz = z / this.sizeZ;
 
@@ -59,7 +121,8 @@ class LakesideTerrain {
 
         // Natural subtle ground undulation
         const groundMicro = this.noise.noise2D(x * 0.08, z * 0.08) * 0.35 + this.noise.noise2D(x * 0.2, z * 0.2) * 0.12;
-        let height = meadowHills + groundMicro + this.baseHeight;
+        const gnScale = (this.locTerrain.groundNoise !== undefined) ? this.locTerrain.groundNoise : 1;
+        let height = meadowHills + groundMicro * gnScale + this.baseHeight;
 
         // Calculate distance from shoreline based on water body type:
         // distFromShore < 0 means under water (sea/lake bed)
@@ -102,6 +165,14 @@ class LakesideTerrain {
         } else if (wType === 'none') {
             // Flat land, no water
             return height;
+        } else if (wType === 'river') {
+            // RIVER: channel along a smoothed centre-line; banks wobble a little so it isn't a ditch
+            const halfW = (this.waterConfig.width || 5.0) / 2;
+            waterDepth = (this.waterConfig.depth !== undefined) ? this.waterConfig.depth : -0.9;
+            beachWidth = (this.waterConfig.beachWidth !== undefined) ? this.waterConfig.beachWidth : 3.2;
+            const wobble = this.noise.noise2D(x * 0.11, z * 0.11) * 0.55 + this.noise.noise2D(x * 0.3, z * 0.3) * 0.15;
+            distFromShore = this.riverDistance(x, z) - halfW - wobble;
+            bedSlope = Math.max(1.2, halfW * 0.8);
         } else {
             // LAKE: enclosed round/fractal lake basin
             const lakeX = (this.waterConfig.x !== undefined) ? this.waterConfig.x : -14.0;
@@ -213,6 +284,7 @@ class LakesideTerrain {
 
         const posAttr = geo.attributes.position;
         const normAttr = geo.attributes.normal;
+        this._rawOnly = true; // mesh shows the real channel under bridges
 
         // Set heights and analytical continuous normals (eliminates all faceting/squares)
         for (let i = 0; i < posAttr.count; i++) {
@@ -233,6 +305,7 @@ class LakesideTerrain {
             normAttr.setXYZ(i, n.x, n.y, n.z);
         }
 
+        this._rawOnly = false;
         posAttr.needsUpdate = true;
         normAttr.needsUpdate = true;
 
@@ -284,7 +357,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v7`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v8`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
 
@@ -295,6 +368,19 @@ class LakesideTerrain {
             shader.uniforms.uRockNor = { value: rockNor };
             shader.uniforms.uBeachDiff = { value: beachDiff };
             shader.uniforms.uBiome = { value: biomeId };
+            const pathSegs = [];
+            let pathWidth = 2.4;
+            (this.paths || []).forEach(pp => {
+                pathWidth = pp.width || pathWidth;
+                for (let i = 0; i + 1 < pp.points.length && pathSegs.length < 12; i++) {
+                    pathSegs.push(new THREE.Vector4(pp.points[i][0], pp.points[i][1], pp.points[i + 1][0], pp.points[i + 1][1]));
+                }
+            });
+            const nSegs = pathSegs.length;
+            while (pathSegs.length < 12) pathSegs.push(new THREE.Vector4(0, 0, 0, 0));
+            shader.uniforms.uPathSeg = { value: pathSegs };
+            shader.uniforms.uPathCount = { value: nSegs };
+            shader.uniforms.uPathWidth = { value: pathWidth };
 
             shader.vertexShader = `
                 varying vec3 vWorldPosition;
@@ -317,6 +403,9 @@ class LakesideTerrain {
                 uniform sampler2D uRockNor;
                 uniform sampler2D uBeachDiff;
                 uniform float uBiome;
+                uniform vec4 uPathSeg[12];
+                uniform int uPathCount;
+                uniform float uPathWidth;
 
                 varying vec3 vWorldPosition;
                 varying vec3 vWorldNormal;
@@ -386,6 +475,18 @@ class LakesideTerrain {
                     passTrailMask *= 1.0 - smoothstep(-148.0, -140.0, vWorldPosition.x);
 
                     // Смешивание луговой травы и грунтовой дороги к перевалу
+                    // Тропы из terrain.paths: расстояние до ломаной с лёгкой неровностью края
+                    float pathD = 1e5;
+                    for (int pi = 0; pi < 12; pi++) {
+                        if (pi >= uPathCount) break;
+                        vec2 pa = uPathSeg[pi].xy, pb = uPathSeg[pi].zw;
+                        vec2 pab = pb - pa;
+                        float pt = clamp(dot(vWorldPosition.xz - pa, pab) / max(dot(pab, pab), 1e-4), 0.0, 1.0);
+                        pathD = min(pathD, length(vWorldPosition.xz - (pa + pab * pt)));
+                    }
+                    float pathEdge = uPathWidth * 0.5 + sin(vWorldPosition.x * 0.9 + vWorldPosition.z * 0.7) * 0.18;
+                    float pathMask = (uPathCount > 0) ? 1.0 - smoothstep(pathEdge - 0.45, pathEdge + 0.55, pathD) : 0.0;
+                    passTrailMask = max(passTrailMask, pathMask * 0.95 / 0.88);
                     vec3 meadowBase = mix(colGrass.rgb, colTrail.rgb, passTrailMask * 0.88);
 
                     // Скальные уступы на крутых склонах и на высоте горного массива

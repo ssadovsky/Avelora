@@ -4,6 +4,11 @@
   "description": "Свежие побеги дикого папоротника. Используются в алхимии для приготовления зелий.",
   "category": "material",
   "stackMax": 50,
-  "ground": { "variants": 1, "scale": 0.8, "pile": "single" },
-  "use": null
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 1
 }

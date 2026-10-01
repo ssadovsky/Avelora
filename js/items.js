@@ -129,6 +129,16 @@
             if (kind === 'held') {
                 geo = new THREE.CylinderGeometry(0.02, 0.025, 0.8, 8);
                 geo.translate(0, 0.3, 0);
+            } else if (kind === 'prop' && String(id).indexOf('npc_') === 0) {
+                // NPC without a model yet: a carved stone pillar (0.5 x 1.9 x 0.5 m, origin at the bottom centre)
+                geo = new THREE.BoxGeometry(0.5, 1.9, 0.5);
+                geo.translate(0, 0.95, 0);
+                mat.color.setHex(0x6f6c63);
+            } else if (kind === 'prop' && id === 'chest') {
+                // Chest without a model yet: a wooden box (0.9 x 0.6 x 0.6 m, origin at the bottom centre)
+                geo = new THREE.BoxGeometry(0.9, 0.6, 0.6);
+                geo.translate(0, 0.3, 0);
+                mat.color.setHex(0x7a5230);
             } else if (kind === 'prop') {
                 geo = new THREE.CylinderGeometry(0.34, 0.4, 0.45, 12);
                 geo.translate(0, 0.225, 0);

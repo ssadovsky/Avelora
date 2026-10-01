@@ -1,0 +1,25 @@
+{
+  "id": "fireball",
+  "name": "Огненный шар",
+  "description": "Огромный шар пламени. Взрывается на большой площади и сжигает всё вокруг.",
+  "type": "projectile",
+  "cooldown": 12,
+  "range": 20,
+  "speed": 15,
+  "castTime": 0.7,
+  "damage": {
+    "min": 45,
+    "max": 65,
+    "type": "fire"
+  },
+  "vfx": {
+    "color": "#ff5a14",
+    "core": "#ffe08a",
+    "size": 1.45,
+    "trail": 34,
+    "impactSparks": 80,
+    "impactRadius": 3.4,
+    "filaments": false,
+    "arcs": false
+  }
+}

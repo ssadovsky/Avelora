@@ -1,0 +1,16 @@
+{
+  "id": "meat",
+  "name": "Мясо",
+  "description": "Свежее сырое мясо. Годится в пищу и на продажу.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 1,
+  "sellPrice": 1,
+  "despawnMinutes": 10
+}

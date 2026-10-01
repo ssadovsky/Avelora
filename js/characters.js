@@ -99,6 +99,7 @@ window.CHARACTER_CATALOG = [
         // Новый молодой боевой маг на родном Meshy AI biped скелете
         scale: 1.05,
         facingOffset: Math.PI,
+        channelHoldTime: 0.4,   // 'Cast' clip: рука поднята на 0.38 с — на этой позе держим её при долгих заклинаниях (home_recall)
         maxHp: 90,
         // Топор ориентирован лезвием вперед и вниз (Y = 1.5708 rad = 90 deg)
         handGrip: { position: [0.0, 0.08, 0.0], rotation: [0.0, 1.5708, 0.0] }

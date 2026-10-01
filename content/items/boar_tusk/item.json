@@ -1,0 +1,16 @@
+{
+  "id": "boar_tusk",
+  "name": "Клыки",
+  "description": "Крепкие клыки вепря. Хорошая добыча для торговца.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 5,
+  "sellPrice": 5,
+  "despawnMinutes": 10
+}

@@ -1,0 +1,6 @@
+{
+  "id": "chest",
+  "name": "Сундук",
+  "obstacle": 0.6,
+  "container": { "slots": 12, "title": "Сундук" }
+}

@@ -2,7 +2,10 @@
   "id": "fawn",
   "name": "Мохолесный оленёнок",
   "hp": 18,
-  "damage": [1, 2],
+  "damage": [
+    1,
+    2
+  ],
   "attackRange": 0.6,
   "attackCooldown": 1.3,
   "walkSpeed": 0.7,
@@ -13,5 +16,9 @@
   "wanderRadius": 2.5,
   "respawnMinutes": 4,
   "hitRadius": 1.8,
-  "scale": 2.8
+  "scale": 2.8,
+  "gold": [
+    1,
+    2
+  ]
 }

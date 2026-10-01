@@ -174,6 +174,15 @@
                     if (side === 'east')  { ctx.fillRect(S - PADDING - w, PADDING, w, S - PADDING * 2); }
                     if (side === 'north') { ctx.fillRect(PADDING, PADDING, S - PADDING * 2, w); }
                     if (side === 'south') { ctx.fillRect(PADDING, S - PADDING - w, S - PADDING * 2, w); }
+                } else if (wb.type === 'river' && Array.isArray(wb.points)) {
+                    // Речка: ломаная по контрольным точкам, толщиной в ширину русла
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.strokeStyle = WATER_FILL;
+                    ctx.lineWidth = Math.max(3, toR(wb.width || 5));
+                    ctx.beginPath();
+                    wb.points.forEach((pt, i) => { if (i) ctx.lineTo(toX(pt[0]), toZ(pt[1])); else ctx.moveTo(toX(pt[0]), toZ(pt[1])); });
+                    ctx.stroke();
                 } else if (wb.type === 'island') {
                     // Весь фон — вода, круг суши по центру
                     ctx.fillStyle = WATER_FILL;

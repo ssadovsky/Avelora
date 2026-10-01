@@ -111,6 +111,7 @@
                 }
                 const rec = this.makeRecord(sp, def);
                 this.list.push(rec);
+                if (this.state && this.state.isSlain(location.id, sp.id)) { rec.state = 'gone'; rec.slain = true; return; } // killed for good by a quest
                 const killedAt = this.state ? this.state.getKilled(location.id, sp.id) : null;
                 if (killedAt !== null && this.playTime - killedAt < this.respawnSeconds(def)) {
                     rec.state = 'gone'; // still dead: waits for respawn
@@ -669,7 +670,30 @@
             if (this.hovered === rec) this.hovered = null;
             this.hideHpBar(rec);
             if (this.state) this.state.setKilled(this.location.id, rec.id, this.playTime);
+            this.dropLoot(rec);
             window.dispatchEvent(new CustomEvent('game:creatureKilled', { detail: { id: rec.id, type: rec.type } }));
+        }
+
+        /**
+         * creature.json `drops: [{item, count, chance?}]`: straight into the bag; whatever does not fit
+         * lies on the ground by the corpse (monster loot vanishes from the ground after despawnMinutes).
+         */
+        dropLoot(rec) {
+            const wo = this.game.worldObjects, st = this.state, ui = this.game.ui, drops = rec.def.drops;
+            if (!st || !Array.isArray(drops)) return;
+            drops.forEach((d, i) => {
+                if (!d || !d.item || !window.AveloraItems.get(d.item) || (d.chance !== undefined && Math.random() > d.chance)) return;
+                const want = Math.max(1, d.count || 1);
+                const got = st.inventory.add(d.item, want);
+                const def = window.AveloraItems.get(d.item);
+                if (got > 0 && ui) { ui.bagFloat(`+${got} ${def.name}`, i * 0.15); ui.pulseInventory(); }
+                const left = want - got;
+                if (left > 0 && wo) {
+                    if (ui) ui.floatText('Сумка полна', 'warn', i * 0.2 + 0.1);
+                    const a = (i / Math.max(1, drops.length)) * Math.PI * 2 + rec.y;
+                    wo.addDrop(d.item, left, rec.x + Math.cos(a) * 0.6, rec.z + Math.sin(a) * 0.6);
+                }
+            });
         }
 
         /** Spark impact hook (window 'game:skillImpact'): damage every creature whose body is within the radius. */
@@ -728,7 +752,7 @@
             if (!st) return;
             for (let i = 0; i < this.list.length; i++) {
                 const rec = this.list[i];
-                if (rec.state !== 'gone' || rec.group) continue;
+                if (rec.state !== 'gone' || rec.group || rec.slain) continue;
                 const t = st.getKilled(this.location.id, rec.id);
                 if (t !== null && this.playTime - t < this.respawnSeconds(rec.def)) continue;
                 if (t !== null) st.clearKilled(this.location.id, rec.id);
