@@ -229,7 +229,10 @@ window.LOCATIONS = {
             { id: 'stump_axe',    item: 'axe',   count: 1, x: 107.35, z: 68.12, y: 0.72, rotation: [3.142, 0.347, 1.082] },
             // Посох лежит в траве у камней: rotation [0, поворот, -π/2] кладёт древко
             // (+Y модели) горизонтально; y — толщина древка, чтобы не утонул в земле.
-            { id: 'start_staff',  item: 'staff', count: 1, only: 'mage', x: 105.4, z: 70.2, y: 0.04, rotation: [0, 0.6, -1.571] }
+            { id: 'start_staff',  item: 'staff', count: 1, only: 'mage', x: 105.4, z: 70.2, y: 0.04, rotation: [0, 0.6, -1.571] },
+            // Кинжал — для всех, лук — только для лучницы (лежат у пня рядом с остальным)
+            { id: 'start_dagger', item: 'dagger', count: 1, x: 108.6, z: 70.4, y: 0.03, rotation: [0, 0.9, -1.571] },
+            { id: 'start_bow',    item: 'bow',    count: 1, only: 'archer', x: 106.8, z: 71.6, y: 0.05, rotation: [0, 1.9, -1.571] }
         ],
 
         props: [

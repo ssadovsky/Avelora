@@ -542,6 +542,32 @@ class MedievalCharacter {
         this.rotateBoneWorld(b.hand, this._right, swingKey(SWING_KEYS.hand, u) * DEG * kHand);
     }
 
+    /** Walking/running with a staff: the run clip pumps the arm, so the staff is held (nearly) upright instead. */
+    applyCarryUpright(delta) {
+        const it = this.handItem, b = this.rightHandBone;
+        const obj = it && it.children[0];
+        if (!obj || !obj.userData || !obj.userData.upright || !b || !b.parent) { this.carryW = 0; return; }
+        const want = this.isMoving && !this.swing && !this.isCasting && !this.isChanneling && !this.isAttacking && this.deathT < 0;
+        this.carryW = (this.carryW || 0) + ((want ? 1 : 0) - (this.carryW || 0)) * Math.min(1, delta * 10);
+        if (this.carryW < 0.01) return;
+        this.mesh.updateMatrixWorld(true);
+        this.saveOverlayBone(b);
+        const qO = this._q1, qd = this._q2, qb = this._q3;
+        obj.getWorldQuaternion(qO);
+        const shaft = this._cv1 || (this._cv1 = new THREE.Vector3());
+        const want_d = this._cv2 || (this._cv2 = new THREE.Vector3());
+        shaft.set(0, 1, 0).applyQuaternion(qO);
+        const r = this.currentRotation, tilt = 6 * DEG;   // top slightly forward
+        want_d.set(-Math.sin(r) * Math.sin(tilt), Math.cos(tilt), -Math.cos(r) * Math.sin(tilt));
+        const full = this._q4 || (this._q4 = new THREE.Quaternion());
+        full.setFromUnitVectors(shaft, want_d);
+        qd.identity().slerp(full, this.carryW);
+        b.getWorldQuaternion(qb);
+        qb.premultiply(qd);
+        b.parent.getWorldQuaternion(qO);
+        b.quaternion.copy(qO).invert().multiply(qb);
+    }
+
     /** Staff thrust: arm out forward, hand counter-rotated so the staff keeps its upright pose. */
     applyStaffOverlay(u) {
         const b = this.swingBones;
@@ -927,6 +953,7 @@ class MedievalCharacter {
             // !!! НЕ ТРОГАТЬ: расчет рыскания меша жестко привязан к currentRotation и facingOffset !!!
             this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0); // x/z всегда 0 — см. resetDeathPose()
             if (this.swing) this.applySwingOverlay(delta);
+            this.applyCarryUpright(delta);
         }
         if (this.zaps && this.zaps.length) this.updateZaps(delta);
 

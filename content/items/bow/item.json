@@ -1,0 +1,53 @@
+{
+  "id": "bow",
+  "name": "Простой лук",
+  "description": "Лёгкий охотничий лук из гибкого ясеня. Берётся в руку; вблизи бьёт плечом лука.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single",
+    "rotation": [
+      1.5708,
+      0,
+      0
+    ],
+    "offsetY": 0.03
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "weapon": {
+    "damage": [
+      3,
+      5
+    ],
+    "range": 1.6,
+    "cooldown": 1.0
+  },
+  "hold": {
+    "warrior": {
+      "rotation": [
+        -0.775,
+        -0.537,
+        -2.627
+      ]
+    },
+    "archer": {
+      "rotation": [
+        -1.117,
+        -0.709,
+        -2.866
+      ]
+    },
+    "mage": {
+      "rotation": [
+        2.869,
+        0.102,
+        0.104
+      ]
+    }
+  }
+}

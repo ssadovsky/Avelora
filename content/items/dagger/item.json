@@ -1,0 +1,53 @@
+{
+  "id": "dagger",
+  "name": "Кинжал",
+  "description": "Простой стальной кинжал. Быстрый, бьёт вблизи.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single",
+    "rotation": [
+      1.5708,
+      0,
+      0
+    ],
+    "offsetY": 0.02
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "weapon": {
+    "damage": [
+      4,
+      7
+    ],
+    "range": 1.4,
+    "cooldown": 0.8
+  },
+  "hold": {
+    "warrior": {
+      "rotation": [
+        -0.738,
+        -0.527,
+        -1.755
+      ]
+    },
+    "archer": {
+      "rotation": [
+        -1.123,
+        -0.69,
+        -1.998
+      ]
+    },
+    "mage": {
+      "rotation": [
+        2.869,
+        0.102,
+        0.975
+      ]
+    }
+  }
+}
