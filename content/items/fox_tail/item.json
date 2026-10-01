@@ -1,0 +1,16 @@
+{
+  "id": "fox_tail",
+  "name": "Лисий хвост",
+  "description": "Пушистый рыжий хвост с белым кончиком.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 3,
+  "sellPrice": 3,
+  "despawnMinutes": 10
+}

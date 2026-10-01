@@ -1,0 +1,16 @@
+{
+  "id": "bear_hide",
+  "name": "Шкура медведя",
+  "description": "Тяжёлая тёмная шкура чёрного медведя. Дорого ценится у кожевников.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 8,
+  "sellPrice": 8,
+  "despawnMinutes": 10
+}

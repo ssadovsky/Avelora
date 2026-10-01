@@ -1,0 +1,30 @@
+{
+  "id": "bear",
+  "name": "Чёрный медведь",
+  "hp": 160,
+  "damage": [
+    10,
+    16
+  ],
+  "attackRange": 1.9,
+  "attackCooldown": 1.7,
+  "walkSpeed": 1.1,
+  "runSpeed": 5.2,
+  "behavior": "aggressive",
+  "aggroRadius": 9,
+  "leashRadius": 18,
+  "wanderRadius": 5,
+  "respawnMinutes": 6,
+  "hitRadius": 1.4,
+  "scale": 1.15,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 6
+    },
+    {
+      "item": "bear_hide",
+      "count": 1
+    }
+  ]
+}

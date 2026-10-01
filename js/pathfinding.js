@@ -180,6 +180,26 @@ class DiabloPathfinder {
                 }
             }
         }
+        this.blockBridgeRails();
+    }
+
+    /** Bridge railings: along the deck only the strip between the rails is walkable. */
+    blockBridgeRails() {
+        const br = this.terrain.bridges;
+        if (!br) return;
+        br.forEach(b => {
+            const inner = b.width / 2 - 0.3;   // rails stand at width/2 - 0.08
+            const reach = b.width / 2 + 0.6 + this.cellWidth;
+            const lo = this.worldToGrid(b.x - reach, b.z - b.length / 2);
+            const hi = this.worldToGrid(b.x + reach, b.z + b.length / 2);
+            for (let gz = lo.z; gz <= hi.z; gz++) {
+                for (let gx = lo.x; gx <= hi.x; gx++) {
+                    const p = this.gridToWorld(gx, gz);
+                    if (Math.abs(p.z - b.z) >= b.length / 2) continue;
+                    if (Math.abs(p.x - b.x) > inner) this.grid[this.getIndex(gx, gz)] = 1;
+                }
+            }
+        });
     }
 
     // Line of sight check between two grid cells

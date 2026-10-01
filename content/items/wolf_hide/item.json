@@ -1,0 +1,16 @@
+{
+  "id": "wolf_hide",
+  "name": "Шкура волка",
+  "description": "Густая серая шкура волка. Пригодится кожевникам.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 5,
+  "sellPrice": 5,
+  "despawnMinutes": 10
+}

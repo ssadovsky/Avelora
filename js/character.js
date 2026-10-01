@@ -32,6 +32,14 @@ const SWING_KEYS = {
     spineYaw:   [[0, 0], [0.42, -24], [0.58, 16], [1, 0]],
     spinePitch: [[0, 0], [0.42, 9], [0.58, -13], [1, 0]]
 };
+// STAFF thrust (weapon.style 'staff'): the arm reaches out horizontally (elbow slightly bent) and the
+// hand is counter-rotated so the staff stays upright all the time; a short lightning zap leaves the tip.
+const STAFF_KEYS = {
+    armPitch:   [[0, 0], [0.3, 86], [0.78, 86], [1, 0]],
+    forearm:    [[0, 0], [0.3, 28], [0.78, 28], [1, 0]],
+    spineYaw:   [[0, 0], [0.3, -6], [0.55, 4], [1, 0]],
+    spinePitch: [[0, 0], [0.3, -4], [0.78, -4], [1, 0]]
+};
 // Fraction of the swing at which the weapon connects (end of the strike).
 const SWING_HIT_FRAC = 0.55;
 const DEG = Math.PI / 180;
@@ -364,9 +372,9 @@ class MedievalCharacter {
     }
 
     /** Starts one procedural weapon swing lasting `duration` s (restarts if one is running). */
-    startSwing(duration) {
+    startSwing(duration, style) {
         this._endChannel();
-        this.swing = { t: 0, d: Math.max(0.25, duration || 0.8) };
+        this.swing = { t: 0, d: Math.max(0.25, duration || 0.8), style: style || null };
         this.idleTimer = 0;
         if (this.isGreeting) {
             this.isGreeting = false;
@@ -437,7 +445,8 @@ class MedievalCharacter {
     }
 
     /** Plays the character's 'attack' animation clip if available, otherwise falls back to procedural startSwing. */
-    playAttack(duration = 0.8) {
+    playAttack(duration = 0.8, style) {
+        if (style === 'staff') { this.startSwing(duration, 'staff'); return; }
         this._endChannel();
         this.idleTimer = 0;
         if (this.isGreeting) {
@@ -500,6 +509,7 @@ class MedievalCharacter {
         sw.t += delta;
         const u = sw.t / sw.d;
         if (u >= 1) { this.swing = null; return; }
+        if (sw.style === 'staff') { this.applyStaffOverlay(u); return; }
         const k = this.config.swing || {};
         const kArm = k.arm !== undefined ? k.arm : 1, kFore = k.forearm !== undefined ? k.forearm : 1;
         const kSpine = k.spine !== undefined ? k.spine : 1, kHand = k.hand !== undefined ? k.hand : 1;
@@ -530,6 +540,91 @@ class MedievalCharacter {
         this.rotateBoneWorld(b.arm, this._fwd, -armOut);
         this.rotateBoneWorld(b.forearm, this._right, swingKey(SWING_KEYS.forearm, u) * DEG * kFore);
         this.rotateBoneWorld(b.hand, this._right, swingKey(SWING_KEYS.hand, u) * DEG * kHand);
+    }
+
+    /** Staff thrust: arm out forward, hand counter-rotated so the staff keeps its upright pose. */
+    applyStaffOverlay(u) {
+        const b = this.swingBones;
+        this.mesh.updateMatrixWorld(true);
+        for (let i = 0; i < b.all.length; i++) this.saveOverlayBone(b.all[i]);
+        const keep = this._q4 || (this._q4 = new THREE.Quaternion());
+        if (b.hand) b.hand.getWorldQuaternion(keep);
+        const r = this.currentRotation;
+        this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+        const yaw = swingKey(STAFF_KEYS.spineYaw, u) * DEG, pitch = swingKey(STAFF_KEYS.spinePitch, u) * DEG;
+        const n = b.spine.length || 1;
+        for (let i = 0; i < b.spine.length; i++) {
+            this.rotateBoneWorld(b.spine[i], this._up, yaw / n);
+            this.rotateBoneWorld(b.spine[i], this._right, pitch / n);
+        }
+        this._fwd.applyAxisAngle(this._up, yaw);
+        this._right.applyAxisAngle(this._up, yaw);
+        const ap = swingKey(STAFF_KEYS.armPitch, u) * DEG;
+        this.rotateBoneWorld(b.shoulder, this._right, ap * 0.12);
+        this.rotateBoneWorld(b.arm, this._right, ap * 0.88);
+        this.rotateBoneWorld(b.forearm, this._right, swingKey(STAFF_KEYS.forearm, u) * DEG);
+        if (b.hand && b.hand.parent) { // wrist: back to the pre-swing world orientation (staff stays vertical)
+            const qp = this._q1;
+            b.hand.parent.getWorldQuaternion(qp);
+            b.hand.quaternion.copy(qp).invert().multiply(keep);
+        }
+    }
+
+    /** Small lightning zap from the staff crystal toward (x, z); lives ~0.22 s. */
+    staffZap(tx, tz) {
+        if (!this.handItem || !this.scene) return;
+        if (!this._zapBox) this._zapBox = new THREE.Box3();
+        this.scene.updateMatrixWorld(true);
+        const bb = this._zapBox.setFromObject(this.handItem);
+        if (bb.isEmpty()) return;
+        const tip = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.max.y - 0.05, (bb.min.z + bb.max.z) / 2);
+        const end = new THREE.Vector3(tx, this.terrain ? this.terrain.getHeightAt(tx, tz) + 0.7 : tip.y - 0.4, tz);
+        const dir = end.clone().sub(tip);
+        const len = dir.length();
+        if (len > 2.4) end.copy(tip).addScaledVector(dir, 2.4 / len);
+        const SEG = 7, BOLTS = 3;
+        const arr = new Float32Array(BOLTS * SEG * 2 * 3);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        const mat = new THREE.LineBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false });
+        const lines = new THREE.LineSegments(geo, mat);
+        lines.frustumCulled = false;
+        this.scene.add(lines);
+        const fx = { lines, geo, mat, tip, end, age: 0, next: 0, SEG, BOLTS };
+        (this.zaps || (this.zaps = [])).push(fx);
+        this._zapJitter(fx);
+    }
+
+    _zapJitter(fx) {
+        const a = fx.geo.attributes.position.array, { tip, end, SEG, BOLTS } = fx;
+        let o = 0;
+        for (let k = 0; k < BOLTS; k++) {
+            let px = tip.x, py = tip.y, pz = tip.z;
+            for (let i = 1; i <= SEG; i++) {
+                const t = i / SEG, j = i === SEG ? 0 : 0.16 * (1 - t * 0.4);
+                const nx = tip.x + (end.x - tip.x) * t + (Math.random() - 0.5) * j;
+                const ny = tip.y + (end.y - tip.y) * t + (Math.random() - 0.5) * j;
+                const nz = tip.z + (end.z - tip.z) * t + (Math.random() - 0.5) * j;
+                a[o++] = px; a[o++] = py; a[o++] = pz; a[o++] = nx; a[o++] = ny; a[o++] = nz;
+                px = nx; py = ny; pz = nz;
+            }
+        }
+        fx.geo.attributes.position.needsUpdate = true;
+    }
+
+    updateZaps(delta) {
+        const z = this.zaps;
+        if (!z || !z.length) return;
+        for (let i = z.length - 1; i >= 0; i--) {
+            const f = z[i];
+            f.age += delta; f.next -= delta;
+            if (f.next <= 0) { f.next = 0.04; this._zapJitter(f); }
+            f.mat.opacity = Math.max(0, 1 - f.age / 0.22);
+            if (f.age >= 0.22) {
+                this.scene.remove(f.lines); f.geo.dispose(); f.mat.dispose(); z.splice(i, 1);
+            }
+        }
     }
 
     // ---------------------------------------------------------------
@@ -833,6 +928,7 @@ class MedievalCharacter {
             this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0); // x/z всегда 0 — см. resetDeathPose()
             if (this.swing) this.applySwingOverlay(delta);
         }
+        if (this.zaps && this.zaps.length) this.updateZaps(delta);
 
         // Cape sway clock (game time: freezes on pause)
         if (this.capeTimeUniform) {

@@ -258,8 +258,8 @@
             const casting = g.skills && g.skills.casting;
             if (!casting && !c.isSwinging && !c.isCasting && now >= this.nextSwingAt) {
                 const dur = Math.min(0.85, w.cooldown * 0.85);
-                if (c.playAttack) c.playAttack(dur);
-                else c.startSwing(dur);
+                if (c.playAttack) c.playAttack(dur, w.style);
+                else c.startSwing(dur, w.style);
                 this.nextSwingAt = now + w.cooldown;
                 this.pendingHit = { at: now + dur * window.MedievalCharacter.SWING_HIT_FRAC, target: e, weapon: w };
                 this.lastCombatAt = now;
@@ -344,6 +344,7 @@
                     this.pendingHit = null;
                     const e = ph.target;
                     if (e.isValid() && g.character && this.edgeDistance(e) <= e.range(ph.weapon) + HIT_TOLERANCE) {
+                        if (ph.weapon.style === 'staff' && g.character.staffZap) g.character.staffZap(e.x(), e.z());
                         e.onHit(ph.weapon);
                         this.lastCombatAt = now;
                     }

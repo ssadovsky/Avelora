@@ -19,6 +19,7 @@
  *     felled:   { <locationId>: { <treeObjectId>: playTimeAtFell } },
  *     playTime: seconds of PLAYED (unpaused, in-world) time — respawn/regrow clock
  *     returnTo: locationId the player teleported home ("Возвращение домой") from, or null
+ *     returnPos: { x, z, r } exact spot in that location (or null)
  *   }
  *
  * WRITE-ON-CHANGE: the state is written immediately whenever something in it
@@ -229,6 +230,8 @@
             this.felled = sanitizeTimeMap(data.felled);
             // Location the player teleported home FROM (skills.js home_recall uses it to go back)
             this.returnTo = (typeof data.returnTo === 'string' && window.LOCATIONS && window.LOCATIONS[data.returnTo]) ? data.returnTo : null;
+            const rp = data.returnPos;
+            this.returnPos = (this.returnTo && rp && Number.isFinite(rp.x) && Number.isFinite(rp.z)) ? { x: rp.x, z: rp.z, r: Number.isFinite(rp.r) ? rp.r : 0 } : null;
             // Gold coins (a counter, not a bag item): dropped by creatures, spent at NPC shops (dialog.js)
             const gd = Math.floor(Number(data.gold));
             this.gold = Number.isFinite(gd) && gd > 0 ? Math.min(gd, 999999999) : 0;
@@ -447,8 +450,9 @@
         }
 
         /** Remember where "Возвращение домой" should bring the player back to (null = forget). */
-        setReturnTo(locationId) {
+        setReturnTo(locationId, pos) {
             this.returnTo = locationId || null;
+            this.returnPos = (locationId && pos) ? { x: pos.x, z: pos.z, r: pos.r || 0 } : null;
             this.save();
         }
 
@@ -472,6 +476,7 @@
                 killed: this.killed,
                 felled: this.felled,
                 returnTo: this.returnTo || null,
+                returnPos: this.returnPos || null,
                 chests: this.chestsJSON(),
                 gold: this.gold,
                 learnedSkills: this.learnedSkills.slice(),

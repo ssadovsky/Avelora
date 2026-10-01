@@ -341,6 +341,15 @@
             return this.recallFx;
         }
 
+        /** Name/description for the UI: a teleport used on its own destination reads "Возвращение в мир". */
+        labelOf(def) {
+            const here = this.game.location && this.game.location.id;
+            if (def && def.type === 'teleport' && here === def.destination) {
+                return { name: def.backName || def.name, description: def.backDescription || def.description };
+            }
+            return { name: def.name, description: def.description };
+        }
+
         /** Where a teleport skill leads from the current location: { dest, spawn } or null. */
         teleportRoute(def) {
             const g = this.game, here = g.location && g.location.id;
@@ -348,10 +357,11 @@
                 const back = g.gameState && g.gameState.returnTo;
                 let dest = (back && back !== here && window.LOCATIONS[back]) ? back : (window.START_LOCATION || null);
                 if (!dest || dest === here || !window.LOCATIONS[dest]) return null;
-                return { dest, spawn: null };   // null -> the location's default spawn
+                const pos = (dest === back && g.gameState.returnPos) ? g.gameState.returnPos : null;
+                return { dest, spawn: null, pos };   // no saved spot -> the location's default spawn
             }
             if (!window.LOCATIONS[def.destination]) return null;
-            return { dest: def.destination, spawn: def.spawn || null };
+            return { dest: def.destination, spawn: def.spawn || null, pos: null };
         }
 
         startTeleport(def) {
@@ -366,8 +376,8 @@
             const vfx = def.vfx || {};
             c.startChannel();
             const fx = fxSys.start(c.position.x, c.position.z, { mode: 'channel', duration: dur, radius: vfx.radius, color: vfx.color, core: vfx.core });
-            this.channel = { def, dest: route.dest, spawn: route.spawn, from: g.location ? g.location.id : null, t: dur, dur, fx };
-            if (g.ui && g.ui.floatText) g.ui.floatText(def.name + '…', 'info');
+            this.channel = { def, dest: route.dest, spawn: route.spawn, pos: route.pos, from: g.location ? g.location.id : null, t: dur, dur, fx };
+            if (g.ui && g.ui.floatText) g.ui.floatText(this.labelOf(def).name + '…', 'info');
             return 'ok';
         }
 
@@ -398,9 +408,9 @@
             this.startCooldown(ch.def);
             if (g.character) g.character.stopChannel();
             // Going TO the destination: remember where from, so the same skill can bring us back.
-            if (g.gameState && ch.from && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from);
+            if (g.gameState && ch.from && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from, { x: g.character.position.x, z: g.character.position.z, r: g.character.currentRotation });
             this.pendingArrival = { def: ch.def };
-            g.changeLocation(ch.dest, ch.spawn, 'Золотые руны уносят вас…');
+            g.changeLocation(ch.dest, ch.spawn, 'Золотые руны уносят вас…', ch.pos);
         }
 
         playArrival() {

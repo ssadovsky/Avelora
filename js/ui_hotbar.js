@@ -124,6 +124,7 @@
             this.setupPotionModal();
             this.setupChest();
             this.dialog = window.AveloraDialog ? new window.AveloraDialog(game, this) : null;
+            window.addEventListener('game:location', () => { if (this.state) this.renderSkills(); }); // skill names depend on the location
             this.setupEvents();
         }
 
@@ -288,6 +289,7 @@
         renderAll() {
             this.renderInventory();
             if (this.dialog) this.dialog.refresh();
+            if (this.questsOpen) this.updateQuestsProgress();
             this.renderChest();
             this.renderHotbar();
             this.renderSkills();
@@ -361,10 +363,11 @@
                 text.className = 'skill-entry-text';
                 const name = document.createElement('div');
                 name.className = 'skill-entry-name';
-                name.textContent = def.name;
+                const lab = this.game.skills.labelOf(def);
+                name.textContent = lab.name;
                 const desc = document.createElement('div');
                 desc.className = 'skill-entry-desc';
-                desc.textContent = def.description || '';
+                desc.textContent = lab.description || '';
                 const meta = document.createElement('div');
                 meta.className = 'skill-entry-meta';
                 meta.textContent = def.type === 'teleport'
@@ -1090,31 +1093,24 @@
         updateQuestsProgress() {
             const listEl = document.getElementById('quests-list');
             if (!listEl) return;
-            const st = this.state;
-            const fernCount = st ? st.inventory.count('fern') : 0;
-            const potionCount = st ? (st.inventory.count('potion_health_small') + st.inventory.count('potion_health_large')) : 0;
-            const killsCount = st && st.killed ? Object.keys(st.killed).length : 0;
-
-            const quests = [
-                {
-                    title: 'Таинственные руины',
-                    desc: 'Исследуйте долину реки и найдите древний портал в скалах Стоунвотч.',
-                    completed: !!(this.game && this.game.location && (this.game.location.id === 'stonewatch_cliffs' || this.game.location === 'stonewatch_cliffs')),
-                    badge: (this.game && this.game.location && (this.game.location.id === 'stonewatch_cliffs' || this.game.location === 'stonewatch_cliffs')) ? 'Завершено' : 'В процессе'
-                },
-                {
-                    title: 'Искусство алхимии',
-                    desc: 'Соберите 5 листьев дикого папоротника и сварите в окне ремесла целебное зелье.',
-                    completed: potionCount > 0,
-                    badge: potionCount > 0 ? 'Завершено' : `Папоротник: ${Math.min(5, fernCount)}/5`
-                },
-                {
-                    title: 'Опасная фауна',
-                    desc: 'Сразитесь с дикими вепрями или обитателями скал, испытав боевые заклинания.',
-                    completed: killsCount > 0,
-                    badge: killsCount > 0 ? `Побеждено: ${killsCount}` : 'В процессе'
-                }
-            ];
+            const st = this.state, dlg = this.dialog;
+            const quests = [];
+            if (st && dlg) {
+                const ids = Object.keys(st.quests || {});
+                // active first, finished after
+                ids.sort((x, y) => (st.quests[x] === 'active' ? 0 : 1) - (st.quests[y] === 'active' ? 0 : 1));
+                ids.forEach(id => {
+                    const q = dlg.questDef(id);
+                    if (!q) return;
+                    const done = st.quests[id] === 'done';
+                    const p = dlg.questProgress(q);
+                    quests.push({
+                        title: q.name, desc: q.summary || '', completed: done,
+                        badge: done ? 'Завершено' : (p.ready ? 'Вернись к ' + (dlg.giverName(q) || 'заказчику') : dlg.questLabel(q, p))
+                    });
+                });
+            }
+            if (!quests.length) quests.push({ title: 'Пока заданий нет', desc: 'Поговорите с Лираэль у водопада — у неё найдётся работа.', completed: false, badge: '—' });
 
             listEl.innerHTML = '';
             quests.forEach(q => {
@@ -1276,8 +1272,9 @@
             if (!def) return;
             this.tooltip.innerHTML = '';
             this.tooltip.classList.remove('warn');
-            const n = document.createElement('div'); n.className = 'tt-name'; n.textContent = def.name;
-            const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = def.description || '';
+            const lab = kind === 'skill' ? this.game.skills.labelOf(def) : def;
+            const n = document.createElement('div'); n.className = 'tt-name'; n.textContent = lab.name;
+            const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = lab.description || '';
             const m = document.createElement('div'); m.className = 'tt-meta'; m.textContent = meta;
             this.tooltip.append(n, d, m);
             this.placeTooltip(el);

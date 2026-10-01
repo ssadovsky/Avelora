@@ -1,0 +1,34 @@
+{
+  "id": "fire_fox",
+  "name": "Огненная лиса",
+  "hp": 30,
+  "damage": [
+    2,
+    4
+  ],
+  "attackRange": 0.9,
+  "attackCooldown": 1.2,
+  "walkSpeed": 1.1,
+  "runSpeed": 5.4,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 14,
+  "wanderRadius": 5,
+  "respawnMinutes": 4,
+  "hitRadius": 0.75,
+  "scale": 0.6,
+  "drops": [
+    {
+      "item": "fox_tail",
+      "count": 1
+    },
+    {
+      "item": "fox_hide",
+      "count": 1
+    },
+    {
+      "item": "meat",
+      "count": 1
+    }
+  ]
+}

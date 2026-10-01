@@ -1,0 +1,16 @@
+{
+  "id": "fox_hide",
+  "name": "Лисья шкура",
+  "description": "Яркая рыжая шкура огненной лисы.",
+  "category": "material",
+  "stackMax": 50,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 4,
+  "sellPrice": 4,
+  "despawnMinutes": 10
+}

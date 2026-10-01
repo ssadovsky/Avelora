@@ -572,7 +572,7 @@ class AveloraGame {
     }
 
     /** Travel to another location (loading screen, rebuild, place player at spawn). */
-    async changeLocation(targetId, spawnId, loadingText) {
+    async changeLocation(targetId, spawnId, loadingText, position) {
         if (this.isTransitioning) return;
         const target = window.LOCATIONS && window.LOCATIONS[targetId];
         if (!target) {
@@ -594,6 +594,7 @@ class AveloraGame {
 
         this.teardownLocation();
         let spawn = this.buildLocation(targetId, spawnId);
+        if (position) spawn = { x: position.x, z: position.z, r: position.r || 0 };
         if (this.pathfinder && !this.pathfinder.isWalkableWorld(spawn.x, spawn.z)) {
             const safe = this.pathfinder.findNearestWalkableWorld(spawn.x, spawn.z, 120);
             if (safe) spawn = { x: safe.x, z: safe.z, r: spawn.r || 0 };

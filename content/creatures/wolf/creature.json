@@ -1,0 +1,30 @@
+{
+  "id": "wolf",
+  "name": "Серый волк",
+  "hp": 75,
+  "damage": [
+    6,
+    10
+  ],
+  "attackRange": 1.4,
+  "attackCooldown": 1.2,
+  "walkSpeed": 1.3,
+  "runSpeed": 6.4,
+  "behavior": "aggressive",
+  "aggroRadius": 11,
+  "leashRadius": 20,
+  "wanderRadius": 6,
+  "respawnMinutes": 5,
+  "hitRadius": 1.0,
+  "scale": 0.8,
+  "drops": [
+    {
+      "item": "wolf_hide",
+      "count": 1
+    },
+    {
+      "item": "meat",
+      "count": 2
+    }
+  ]
+}
