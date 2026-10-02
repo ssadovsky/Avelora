@@ -265,6 +265,7 @@ class LakesideEnvironment {
                 proxyMesh.instanceMatrix.needsUpdate = true;
                 this.hoverMeshes.push(proxyMesh);
                 this.root.add(proxyMesh);
+                if (window.AveloraHitDebug) window.AveloraHitDebug.attachInstanced(proxyMesh, kind === 'trees' ? 'tree' : 'fern', this.root);
             }
         });
     }
@@ -272,7 +273,8 @@ class LakesideEnvironment {
     /** Cached per-location (see this._hoverProxyGeoCache in the constructor). */
     getHoverProxyGeometry(kind) {
         if (this._hoverProxyGeoCache[kind]) return this._hoverProxyGeoCache[kind];
-        const cfg = HOVER_PROXY_SIZE[kind] || { radiusBottom: 0.8, radiusTop: 0.8, height: 1.5 };
+        const H = window.AVELORA_HIT || {};
+        const cfg = (kind === 'trees' && H.tree) || (kind === 'ferns' && H.fern) || HOVER_PROXY_SIZE[kind] || { radiusBottom: 0.8, radiusTop: 0.8, height: 1.5 };
         const geo = new THREE.CylinderGeometry(cfg.radiusTop, cfg.radiusBottom, cfg.height, 8, 1);
         geo.translate(0, cfg.height / 2, 0); // base at local y=0, matching item placement (ground point)
         geo.computeBoundingSphere();

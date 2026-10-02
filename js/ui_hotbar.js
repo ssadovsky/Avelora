@@ -289,6 +289,7 @@
         renderAll() {
             this.renderInventory();
             if (this.dialog) this.dialog.refresh();
+            if (this.heroOpen) this.updateHeroStats();
             if (this.questsOpen) this.updateQuestsProgress();
             this.renderChest();
             this.renderHotbar();
@@ -372,7 +373,7 @@
                 meta.className = 'skill-entry-meta';
                 meta.textContent = def.type === 'teleport'
                     ? `Каст ${def.castTime || 0} с · Перезарядка ${def.cooldown || 0} с`
-                    : `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м`;
+                    : `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м` + (def.mana ? ` · Мана ${def.mana}` : '');
                 text.append(name, desc, meta);
                 row.append(iconWrap, text);
                 this.skillsList.appendChild(row);
@@ -997,60 +998,101 @@
             }
         }
 
+        /** Redraws the hero panel if it is open (called on every state change / level-up). */
+        refreshHero() { if (this.heroOpen) this.updateHeroStats(); }
+
         updateHeroStats() {
             const g = this.game;
             const st = this.state;
-            const charId = (st && st.characterId) || (g && g.characterId) || 'AzureArchmage';
-            const charDef = (window.CHARACTERS && window.CHARACTERS[charId]) || {};
+            const hero = g.hero;
+            const cfg = g.currentCharacterConfig || {};
+            const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-            const elName = document.getElementById('hero-name');
-            const elClass = document.getElementById('hero-class');
-            const elAvatar = document.getElementById('hero-avatar');
-            if (elName) elName.textContent = charDef.name || 'Лазурный Маг';
-            if (elClass) elClass.textContent = charId;
-            if (elAvatar) elAvatar.textContent = charId.includes('Mage') || charId.includes('Archmage') ? '🧙' : '⚔️';
+            setText('hero-name', cfg.name || 'Герой');
+            setText('hero-class', cfg.className || '');
+            setText('hero-avatar', cfg.icon || '🧙');
+            setText('hero-level', 'Ур. ' + (hero ? hero.level : 1));
+
+            // Experience
+            const xpFill = document.getElementById('hero-xp-fill');
+            if (hero) {
+                const p = hero.progress();
+                setText('hero-xp-val', p.max ? 'максимум' : `${p.have} / ${p.need}`);
+                if (xpFill) xpFill.style.width = (p.frac * 100).toFixed(1) + '%';
+            }
 
             // HP
-            const curHp = g.combat ? Math.round(typeof g.combat.hp === 'number' ? g.combat.hp : (typeof g.combat.currentHp === 'number' ? g.combat.currentHp : g.combat.maxHp || 100)) : 100;
-            const maxHp = g.combat ? Math.round(g.combat.maxHp || 100) : 100;
-            const elHpVal = document.getElementById('hero-hp-val');
-            const elHpFill = document.getElementById('hero-hp-fill');
-            if (elHpVal) elHpVal.textContent = `${curHp} / ${maxHp}`;
-            if (elHpFill) elHpFill.style.width = `${Math.max(0, Math.min(100, (curHp / maxHp) * 100))}%`;
+            const cb = g.combat;
+            const maxHp = cb ? Math.round(cb.maxHp || 100) : 100;
+            const curHp = cb ? Math.max(0, Math.round(cb.hp)) : maxHp;
+            setText('hero-hp-val', `${curHp} / ${maxHp}`);
+            const hpFill = document.getElementById('hero-hp-fill');
+            if (hpFill) hpFill.style.width = `${Math.max(0, Math.min(100, (curHp / maxHp) * 100))}%`;
 
-            // Weapon & Damage
+            // Mana
+            if (hero) {
+                setText('hero-mana-val', `${Math.floor(hero.mana)} / ${hero.maxMana}`);
+                const mf = document.getElementById('hero-mana-fill');
+                if (mf) mf.style.width = (hero.maxMana > 0 ? Math.max(0, Math.min(1, hero.mana / hero.maxMana)) * 100 : 0).toFixed(1) + '%';
+            }
+
+            // Attributes: total, with the gear bonus in green
+            const attrs = document.getElementById('hero-attrs');
+            if (attrs && hero && window.AVELORA_PROGRESSION) {
+                const names = window.AVELORA_PROGRESSION.statNames, tot = hero.stats(), gear = hero.gearStats();
+                const fmt = (v) => Math.floor(v + 1e-9);
+                attrs.innerHTML = ['str', 'dex', 'int'].map(k =>
+                    `<div class="hero-attr-row"><span>${names[k]}</span><span><b>${fmt(tot[k])}</b>${gear[k] ? `<i>+${fmt(gear[k])}</i>` : ''}</span></div>`).join('');
+            }
+
+            // Weapon, damage, spell power, mana regen
             const eqId = st && st.equipped && st.equipped.right;
             const eqDef = eqId ? window.AveloraItems.get(eqId) : null;
-            const elWeapon = document.getElementById('hero-stat-weapon');
-            const elDps = document.getElementById('hero-stat-dps');
-            if (elWeapon) elWeapon.textContent = eqDef ? eqDef.name : 'Кулаки';
-            if (elDps) {
-                const baseDmg = eqDef && eqDef.damage ? eqDef.damage : 8;
-                elDps.textContent = `${baseDmg}–${baseDmg + 6}`;
+            const w = window.AveloraItems.weaponOf(eqId);
+            const mult = hero ? hero.meleeMult(w) : 1;
+            setText('hero-stat-weapon', eqDef ? eqDef.name : 'Кулаки');
+            setText('hero-stat-dps', `${Math.max(1, Math.round(w.damage[0] * mult))}–${Math.max(1, Math.round(w.damage[1] * mult))}`);
+            if (hero) {
+                const sm = hero.skillMult({ damage: { type: 'lightning' } }), pm = hero.skillMult({ damage: { type: 'physical' } });
+                setText('hero-stat-spell', `маг. +${Math.round((sm - 1) * 100)}% · физ. +${Math.round((pm - 1) * 100)}%`);
+                setText('hero-stat-regen', `${hero.manaRegen.toFixed(1)} / с`);
             }
+
+            this.renderDoll();
 
             // Location
-            const elLoc = document.getElementById('hero-stat-loc');
-            if (elLoc) {
-                const locObj = g.location;
-                const locId = locObj ? (locObj.id || locObj) : 'valleys_whisper';
-                const locName = locObj && locObj.name ? locObj.name : null;
-                const locNames = {
-                    'valleys_whisper': 'Шёпот Долины',
-                    'stonewatch_cliffs': 'Скалистый пик',
-                    'default': 'Долина'
-                };
-                elLoc.textContent = locName || locNames[locId] || (typeof locId === 'string' ? locId : 'Долина');
-            }
+            const locObj = g.location;
+            setText('hero-stat-loc', (locObj && locObj.name) || 'Долина');
 
             // Time played
-            const elTime = document.getElementById('hero-stat-time');
-            if (elTime) {
-                const sec = Math.floor(st && st.playTime ? st.playTime : 0);
-                const m = Math.floor(sec / 60);
-                const s = sec % 60;
-                elTime.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-            }
+            const sec = Math.floor(st && st.playTime ? st.playTime : 0);
+            setText('hero-stat-time', `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
+        }
+
+        /** Equipment slots of the hero panel: only the weapon slot is live for now; the rest wait for gear. */
+        renderDoll() {
+            const grid = document.getElementById('doll-grid');
+            if (!grid) return;
+            const st = this.state;
+            const SLOT_NAMES = { head: 'Голова', cloak: 'Плащ', body: 'Тело', hands: 'Перчатки', ring: 'Кольцо', weapon: 'Оружие', feet: 'Сапоги' };
+            grid.querySelectorAll('.doll-slot').forEach(el => {
+                const slot = el.dataset.slot;
+                const itemId = slot === 'weapon' ? (st && st.equipped && st.equipped.right) : (st && st.equipped && st.equipped[slot]);
+                const def = itemId ? window.AveloraItems.get(itemId) : null;
+                const key = def ? itemId : '';
+                if (el._shown === key) return;
+                el._shown = key;
+                el.querySelectorAll('.ui-icon').forEach(n => n.remove());
+                el.classList.toggle('filled', !!def);
+                if (def) {
+                    el.insertBefore(makeIcon(def), el.firstChild);
+                    el.title = `${def.name} — нажмите, чтобы снять`;
+                    el.onclick = (e) => { e.stopPropagation(); this.toggleEquip(itemId); };
+                } else {
+                    el.title = `${SLOT_NAMES[slot] || slot}: пусто`;
+                    el.onclick = null;
+                }
+            });
         }
 
         // -----------------------------------------------------------
@@ -1213,10 +1255,26 @@
                 this.applyEquipment();
                 this.floatText(`${def.name}: убран`, 'info');
             } else {
+                const lack = this.unmetRequirement(def);
+                if (lack) { this.floatText(lack, 'warn'); return false; }
                 st.setEquipped('right', itemId);
                 this.applyEquipment();
                 this.floatText(`${def.name} в руке`, 'info');
             }
+            return true;
+        }
+
+        /** item.json `requires: { level, str, dex, int }` -> message of the first unmet condition, or null. */
+        unmetRequirement(def) {
+            const rq = def && def.requires, h = this.game.hero;
+            if (!rq || !h) return null;
+            if (rq.level && h.level < rq.level) return `Нужен ${rq.level}-й уровень`;
+            const names = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+            const st = h.stats();
+            for (const k of ['str', 'dex', 'int']) {
+                if (rq[k] && st[k] < rq[k]) return `Нужно: ${names[k] || k} ${rq[k]}`;
+            }
+            return null;
         }
 
         /** Makes the character's hand match state.equipped (on load, character switch, toggle). */
@@ -1263,7 +1321,7 @@
             let def = null, meta = '';
             if (kind === 'skill') {
                 def = this.game.skills.get(id);
-                if (def) meta = `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м`;
+                if (def) meta = `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м` + (def.mana ? ` · Мана ${def.mana}` : '');
             } else {
                 def = window.AveloraItems.get(id);
                 if (def) {
@@ -1358,6 +1416,16 @@
             m.textContent = `Количество: ${src.count} · ${def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал'}`;
 
             this.tooltip.append(header, d, m);
+            if (def.requires) {
+                const lack = this.unmetRequirement(def), rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+                const parts = [];
+                if (rq.level) parts.push(`${rq.level}-й уровень`);
+                ['str', 'dex', 'int'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
+                const r = document.createElement('div');
+                r.className = 'tt-req' + (lack ? ' bad' : '');
+                r.textContent = 'Требуется: ' + parts.join(', ');
+                this.tooltip.appendChild(r);
+            }
 
             // Action buttons row (tap on mobile or click on PC)
             const actions = document.createElement('div');
@@ -1370,6 +1438,7 @@
                 btnEquip.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.hideTooltip();
+                    if (!isEquipped) { const lack = this.unmetRequirement(def); if (lack) { this.floatText(lack, 'warn'); return; } }
                     st.setEquipped('right', isEquipped ? null : src.item);
                     this.applyEquipment();
                 });
@@ -1667,6 +1736,7 @@
         update(delta) {
             this.updateFloats(delta);
             this.updateAutoPotion(delta);
+            if (this.heroOpen && (this._heroT = (this._heroT || 0) + delta) >= 0.4) { this._heroT = 0; this.updateHeroStats(); }
             if (!this.state) return;
             const hb = this.state.hotbar;
             for (let i = 0; i < this.slots.length; i++) {

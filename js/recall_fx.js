@@ -222,7 +222,7 @@
          */
         start(x, z, opts) {
             this.ensureResources();
-            const mode = opts.mode === 'arrival' ? 'arrival' : 'channel';
+            const mode = opts.mode === 'arrival' ? 'arrival' : opts.mode === 'levelup' ? 'levelup' : 'channel';
             const radius = opts.radius || 1.7;
             const color = new THREE.Color(opts.color || '#ffc94d');
             const core = new THREE.Color(opts.core || '#fff3c4');
@@ -281,7 +281,8 @@
             this.game.scene.add(group);
             const fx = {
                 mode, group, mats, radius, t: 0,
-                duration: Math.max(0.2, opts.duration || (mode === 'arrival' ? 1.6 : 4)),
+                duration: Math.max(0.2, opts.duration || (mode === 'arrival' ? 1.6 : mode === 'levelup' ? 1.1 : 4)),
+                follow: !!opts.follow,   // keep the effect under the hero (level-up: the hero keeps moving)
                 fade: -1,            // >= 0 once stop() was called: seconds since
                 fadeFrom: 1,
                 level: 0,            // current overall intensity 0..1 (for stop() to fade from)
@@ -308,6 +309,14 @@
                 const rise = Math.max(0, Math.min(1, (p - 0.2) / 0.8));
                 colH = 0.02 + rise * rise * (3 - 2 * rise);
                 colA = 0.05 + 0.3 * rise + 0.25 * p * p;
+            } else if (fx.mode === 'levelup') {
+                // quick pop: rings flash in within ~0.1 s, expand and fade; a light column shoots up and thins out
+                const k = 1 - p, pop = Math.min(1, fx.t / 0.1);
+                intensity = pop * k * (0.6 + 0.4 * k);
+                radial = 0.55 + 0.75 * (1 - k * k);
+                prog = 1;
+                colH = 0.5 + 0.9 * (1 - k * k);
+                colA = 0.7 * k * k * pop;
             } else {
                 const k = 1 - p;
                 intensity = k * k;
@@ -323,7 +332,7 @@
             fx.level = intensity;
 
             const pulse = 0.85 + 0.15 * Math.sin(fx.t * 6.0);
-            const spin = fx.mode === 'channel' ? (0.55 + 2.4 * p * p * p) : 1.2;
+            const spin = fx.mode === 'channel' ? (0.55 + 2.4 * p * p * p) : fx.mode === 'levelup' ? 3.2 : 1.2;
             fx.rot += spin * delta;
             parts.outer.rotation.y = fx.rot;
             parts.inner.rotation.y = -fx.rot * 1.35;
@@ -336,7 +345,7 @@
             parts.column.scale.set(fx.radius * 0.72 * (0.9 + 0.1 * pulse), Math.max(0.01, colH), fx.radius * 0.72 * (0.9 + 0.1 * pulse));
             u.colMat.uniforms.uAlpha.value = colA;
             u.colMat.uniforms.uTime.value = fx.t;
-            u.sparkMat.uniforms.uTime.value = fx.t;
+            u.sparkMat.uniforms.uTime.value = fx.mode === 'levelup' ? fx.t * 2.2 : fx.t;
             u.sparkMat.uniforms.uProgress.value = fx.mode === 'channel' ? prog : 1;
             u.sparkMat.uniforms.uLift.value = 0.35 + 0.65 * (fx.mode === 'channel' ? Math.min(1, p * 1.4) : 1);
         }
@@ -346,8 +355,12 @@
                 const fx = this.effects[i];
                 fx.t += delta;
                 if (fx.fade >= 0) fx.fade += delta;
+                if (fx.follow) {
+                    const c = this.game.character;
+                    if (c && c.position) fx.group.position.set(c.position.x, this.game.terrain.getHeightAt(c.position.x, c.position.z) + 0.07, c.position.z);
+                }
                 this.apply(fx, delta);
-                const done = fx.fade >= 0.35 || (fx.mode === 'arrival' && fx.t >= fx.duration);
+                const done = fx.fade >= 0.35 || (fx.mode !== 'channel' && fx.t >= fx.duration);
                 if (done) { this.remove(fx); this.effects.splice(i, 1); }
             }
         }

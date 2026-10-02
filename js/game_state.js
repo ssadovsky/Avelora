@@ -19,6 +19,7 @@
  *     felled:   { <locationId>: { <treeObjectId>: playTimeAtFell } },
  *     playTime: seconds of PLAYED (unpaused, in-world) time — respawn/regrow clock
  *     returnTo: locationId the player teleported home ("Возвращение домой") from, or null
+ *     xp: accumulated experience (level is derived, see hero.js)
  *     returnPos: { x, z, r } exact spot in that location (or null)
  *   }
  *
@@ -232,6 +233,9 @@
             this.returnTo = (typeof data.returnTo === 'string' && window.LOCATIONS && window.LOCATIONS[data.returnTo]) ? data.returnTo : null;
             const rp = data.returnPos;
             this.returnPos = (this.returnTo && rp && Number.isFinite(rp.x) && Number.isFinite(rp.z)) ? { x: rp.x, z: rp.z, r: Number.isFinite(rp.r) ? rp.r : 0 } : null;
+            // Experience (hero.js computes the level from it)
+            const xv = Math.floor(Number(data.xp));
+            this.xp = Number.isFinite(xv) && xv > 0 ? Math.min(xv, 99999999) : 0;
             // Gold coins (a counter, not a bag item): dropped by creatures, spent at NPC shops (dialog.js)
             const gd = Math.floor(Number(data.gold));
             this.gold = Number.isFinite(gd) && gd > 0 ? Math.min(gd, 999999999) : 0;
@@ -433,6 +437,13 @@
             return true;
         }
 
+        /** Adds experience (capped at `cap` = the XP of the max level) and saves. */
+        addXp(n, cap) {
+            if (!(n > 0)) return;
+            this.xp = Math.min(cap || 99999999, this.xp + Math.floor(n));
+            this.save();
+        }
+
         addGold(n) {
             n = Math.floor(n);
             if (!(n > 0)) return;
@@ -479,6 +490,7 @@
                 returnPos: this.returnPos || null,
                 chests: this.chestsJSON(),
                 gold: this.gold,
+                xp: this.xp,
                 learnedSkills: this.learnedSkills.slice(),
                 quests: Object.assign({}, this.quests),
                 questKills: Object.assign({}, this.questKills),

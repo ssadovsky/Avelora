@@ -7,7 +7,11 @@
   "range": 18,
   "speed": 22,
   "castTime": 0.2,
-  "damage": { "min": 4, "max": 8, "type": "lightning" },
+  "damage": {
+    "min": 4,
+    "max": 8,
+    "type": "lightning"
+  },
   "vfx": {
     "color": "#7fd4ff",
     "core": "#ffffff",
@@ -15,5 +19,8 @@
     "trail": 14,
     "impactSparks": 28,
     "impactRadius": 1.4
-  }
-}
+  },
+  "mana": 5,
+  "requiresLevel": 1,
+  "price": 1
+}

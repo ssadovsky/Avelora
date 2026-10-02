@@ -316,6 +316,10 @@
             if (def.type === 'teleport') return this.startTeleport(def);
 
             if (def.type === 'projectile') {
+                if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
+                    if (g.ui && g.ui.floatText) g.ui.floatText('Не хватает маны', 'warn');
+                    return 'mana';
+                }
                 const target = this.pickTarget(def, new THREE.Vector3());
                 const c = g.character;
                 if (c.isMoving) c.stopMovement();
@@ -825,7 +829,7 @@
             this.spawnImpact(def, p.pos, p.color, onGround);
             const dmg = def.damage || null;
             const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
-                ? Math.round(dmg.min + Math.random() * (dmg.max - dmg.min)) : 0;
+                ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (this.game.hero ? this.game.hero.skillMult(def) : 1))) : 0;
             // Combat hook: creatures.js applies `amount` to every creature within `radius` of `point`.
             window.dispatchEvent(new CustomEvent('game:skillImpact', {
                 detail: {

@@ -1048,6 +1048,46 @@
             text-overflow: ellipsis;
         }
 
+        /* Hero panel: equipment slots (left) + stats (right) */
+        #hero-panel { width: 680px; max-height: 90vh; overflow-y: auto; }
+        .hero-layout { display: flex; gap: 16px; align-items: flex-start; }
+        .hero-doll { flex: 0 0 204px; background: rgba(18, 22, 24, 0.7); border: 1px solid rgba(195, 160, 95, 0.2); border-radius: 4px; padding: 10px 10px 12px; }
+        .hero-info { flex: 1; min-width: 0; }
+        .hero-col-title { font-size: 0.7rem; color: #8f9c9b; text-transform: uppercase; letter-spacing: 0.06rem; margin-bottom: 8px; text-align: center; }
+        .doll-grid {
+            display: grid; gap: 8px; justify-content: center;
+            grid-template-columns: repeat(3, 56px); grid-auto-rows: 56px;
+            grid-template-areas: ". head ." "cloak body hands" "ring weapon ." ". feet .";
+        }
+        .doll-slot {
+            position: relative; display: flex; align-items: center; justify-content: center;
+            background: rgba(10, 13, 15, 0.85); border: 1px solid rgba(195, 160, 95, 0.28); border-radius: 4px;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.7); cursor: default; user-select: none;
+        }
+        .doll-slot .doll-label { font-size: 0.58rem; color: rgba(185, 164, 122, 0.55); text-transform: uppercase; letter-spacing: 0.03rem; text-align: center; padding: 0 2px; }
+        .doll-slot.filled { border-color: #d4af37; box-shadow: inset 0 0 8px rgba(0,0,0,0.7), 0 0 8px rgba(212, 175, 55, 0.3); cursor: pointer; }
+        .doll-slot.filled .doll-label { display: none; }
+        .doll-slot.filled:hover { background: rgba(212, 175, 55, 0.15); }
+        .doll-slot .ui-icon { width: 40px; height: 40px; object-fit: contain; pointer-events: none; }
+        .hero-level-pill { display: inline-block; margin-left: 8px; padding: 1px 7px; font-size: 0.72rem; color: #1a1408; background: #e2bf55; border-radius: 9px; font-style: normal; font-weight: 700; vertical-align: middle; }
+        .hero-bar-block { margin-bottom: 10px; }
+        .hero-bar-block .hero-hp-header { margin-bottom: 3px; }
+        .hero-bar-track { height: 9px; border-radius: 5px; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7); }
+        .hero-bar-track.mana { background: rgba(8, 12, 24, 0.85); border: 1px solid rgba(60, 110, 200, 0.5); }
+        .hero-bar-track.xp { background: rgba(20, 16, 6, 0.85); border: 1px solid rgba(190, 150, 50, 0.5); }
+        .hero-bar-fill { height: 100%; transition: width 0.25s ease; }
+        .hero-bar-fill.mana { background: linear-gradient(90deg, #1b46a8, #4aa3ff); }
+        .hero-bar-fill.xp { background: linear-gradient(90deg, #8a6a14, #e2bf55); }
+        .hero-attrs { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 12px; }
+        .hero-attr-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 9px; background: rgba(18, 22, 24, 0.75); border: 1px solid rgba(195, 160, 95, 0.18); border-radius: 4px; font-size: 0.85rem; color: #d8cbb5; }
+        .hero-attr-row b { color: #efcf7a; font-size: 0.95rem; }
+        .hero-attr-row i { color: #7fd19a; font-style: normal; font-size: 0.75rem; margin-left: 4px; }
+        @media (max-width: 720px) {
+            #hero-panel { width: 92vw; }
+            .hero-layout { flex-direction: column; }
+            .hero-doll { flex: none; width: 100%; box-sizing: border-box; }
+        }
+
         /* Quests Panel Body */
         .quest-list {
             display: flex;
@@ -1257,6 +1297,10 @@
         .dlg-row-price { font-size: 0.88rem; color: #efcf7a; min-width: 48px; text-align: right; }
         .dlg-buy { padding: 4px 10px; font-size: 0.8rem; }
         .dlg-buy.disabled { opacity: 0.45; cursor: not-allowed; }
+        .dlg-row.locked { opacity: 0.55; filter: grayscale(0.7); }
+        .dlg-lvl { color: #c98a7a; font-size: 0.78rem; white-space: nowrap; }
+        .tt-req { font-size: 0.78rem; color: #8f9c9a; margin-top: 4px; }
+        .tt-req.bad { color: #e0806c; }
         .dlg-empty { color: #7e8a89; font-style: italic; padding: 8px; }
         @media (max-width: 720px) { .dlg-side { flex-basis: 76px; } .dlg-portrait { width: 76px; height: 76px; } }
 
@@ -2112,6 +2156,23 @@
             color: #fbe9e0;
             text-shadow: 0 0 2px #000, 0 0 3px #000;
         }
+        /* Mana + XP bars (hero.js), stacked above the HP bar */
+        .mana-bar, .xp-bar {
+            position: fixed;
+            right: 14px;
+            width: 130px;
+            height: 13px;
+            border-radius: 3px;
+            pointer-events: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+        .mana-bar { bottom: 31px; background: rgba(8, 12, 24, 0.85); border: 1px solid #1d3a73; box-shadow: 0 0 8px rgba(74, 163, 255, 0.35), inset 0 1px 3px rgba(0,0,0,0.6); }
+        .mana-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(to right, #1b46a8, #4aa3ff); box-shadow: inset 0 1px 2px rgba(200, 225, 255, 0.25); transition: width 0.18s ease-out; }
+        .xp-bar { bottom: 48px; height: 11px; background: rgba(20, 16, 6, 0.85); border: 1px solid #6b5a22; box-shadow: inset 0 1px 3px rgba(0,0,0,0.6); }
+        .xp-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(to right, #8a6a14, #e2bf55); transition: width 0.3s ease-out; }
+        .mana-bar .hp-text { color: #e4f0ff; }
+        .xp-bar .hp-text { color: #fff4d0; font-size: 8px; }
         .hp-bar.low { animation: hp-low 1.1s ease-in-out infinite; }
         @keyframes hp-low {
             0%, 100% { box-shadow: 0 0 8px rgba(230, 57, 70, 0.4), inset 0 1px 3px rgba(0,0,0,0.6); }
@@ -2298,6 +2359,9 @@
                 height: 10px;
             }
             .hp-text { font-size: 7px; }
+            .mana-bar { right: 10px; bottom: 62px; width: 90px; height: 10px; }
+            .xp-bar { right: 10px; bottom: 76px; width: 90px; height: 9px; }
+            .xp-bar .hp-text { font-size: 6px; }
             .death-title { font-size: 1.9rem; letter-spacing: 0.2rem; }
         }
 
@@ -2542,38 +2606,66 @@
             <span class="panel-title" id="hero-panel-title">Герой</span>
             <button type="button" class="panel-close" id="hero-panel-close" aria-label="Закрыть">×</button>
         </div>
-        <div class="hero-profile-row">
-            <div class="hero-avatar-badge" id="hero-avatar">🧙</div>
-            <div class="hero-name-block">
-                <div class="hero-name" id="hero-name">Лазурный Маг</div>
-                <div class="hero-class" id="hero-class">AzureArchmage</div>
+        <div class="hero-layout">
+            <div class="hero-doll">
+                <div class="hero-col-title">Снаряжение</div>
+                <div class="doll-grid" id="doll-grid">
+                    <div class="doll-slot" data-slot="head" style="grid-area: head"><span class="doll-label">Голова</span></div>
+                    <div class="doll-slot" data-slot="cloak" style="grid-area: cloak"><span class="doll-label">Плащ</span></div>
+                    <div class="doll-slot" data-slot="body" style="grid-area: body"><span class="doll-label">Тело</span></div>
+                    <div class="doll-slot" data-slot="hands" style="grid-area: hands"><span class="doll-label">Перчатки</span></div>
+                    <div class="doll-slot" data-slot="ring" style="grid-area: ring"><span class="doll-label">Кольцо</span></div>
+                    <div class="doll-slot" data-slot="weapon" style="grid-area: weapon"><span class="doll-label">Оружие</span></div>
+                    <div class="doll-slot" data-slot="feet" style="grid-area: feet"><span class="doll-label">Сапоги</span></div>
+                </div>
             </div>
-        </div>
-        <div class="hero-hp-container">
-            <div class="hero-hp-header">
-                <span>Здоровье</span>
-                <span id="hero-hp-val">100 / 100</span>
-            </div>
-            <div class="hero-hp-track">
-                <div class="hero-hp-fill" id="hero-hp-fill" style="width: 100%;"></div>
-            </div>
-        </div>
-        <div class="hero-stats-grid">
-            <div class="hero-stat-card">
-                <div class="hero-stat-label">Оружие</div>
-                <div class="hero-stat-value" id="hero-stat-weapon">Посох</div>
-            </div>
-            <div class="hero-stat-card">
-                <div class="hero-stat-label">Урон в секунду</div>
-                <div class="hero-stat-value" id="hero-stat-dps">12–18</div>
-            </div>
-            <div class="hero-stat-card">
-                <div class="hero-stat-label">Локация</div>
-                <div class="hero-stat-value" id="hero-stat-loc">Долина</div>
-            </div>
-            <div class="hero-stat-card">
-                <div class="hero-stat-label">Время в пути</div>
-                <div class="hero-stat-value" id="hero-stat-time">00:00</div>
+            <div class="hero-info">
+                <div class="hero-profile-row">
+                    <div class="hero-avatar-badge" id="hero-avatar">🧙</div>
+                    <div class="hero-name-block">
+                        <div class="hero-name"><span id="hero-name">Лазурный Маг</span><span class="hero-level-pill" id="hero-level">Ур. 1</span></div>
+                        <div class="hero-class" id="hero-class">AzureArchmage</div>
+                    </div>
+                </div>
+                <div class="hero-bar-block">
+                    <div class="hero-hp-header"><span>Опыт</span><span id="hero-xp-val">0 / 100</span></div>
+                    <div class="hero-bar-track xp"><div class="hero-bar-fill xp" id="hero-xp-fill" style="width: 0%;"></div></div>
+                </div>
+                <div class="hero-bar-block">
+                    <div class="hero-hp-header"><span>Здоровье</span><span id="hero-hp-val">100 / 100</span></div>
+                    <div class="hero-hp-track"><div class="hero-hp-fill" id="hero-hp-fill" style="width: 100%;"></div></div>
+                </div>
+                <div class="hero-bar-block">
+                    <div class="hero-hp-header"><span>Мана</span><span id="hero-mana-val">0 / 0</span></div>
+                    <div class="hero-bar-track mana"><div class="hero-bar-fill mana" id="hero-mana-fill" style="width: 0%;"></div></div>
+                </div>
+                <div class="hero-attrs" id="hero-attrs"></div>
+                <div class="hero-stats-grid">
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Оружие</div>
+                        <div class="hero-stat-value" id="hero-stat-weapon">Посох</div>
+                    </div>
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Урон за удар</div>
+                        <div class="hero-stat-value" id="hero-stat-dps">12–18</div>
+                    </div>
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Сила умений</div>
+                        <div class="hero-stat-value" id="hero-stat-spell">+0%</div>
+                    </div>
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Реген маны</div>
+                        <div class="hero-stat-value" id="hero-stat-regen">0 / с</div>
+                    </div>
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Локация</div>
+                        <div class="hero-stat-value" id="hero-stat-loc">Долина</div>
+                    </div>
+                    <div class="hero-stat-card">
+                        <div class="hero-stat-label">Время в пути</div>
+                        <div class="hero-stat-value" id="hero-stat-time">00:00</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2667,6 +2759,8 @@
 
     <!-- HP Bar (combat.js) -->
     <div id="hp-bar" class="hp-bar" title="Здоровье"><div class="hp-fill" id="hp-fill"></div><div class="hp-text" id="hp-text"></div></div>
+    <div id="xp-bar" class="xp-bar" title="Опыт"><div class="xp-fill" id="xp-fill"></div><div class="hp-text" id="xp-text"></div></div>
+    <div id="mana-bar" class="mana-bar" title="Мана"><div class="mana-fill" id="mana-fill"></div><div class="hp-text" id="mana-text"></div></div>
     <div id="damage-vignette"></div>
     <div id="death-overlay" aria-hidden="true">
         <div class="death-title">Вы погибли</div>
@@ -2797,7 +2891,7 @@
     <script src="js/lib/Water.js"></script>
     <script src="js/lib/simplex-noise.js"></script>
     <script src="js/assets_data.js?v=20261001_1"></script>
-    <script src="js/content_data.js?v=20261001_1"></script>
+    <script src="js/content_data.js?v=20261002_3"></script>
     <script src="js/world_data.js?v=20261001_1"></script>
     <script src="js/location_groups.js?v=20261001_1"></script>
     <script src="js/pathfinding.js?v=20261001_1"></script>
@@ -2805,22 +2899,25 @@
     <script src="js/water.js?v=20261001_1"></script>
     <script src="js/waterfall.js?v=20261001_1"></script>
     <script src="js/fire.js?v=20261001_1"></script>
-    <script src="js/environment.js?v=20261001_1"></script>
+    <script src="js/hitboxes.js?v=20261002_6"></script>
+    <script src="js/environment.js?v=20261002_4"></script>
     <script src="js/characters.js?v=20261001_1"></script>
     <script src="js/save.js?v=20261001_1"></script>
     <script src="js/items.js?v=20261001_1"></script>
     <script src="js/game_state.js?v=20261001_1"></script>
-    <script src="js/world_objects.js?v=20261001_1"></script>
-    <script src="js/creatures.js?v=20261001_1"></script>
+    <script src="js/world_objects.js?v=20261002_4"></script>
+    <script src="js/creatures.js?v=20261002_5"></script>
     <script src="js/harvest.js?v=20261001_1"></script>
     <script src="js/combat.js?v=20261001_1"></script>
-    <script src="js/recall_fx.js?v=20261001_1"></script>
-    <script src="js/dialog.js?v=20261001_1"></script>
+    <script src="js/progression_config.js?v=20261002_2"></script>
+    <script src="js/hero.js?v=20261002_2"></script>
+    <script src="js/recall_fx.js?v=20261002_2"></script>
+    <script src="js/dialog.js?v=20261002_3"></script>
     <script src="js/skills.js?v=20261001_1"></script>
-    <script src="js/ui_hotbar.js?v=20261001_1"></script>
+    <script src="js/ui_hotbar.js?v=20261002_3"></script>
     <script src="js/character.js?v=20261001_1"></script>
     <script src="js/map.js?v=20261001_1"></script>
-    <script src="js/main.js?v=20261001_1"></script>
+    <script src="js/main.js?v=20261002_4"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

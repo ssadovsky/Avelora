@@ -96,7 +96,8 @@
 
         /** New character in play: its max HP, full health, no fight. */
         bindCharacter(config) {
-            this.maxHp = Math.max(1, (config && config.maxHp) || 100);
+            const hero = this.game.hero;
+            this.maxHp = Math.max(1, (hero && hero.state) ? hero.maxHp() : ((config && config.maxHp) || 100));
             this.hp = this.maxHp;
             this.isDead = false;
             this.cancel();
@@ -187,7 +188,7 @@
                 x: () => rec.x, z: () => rec.z,
                 radius: rec.def.hitRadius || 0.4,
                 range: w => w.range,
-                onHit: w => cr.damage(rec, rollDamage(w.damage), 'melee')
+                onHit: w => cr.damage(rec, Math.max(1, Math.round(rollDamage(w.damage) * (this.game.hero ? this.game.hero.meleeMult(w) : 1))), 'melee')
             });
         }
 

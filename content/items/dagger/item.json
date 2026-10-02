@@ -25,7 +25,8 @@
       7
     ],
     "range": 1.4,
-    "cooldown": 0.8
+    "cooldown": 0.8,
+    "stat": "dex"
   },
   "hold": {
     "warrior": {

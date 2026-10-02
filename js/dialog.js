@@ -236,6 +236,7 @@
                 if (q && st && st.questStatus(o.quest) === 'active' && this.questProgress(q).ready) {
                     if (q.objective.type === 'collect') st.inventory.remove(q.objective.item, q.objective.count);
                     if (q.reward && q.reward.gold) st.addGold(q.reward.gold);
+                    if (q.reward && q.reward.xp && this.game.hero) this.game.hero.addXp(q.reward.xp);
                     st.completeQuest(o.quest);
                     this.ui.floatText('Задание выполнено' + (q.reward && q.reward.gold ? ` · +${q.reward.gold} зол.` : ''), 'good');
                 }
@@ -263,7 +264,7 @@
         renderTeach() {
             const st = this.state;
             const cfg = this.game.currentCharacterConfig;
-            const price = (this.npc.teach && this.npc.teach.price !== undefined) ? this.npc.teach.price : 1;
+            const basePrice = (this.npc.teach && this.npc.teach.price !== undefined) ? this.npc.teach.price : 1;
             const tabs = document.createElement('div');
             tabs.className = 'dlg-tabs';
             const back = document.createElement('button');
@@ -279,14 +280,20 @@
 
             const list = document.createElement('div');
             list.className = 'dlg-list';
-            const ids = (window.AveloraState && cfg) ? window.AveloraState.skillCatalog(cfg.id) : [];
+            const heroLevel = this.game.hero ? this.game.hero.level : 1;
+            const lvlOf = (sid) => { const d = this.game.skills && this.game.skills.get(sid); return (d && d.requiresLevel) || 1; };
+            const ids = ((window.AveloraState && cfg) ? window.AveloraState.skillCatalog(cfg.id) : []).slice()
+                .sort((a, b) => lvlOf(a) - lvlOf(b));
             ids.forEach(id => {
                 const def = this.game.skills ? this.game.skills.get(id) : null;
                 if (!def) return;
                 const known = !!st && st.knowsSkill(id);
                 if (known) return; // learned skills disappear from the teach list
+                const need = def.requiresLevel || 1;
+                const locked = heroLevel < need;
+                const price = (def.price !== undefined) ? def.price : basePrice;
                 const row = document.createElement('div');
-                row.className = 'dlg-row';
+                row.className = 'dlg-row' + (locked ? ' locked' : '');
                 row.appendChild(makeIconEl(def));
                 const n = document.createElement('div');
                 n.className = 'dlg-row-name';
@@ -303,12 +310,14 @@
                 } else {
                     const p = document.createElement('div');
                     p.className = 'dlg-row-price';
-                    p.innerHTML = `<span class="coin"></span> ${price}`;
+                    p.innerHTML = locked ? `<span class="dlg-lvl">с ${need}-го ур.</span>` : `<span class="coin"></span> ${price}`;
                     const b = document.createElement('button');
                     b.type = 'button';
-                    b.className = 'dlg-buy' + (st && st.gold >= price ? '' : ' disabled');
-                    b.textContent = 'Изучить';
-                    b.disabled = !(st && st.gold >= price);
+                    const canBuy = !locked && st && st.gold >= price;
+                    b.className = 'dlg-buy' + (canBuy ? '' : ' disabled');
+                    b.textContent = locked ? 'Закрыто' : 'Изучить';
+                    b.disabled = !canBuy;
+                    if (locked) b.title = `Нужен ${need}-й уровень (у вас ${heroLevel}-й)`;
                     b.addEventListener('click', (e) => { e.stopPropagation(); this.learn(id, price); });
                     row.append(p, b);
                 }
@@ -326,6 +335,9 @@
         learn(skillId, price) {
             const st = this.state;
             if (!st || st.knowsSkill(skillId)) return;
+            const sdef = this.game.skills ? this.game.skills.get(skillId) : null;
+            const need = (sdef && sdef.requiresLevel) || 1;
+            if (this.game.hero && this.game.hero.level < need) { this.ui.floatText(`Нужен ${need}-й уровень`, 'warn'); return; }
             if (!st.spendGold(price)) { this.ui.floatText('Не хватает золота', 'warn'); return; }
             st.learnSkill(skillId);
             const def = this.game.skills ? this.game.skills.get(skillId) : null;

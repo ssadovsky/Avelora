@@ -172,7 +172,9 @@
                     const box = new THREE.Box3().setFromObject(scene);
                     const s = def.scale || 1;
                     const height = Math.max(0.3, (box.max.y - Math.max(0, box.min.y)) * s);
-                    resolve({ scene, clips: clips || [], height, fallback: !buffer });
+                    // body footprint (for the hit cylinder): geometric mean of width/length, as a radius
+                    const bodyR = 0.5 * Math.sqrt(Math.max(1e-4, (box.max.x - box.min.x) * s) * Math.max(1e-4, (box.max.z - box.min.z) * s));
+                    resolve({ scene, clips: clips || [], height, bodyR, fallback: !buffer });
                 };
                 if (!buffer) { finish(null, null); return; }
                 try {
@@ -231,8 +233,9 @@
 
                 // Generous invisible hit cylinder (hover / click / tap / Spark)
                 if (!this.proxyGeos[rec.type]) {
-                    const pr = Math.max(0.5, (def.hitRadius || 0.4) * 1.5);
-                    const ph = Math.max(0.8, tpl.height * 1.2);
+                    const H = (window.AVELORA_HIT && window.AVELORA_HIT.creature) || { sizeMul: 0.9, minRadius: 0.3, maxRadius: 1.2, heightMul: 0.9, minHeight: 0.4 };
+                    const pr = Math.min(H.maxRadius, Math.max(H.minRadius, (tpl.bodyR || def.hitRadius || 0.4) * H.sizeMul));
+                    const ph = Math.max(H.minHeight, tpl.height * H.heightMul);
                     const geo = new THREE.CylinderGeometry(pr, pr, ph, 10, 1);
                     geo.translate(0, ph / 2 - 0.1, 0);
                     this.proxyGeos[rec.type] = geo;
@@ -241,6 +244,7 @@
                     ? window.AveloraWorldObjects.proxyMaterial() : new THREE.MeshBasicMaterial({ visible: false }));
                 proxy.userData.creature = rec;
                 group.add(proxy);
+                if (window.AveloraHitDebug) window.AveloraHitDebug.attach(proxy, 'creature');
 
                 rec.group = group; rec.model = model; rec.proxy = proxy;
                 rec.height = tpl.height;

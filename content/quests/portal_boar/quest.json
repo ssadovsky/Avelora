@@ -4,8 +4,17 @@
   "giver": "lirael",
   "requires": "badger_hunt",
   "summary": "Убей вепря-стража у портала в Озёрный край (дальний запад долины).",
-  "objective": { "type": "kill", "creature": "boar", "creatureId": "portal_boar", "count": 1, "slayForGood": true },
-  "reward": { "gold": 25 },
+  "objective": {
+    "type": "kill",
+    "creature": "boar",
+    "creatureId": "portal_boar",
+    "count": 1,
+    "slayForGood": true
+  },
+  "reward": {
+    "gold": 25,
+    "xp": 150
+  },
   "dialog": {
     "offer": "У входа в горный каньон, к порталу в Озёрный край, стоит вепрь-страж и никого не пропускает. Ты уже показал, на что способен. Убей его — и путь в портал станет свободным навсегда.",
     "accept": "Я одолею вепря",
@@ -15,4 +24,4 @@
     "turnIn": "Сообщить, что вепрь убит",
     "done": "Путь к порталу чист. Иди, куда зовёт дорога."
   }
-}
+}

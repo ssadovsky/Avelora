@@ -33,6 +33,7 @@
     ],
     "range": 1.9,
     "cooldown": 0.9,
-    "style": "staff"
+    "style": "staff",
+    "stat": "int"
   }
 }

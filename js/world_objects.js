@@ -223,13 +223,15 @@
                     if (def.container) rec.container = { slots: Math.max(1, Math.min(64, def.container.slots || 12)), title: def.container.title || def.name };
                     if (def.npc) rec.npc = window.GAME_CONTENT && window.GAME_CONTENT.npcs ? window.GAME_CONTENT.npcs[def.npc] || null : null;
                     rec.def = def;
-                    const rr = Math.max(0.6, rec.r);
-                    const pg = new THREE.CylinderGeometry(rr, rr, Math.max(0.9, rec.h), 10, 1);
-                    pg.translate(0, Math.max(0.9, rec.h) / 2, 0);
+                    const HC = (window.AVELORA_HIT && window.AVELORA_HIT.container) || { minRadius: 0.6, minHeight: 0.9 };
+                    const rr = Math.max(HC.minRadius, rec.r);
+                    const pg = new THREE.CylinderGeometry(rr, rr, Math.max(HC.minHeight, rec.h), 10, 1);
+                    pg.translate(0, Math.max(HC.minHeight, rec.h) / 2, 0);
                     const proxy = new THREE.Mesh(pg, AveloraWorldObjects.proxyMaterial());
                     proxy.position.set(p.x, obj.position.y, p.z);
                     proxy.userData.containerId = rec.id;
                     this.root.add(proxy);
+                    if (window.AveloraHitDebug) window.AveloraHitDebug.attach(proxy, 'container');
                     this.containerProxies.push(proxy);
                     rec.proxy = proxy;
                     if (rec.npc && rec.npc.modelKey) this.attachNpcModel(rec, p);
@@ -441,13 +443,15 @@
             pile.group = group;
 
             // Generous invisible hit target: small piles are hard to hover/tap on a phone
-            const r = Math.max(0.55, Math.min(1.2, footprint));
-            const proxyGeo = new THREE.CylinderGeometry(r, r, 0.9, 10, 1);
-            proxyGeo.translate(0, 0.45, 0);
+            const HP = (window.AVELORA_HIT && window.AVELORA_HIT.pile) || { minRadius: 0.55, maxRadius: 1.2, footprintMul: 1, height: 0.9 };
+            const r = Math.max(HP.minRadius, Math.min(HP.maxRadius, footprint * HP.footprintMul));
+            const proxyGeo = new THREE.CylinderGeometry(r, r, HP.height, 10, 1);
+            proxyGeo.translate(0, HP.height / 2, 0);
             const proxy = new THREE.Mesh(proxyGeo, AveloraWorldObjects.proxyMaterial());
             proxy.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) + (p.y || 0) * 0.5 - 0.1, p.z);
             proxy.userData.pickupId = pile.id;
             this.root.add(proxy);
+            if (window.AveloraHitDebug) window.AveloraHitDebug.attach(proxy, 'pile');
             pile.proxy = proxy;
             this.proxies.push(proxy);
         }

@@ -75,7 +75,8 @@
                 range: Math.max(0.6, Number(w.range) || BARE_HANDS.range),
                 cooldown: Math.max(0.3, Number(w.cooldown) || BARE_HANDS.cooldown),
                 chop: Number(w.chop) || 0,
-                style: w.style || null
+                style: w.style || null,
+                stat: w.stat || null
             };
         },
 

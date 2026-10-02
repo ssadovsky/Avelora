@@ -21,5 +21,8 @@
     "impactRadius": 0.9,
     "filaments": false,
     "arcs": false
-  }
+  },
+  "mana": 4,
+  "requiresLevel": 1,
+  "price": 1
 }

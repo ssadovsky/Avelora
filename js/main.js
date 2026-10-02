@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -174,6 +174,7 @@ class AveloraGame {
         this.skills = new AveloraSkillSystem(this);
         this.ui = new AveloraHotbarUI(this);
         this.combat = window.AveloraCombat ? new AveloraCombat(this) : null;
+        this.hero = window.AveloraHero ? new AveloraHero(this) : null;   // level / xp / stats / mana (hero.js)
         this.map = window.AveloraMap ? new AveloraMap(this) : null;
 
         // Event Listeners
@@ -387,6 +388,7 @@ class AveloraGame {
 
         await Promise.all([characterLoaded, this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
             this.creatures ? this.creatures.ready : null, this.harvest ? this.harvest.ready : null]);
+        if (this.hero) this.hero.bind(this.gameState, characterConfig);
         if (this.combat) this.combat.bindCharacter(characterConfig); // full HP, no fight
         if (this.ui) {
             this.ui.bindCharacter(this.gameState);
@@ -824,6 +826,12 @@ class AveloraGame {
                 e.preventDefault();
                 if (!this.isPaused && this.isReady && this.combat && !this.combat.isDead) {
                     this.combat.tabTarget();
+                }
+            } else if (e.code === 'F4') { // debug: show/hide hover/click hit cylinders (hitboxes.js)
+                e.preventDefault();
+                if (window.AveloraHitDebug) {
+                    const on = window.AveloraHitDebug.toggle(this);
+                    if (this.ui && this.ui.floatText) this.ui.floatText(on ? 'Хитбоксы: показаны (F4)' : 'Хитбоксы: скрыты', 'info');
                 }
             } else if (e.code === 'KeyM') {
                 e.preventDefault();
@@ -1546,6 +1554,7 @@ class AveloraGame {
             this.character.update(delta);   // incl. the procedural swing / death pose overlay
         }
         if (this.combat) this.combat.update(delta);       // melee engagement, pending hits, HP regen
+        if (this.hero) this.hero.update(delta);           // mana regeneration
         if (this.creatures) this.creatures.update(delta); // AI, animation, corpses, respawns
         if (this.harvest) this.harvest.update(delta);     // chips, shakes, falling trees, regrow
         if (this.water) {

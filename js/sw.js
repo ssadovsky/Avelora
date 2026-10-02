@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelora-v7'; // bump when the file list changes
+const CACHE_NAME = 'avelora-v13'; // bump when the file list changes
 const ASSETS_TO_CACHE = [
   './',
   'Avelora.html',
@@ -21,6 +21,7 @@ const ASSETS_TO_CACHE = [
   'js/fire.js',
   'js/recall_fx.js',
   'js/dialog.js',
+  'js/hitboxes.js',
   'js/environment.js',
   'js/characters.js',
   'js/save.js',
@@ -32,6 +33,8 @@ const ASSETS_TO_CACHE = [
   'js/creatures.js',
   'js/harvest.js',
   'js/combat.js',
+  'js/progression_config.js',
+  'js/hero.js',
   'js/character.js',
   'js/map.js',
   'js/main.js'
