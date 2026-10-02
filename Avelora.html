@@ -122,6 +122,33 @@
             transform: rotate(-30deg);
         }
 
+        /* Mobile joystick (first person) */
+        #joy-zone { position: fixed; left: 0; bottom: 0; width: 40vw; height: 50vh; z-index: 80; display: none; touch-action: none; }
+        body.touch-ui #joy-zone { display: block; }
+        #joy-base { position: absolute; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%;
+            background: rgba(14, 18, 20, 0.35); border: 2px solid rgba(239, 207, 122, 0.45); pointer-events: none; }
+        #joy-base.active { background: rgba(14, 18, 20, 0.5); border-color: rgba(239, 207, 122, 0.85); }
+        #joy-knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%;
+            background: rgba(239, 207, 122, 0.55); border: 2px solid rgba(255, 240, 190, 0.8); transform: translate(-50%, -50%); }
+
+        /* View switch button + first-person crosshair */
+        #cam-btn {
+            position: fixed; top: 86px; right: 25px; width: 54px; height: 54px;
+            background: rgba(14, 18, 20, 0.88); border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 50%; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
+            cursor: pointer; display: flex; justify-content: center; align-items: center;
+            font-size: 24px; line-height: 1; user-select: none; z-index: 100;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        #cam-btn:hover { transform: scale(1.1); border-color: #efcf7a; box-shadow: 0 0 18px rgba(239, 207, 122, 0.5); }
+        #cam-btn:active { transform: scale(0.94); }
+        body.fp-view #cam-btn { border-color: #efcf7a; box-shadow: 0 0 14px rgba(239, 207, 122, 0.6); }
+        #fp-crosshair { position: fixed; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 90; display: none; }
+        body.fp-view.aim-center #fp-crosshair { display: block; }
+        #fp-crosshair::before, #fp-crosshair::after { content: ''; position: absolute; background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 2px rgba(0, 0, 0, 0.9); }
+        #fp-crosshair::before { left: -9px; top: -0.5px; width: 18px; height: 1px; }
+        #fp-crosshair::after { left: -0.5px; top: -9px; width: 1px; height: 18px; }
+
         /* Google Maps Style Compass */
         #compass-btn {
             position: fixed;
@@ -2268,6 +2295,13 @@
                 width: 44px;
                 height: 44px;
             }
+            #cam-btn {
+                top: 62px;
+                right: 12px;
+                width: 44px;
+                height: 44px;
+                font-size: 20px;
+            }
             .orb {
                 width: 48px;
                 height: 48px;
@@ -2464,6 +2498,10 @@
     <div id="hud-top-left">
         <div id="hud-coords">Загрузка координат...</div>
     </div>
+
+    <div id="cam-btn" title="Вид от первого лица / от третьего (или колесо мыши за пределом зума)">🎥</div>
+    <div id="fp-crosshair"></div>
+    <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
 
     <!-- Google Maps Style Interactive Compass -->
     <div id="compass-btn" title="Сбросить ориентацию на Север">
@@ -2830,9 +2868,18 @@
                 <ul class="pause-controls">
                     <li class="desktop-only"><span class="key">ЛКМ</span><span>Идти в указанную точку (обход препятствий)</span></li>
                     <li class="touch-only"><span class="key">Тап</span><span>Идти в указанную точку</span></li>
-                    <li class="desktop-only"><span class="key">ПКМ + мышь</span><span>Плавное вращение камеры</span></li>
-                    <li class="touch-only"><span class="key">Два пальца</span><span>Вращение и зум камеры</span></li>
+                    <li class="desktop-only"><span class="key">W A S D / стрелки</span><span>Идти самому: вперёд, влево, назад, вправо (отменяет движение по клику)</span></li>
+                    <li class="desktop-only"><span class="key">ПКМ + мышь</span><span>Вращать камеру, вверх-вниз поднять или опустить; герой смотрит туда же</span></li>
+                    <li class="desktop-only"><span class="key">ЛКМ + ПКМ</span><span>Бежать вперёд, куда смотрит камера</span></li>
+                    <li class="desktop-only"><span class="key">Shift</span><span>Идти медленным шагом (вместо бега)</span></li>
+                    <li class="touch-only"><span class="key">Джойстик слева</span><span>Идти самому в любую сторону</span></li>
+                    <li class="touch-only"><span class="key">Палец справа</span><span>Вращать и наклонять камеру</span></li>
+                    <li class="touch-only"><span class="key">Два пальца</span><span>Зум камеры и поворот (пока джойстик свободен)</span></li>
                     <li class="desktop-only"><span class="key">Колесо мыши</span><span>Приближение / отдаление</span></li>
+                    <li class="desktop-only"><span class="key">Колесо ещё раз у предела</span><span>Вид от первого лица (обратно: колесо от себя)</span></li>
+                    <li class="touch-only"><span class="key">Щипок за предел</span><span>Вид от первого лица (обратно: разведи пальцы)</span></li>
+                    <li><span class="key">🎥</span><span>Переключить вид от первого / третьего лица</span></li>
+                    <li><span class="key">От первого лица</span><span>Тело скрыто; клики по земле не ходят: ЛКМ действует по курсору (на телефоне тап по центру, где крест), ПКМ крутит камеру</span></li>
                     <li><span class="key">Компас</span><span>Развернуть камеру лицом на север</span></li>
                     <li class="desktop-only"><span class="key">M</span><span>Открыть / закрыть карту мира</span></li>
                     <li class="desktop-only"><span class="key">Esc / ☰</span><span>Пауза / продолжить игру</span></li>
@@ -2852,7 +2899,7 @@
                     <li class="touch-only"><span class="key">Иконка книги</span><span>Открыть книгу заклинаний и навыков</span></li>
                     <li><span class="key">Перетаскивание</span><span>Перенести заклинание на панель или убрать с неё</span></li>
                     <li><span class="key">Топор в руке + клик по дереву</span><span>Подойти и срубить дерево или выкорчевать пень</span></li>
-                    <li><span class="key">Клик по земле</span><span>Снять выбор цели / идти</span></li>
+                    <li class="desktop-only"><span class="key">Клик по земле</span><span>Снять выбор цели / идти (в обычном виде)</span></li>
                 </ul>
             </div>
 
@@ -2922,10 +2969,10 @@
     <script src="js/recall_fx.js?v=20261002_2"></script>
     <script src="js/dialog.js?v=20261002_7"></script>
     <script src="js/skills.js?v=20261002_9"></script>
-    <script src="js/ui_hotbar.js?v=20261002_9"></script>
-    <script src="js/character.js?v=20261002_10"></script>
+    <script src="js/ui_hotbar.js?v=20261002_10"></script>
+    <script src="js/character.js?v=20261002_11"></script>
     <script src="js/map.js?v=20261001_1"></script>
-    <script src="js/main.js?v=20261002_4"></script>
+    <script src="js/main.js?v=20261002_10"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

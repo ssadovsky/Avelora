@@ -1764,6 +1764,15 @@
                 if (f.age >= FLOAT_LIFE || !c) { f.el.remove(); this.floats.splice(i, 1); continue; }
                 if (f.age < 0) continue;
                 const t = f.age / FLOAT_LIFE;
+                // First person: the hero is not on screen, so texts "over the hero" (xp, equipped, "-7" ...)
+                // float up from just under the crosshair instead of from a point behind the camera
+                if (this.game.viewMode === 'first' && (!f.anchor || Math.hypot(f.anchor.x - c.position.x, f.anchor.z - c.position.z) < 2.5)) {
+                    f.el.style.display = 'block';
+                    f.el.style.opacity = String(t < 0.15 ? t / 0.15 : t > 0.65 ? (1 - t) / 0.35 : 1);
+                    const py = h * 0.6 - t * 46 - f.stack * 26;
+                    f.el.style.transform = `translate(-50%, -100%) translate(${(w / 2 + (f.anchor ? 70 + (f.anchor.x - c.position.x) * 120 : 0)).toFixed(1)}px, ${py.toFixed(1)}px)`;
+                    continue;
+                }
                 if (f.anchor) this._v.set(f.anchor.x, f.anchor.y + t * 0.9, f.anchor.z).project(this.game.camera);
                 else this._v.set(c.position.x, c.position.y + 2.15 + t * 0.9 + f.stack * 0.32, c.position.z).project(this.game.camera);
                 if (this._v.z >= 1) { f.el.style.display = 'none'; continue; }

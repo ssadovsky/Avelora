@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -100,6 +100,19 @@ class AveloraGame {
 
         // Diablo Camera Settings
         this.cameraDistance = 24.0;
+        // View mode: 'third' (classic) | 'first' (zoom past the limit / camera button).
+        this.viewMode = 'third';
+        this.camPitchOffset = 0;     // third person: extra camera elevation set by RMB / finger drag (rad)
+        this.fpPitch = 0;            // look up/down in first person (rad)
+        this.fpEyeHeight = 1.65;     // eye level above the hero's feet
+        this.fpFov = 72;
+        this.thirdFov = 45;
+        this.moveKeys = {};          // held keys (e.code) for first-person movement
+        this.leftDown = false;       // LMB held (LMB+RMB = forward in first person)
+        this.joy = { active: false, id: null, x: 0, y: 0 }; // mobile joystick, -1..1 (y>0 = forward)
+        this.lookTouchId = null;     // finger that rotates the camera in first person
+        this.viewSwitchT = 0;        // time of the last view switch (wheel cooldown)
+        this.lastWheelT = 0;
         this.minDistance = 5.0; // closer zoom for inspecting characters
         this.maxDistance = 42.0;
         this.cameraAngle = Math.PI * 0.25; // 45 deg yaw
@@ -990,39 +1003,64 @@ class AveloraGame {
             if (e.pointerType === 'touch') return; // Handled by touch events below
             if (this.isPaused) return;
             if (e.button === 0) {
-                this.handleGroundClick(e);
+                if (!(e.target && e.target.closest && e.target.closest(UI_SELECTOR))) this.leftDown = true;
+                if (this.viewMode === 'first') {
+                    // first person: LMB acts on what is under the mouse (RMB held = pure movement/look)
+                    if (!this.isRightMouseDown) this.handleGroundClick({ fpAim: true, clientX: e.clientX, clientY: e.clientY, target: e.target });
+                } else if (!this.isRightMouseDown) {   // RMB held: LMB+RMB = run forward, not click-to-move
+                    this.handleGroundClick(e);
+                }
             } else if (e.button === 2) {
                 this.isRightMouseDown = true;
                 this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
             }
         });
 
         window.addEventListener('pointerup', (e) => {
             if (e.pointerType === 'touch') return;
+            if (e.button === 0) this.leftDown = false;
             if (e.button === 2) {
                 this.isRightMouseDown = false;
             }
+            this.syncMouseButtons(e);
         });
+        window.addEventListener('blur', () => { this.moveKeys = {}; this.leftDown = false; this.isRightMouseDown = false; });
+        // First-person movement keys (physical keys: work in any layout)
+        const MOVE_CODES = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'];
+        window.addEventListener('keydown', (e) => {
+            if (!MOVE_CODES.includes(e.code)) return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            this.moveKeys[e.code] = true;
+            if (this.viewMode === 'first' && e.code.startsWith('Arrow')) e.preventDefault();
+        });
+        window.addEventListener('keyup', (e) => { delete this.moveKeys[e.code]; });
+        this.setupJoystick();
 
         window.addEventListener('pointermove', (e) => {
             // Remember where the pointer last was over the world (skills aim there);
             // over HUD elements the previous world position is kept.
             if (e.pointerType === 'touch') {
-                this.lastPointer.type = 'touch';
+                if (this.viewMode !== 'first') this.lastPointer.type = 'touch';
                 return;
             }
+            this.inputTouch = false;   // a real mouse is in use: it aims (first person too)
             if (!(e.target && e.target.closest && e.target.closest(UI_SELECTOR))) {
                 this.lastPointer.x = e.clientX;
                 this.lastPointer.y = e.clientY;
                 this.lastPointer.type = 'mouse';
                 this.lastPointer.valid = true;
             }
+            this.syncMouseButtons(e);
             if (this.isPaused) return;
             if (this.isRightMouseDown) {
                 const deltaX = e.clientX - this.lastMouseX;
                 this.cameraAngle -= deltaX * 0.007;
                 this.targetCameraAngle = this.cameraAngle;
                 this.lastMouseX = e.clientX;
+                this.tiltCamera(e.clientY - this.lastMouseY, 0.005);   // mouse up/down: look up/down (both views)
+                this.lastMouseY = e.clientY;
             }
             // Hover tooltip for interactable environment objects (trees/boulders/
             // shrubs/reeds) — skip while dragging the camera, matches click-to-move
@@ -1036,8 +1074,31 @@ class AveloraGame {
         window.addEventListener('wheel', (e) => {
             if (this.isPaused) return;
             if (e.target && e.target.closest && e.target.closest(UI_SELECTOR)) return; // scrolling a panel/list must not zoom the camera
+            const now = performance.now();
+            const sinceWheel = now - this.lastWheelT;
+            this.lastWheelT = now;
+            if (now - this.viewSwitchT < 350) return;      // cooldown after a view switch
+            if (this.viewMode === 'first') {
+                if (e.deltaY > 0) this.setViewMode('third'); // zoom out: back to max-zoom third person
+                return;
+            }
+            // one more zoom-in "click" after the limit (a new notch, not the tail of the same roll)
+            if (e.deltaY < 0 && this.cameraDistance <= this.minDistance + 0.01 && sinceWheel > 120) {
+                this.setViewMode('first');
+                return;
+            }
             this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.cameraDistance + e.deltaY * 0.02));
         }, { passive: true });
+
+        // Camera button: toggle first / third person
+        const camBtn = document.getElementById('cam-btn');
+        if (camBtn) {
+            camBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.isPaused) return;
+                this.setViewMode(this.viewMode === 'first' ? 'third' : 'first');
+            });
+        }
 
         // Mobile Touch Gestures (1-finger: Tap to Move, 2-finger: Pinch Zoom & Rotate)
         this.touchStartPos = { x: 0, y: 0 };
@@ -1048,13 +1109,34 @@ class AveloraGame {
         this.touchInitialCamAngle = this.cameraAngle;
 
         window.addEventListener('touchstart', (e) => {
-            this.lastPointer.type = 'touch'; // skills fire straight ahead after touch input
+            this.inputTouch = true;
+            if (this.viewMode !== 'first') this.lastPointer.type = 'touch'; // skills fire straight ahead after touch input
+            // Touch screens (and first person): a finger on the right half of the screen rotates the camera
+            if (!this.isPaused && (this.viewMode === 'first' || document.body.classList.contains('touch-ui'))) {
+                for (const t of e.changedTouches) {
+                    if (this.lookTouchId === null && !(t.target && t.target.closest && t.target.closest(UI_SELECTOR)) && t.clientX > window.innerWidth * 0.5) {
+                        this.lookTouchId = t.identifier;
+                        this.touchLast = { x: t.clientX, y: t.clientY };
+                        this.lookStart = { x: t.clientX, y: t.clientY, t: performance.now() };
+                    }
+                }
+            }
+            if (this.viewMode === 'first') {
+                if (this.isPaused) return;
+                if (e.touches.length === 2 && !this.joy.active) {   // two free fingers: pinch out = back to third person
+                    this.touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    this.pinchSwitched = false;
+                    this.fpPinch = true;
+                }
+                return;
+            }
             if (this.isPaused || e.target.closest(UI_SELECTOR)) return;
             if (e.touches.length === 1) {
                 this.touchStartPos.x = e.touches[0].clientX;
                 this.touchStartPos.y = e.touches[0].clientY;
                 this.touchMoved = false;
-            } else if (e.touches.length === 2) {
+            } else if (e.touches.length === 2 && !this.joy.active) {
+                this.pinchSwitched = false;
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
                 this.touchStartDist = Math.hypot(dx, dy);
@@ -1065,6 +1147,26 @@ class AveloraGame {
         }, { passive: false });
 
         window.addEventListener('touchmove', (e) => {
+            // finger on the right half: rotate + tilt the camera (not while two free fingers pinch)
+            if (!this.isPaused && this.lookTouchId !== null && (e.touches.length === 1 || this.joy.active || this.viewMode === 'first')) {
+                for (const t of e.changedTouches) {
+                    if (t.identifier === this.lookTouchId && this.touchLast) {
+                        this.cameraAngle -= (t.clientX - this.touchLast.x) * 0.006;
+                        this.targetCameraAngle = this.cameraAngle;
+                        this.tiltCamera(t.clientY - this.touchLast.y, 0.004);
+                        this.touchLast = { x: t.clientX, y: t.clientY };
+                    }
+                }
+            }
+            if (this.viewMode === 'first') {
+                if (this.isPaused) return;
+                if (e.touches.length === 2 && this.fpPinch && !this.joy.active && !this.pinchSwitched) {
+                    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    if (this.touchStartDist > 0 && d > this.touchStartDist * 1.3) { this.pinchSwitched = true; this.setViewMode('third'); }
+                }
+                if (e.cancelable) e.preventDefault();
+                return;
+            }
             if (this.isPaused || e.target.closest(UI_SELECTOR)) return;
             if (e.touches.length === 1) {
                 const dist = Math.hypot(
@@ -1074,7 +1176,7 @@ class AveloraGame {
                 if (dist > 12) {
                     this.touchMoved = true;
                 }
-            } else if (e.touches.length === 2) {
+            } else if (e.touches.length === 2 && !this.joy.active) {
                 e.preventDefault(); // Prevent native browser pinch zoom of page
                 const dx = e.touches[0].clientX - e.touches[1].clientX;
                 const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -1084,19 +1186,42 @@ class AveloraGame {
                 // Pinch to Zoom
                 if (this.touchStartDist > 0) {
                     const factor = this.touchStartDist / currentDist;
-                    this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.touchInitialCamDist * factor));
+                    if (this.viewMode === 'first') {
+                        if (factor > 1.3 && !this.pinchSwitched) { this.pinchSwitched = true; this.setViewMode('third'); }
+                    } else if (!this.pinchSwitched) {
+                        const raw = this.touchInitialCamDist * factor;
+                        if (raw < this.minDistance * 0.7) { this.pinchSwitched = true; this.setViewMode('first'); }
+                        else this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, raw));
+                    }
                 }
 
-                // Two-finger Rotation
-                const deltaAngle = currentAngle - this.touchStartAngle;
-                this.cameraAngle = this.touchInitialCamAngle - deltaAngle * 1.3;
-                this.targetCameraAngle = this.cameraAngle;
+                // Two-finger Rotation (third person only)
+                if (this.viewMode !== 'first' && !this.pinchSwitched) {
+                    const deltaAngle = currentAngle - this.touchStartAngle;
+                    this.cameraAngle = this.touchInitialCamAngle - deltaAngle * 1.3;
+                    this.targetCameraAngle = this.cameraAngle;
+                }
             }
         }, { passive: false });
 
+        const fpTouchEnd = (e) => {
+            for (const t of e.changedTouches) {
+                if (t.identifier !== this.lookTouchId) continue;
+                this.lookTouchId = null;
+                // short tap on the right half = action at the crosshair
+                const ls = this.lookStart;
+                if (e.type === 'touchend' && ls && this.viewMode === 'first' && !this.isPaused
+                    && performance.now() - ls.t < 300 && Math.hypot(t.clientX - ls.x, t.clientY - ls.y) < 14) {
+                    this.handleGroundClick({ fpAim: true, aimCenter: true, target: null });
+                }
+            }
+            if (e.touches.length < 2) this.fpPinch = false;
+        };
+        window.addEventListener('touchcancel', fpTouchEnd);
         window.addEventListener('touchend', (e) => {
+            fpTouchEnd(e);
             if (this.isPaused || e.target.closest(UI_SELECTOR)) return;
-            if (e.touches.length === 0 && !this.touchMoved) {
+            if (e.touches.length === 0 && !this.touchMoved && this.viewMode !== 'first') {
                 // Clean single tap: move character
                 this.handleGroundClick({
                     clientX: this.touchStartPos.x,
@@ -1239,10 +1364,14 @@ class AveloraGame {
     handleGroundClick(e) {
         if (e.target && e.target.closest && e.target.closest(UI_SELECTOR)) return;
         if (!this.isReady || this.isTransitioning || !this.terrain) return;
+        // First person: only crosshair actions (fpAim), never walking to a ground point
+        const fpAim = this.viewMode === 'first';
+        if (fpAim && !e.fpAim) return;
         if (this.combat && this.combat.isDead) return;
 
-        this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        const center = fpAim && e.aimCenter;   // touch: the screen centre (crosshair)
+        this.mouse.x = center ? 0 : (e.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = center ? 0 : -(e.clientY / window.innerHeight) * 2 + 1;
 
         this.raycaster.setFromCamera(this.mouse, this.camera);
 
@@ -1292,6 +1421,7 @@ class AveloraGame {
             if (entry && this.harvest.isHarvestable(entry) && this.harvest.request(entry)) return;
         }
 
+        if (fpAim) return;
         const intersects = this.raycaster.intersectObject(this.terrain.mesh);
 
         if (intersects.length > 0) {
@@ -1405,6 +1535,176 @@ class AveloraGame {
         });
     }
 
+    /**
+     * The 2nd mouse button pressed while another is held does NOT fire pointerdown (and the
+     * first release does not fire pointerup) — so LMB/RMB state is re-read from e.buttons.
+     */
+    syncMouseButtons(e) {
+        if (e.pointerType === 'touch') return;
+        this.leftDown = !!(e.buttons & 1);
+        const r = !!(e.buttons & 2);
+        if (r && !this.isRightMouseDown) {
+            this.isRightMouseDown = true;
+            this.lastMouseX = e.clientX; this.lastMouseY = e.clientY;
+        } else if (!r && this.isRightMouseDown) {
+            this.isRightMouseDown = false;
+        }
+    }
+
+    /** Mouse / finger drag up-down: first person looks up/down, third person raises/lowers the camera. */
+    tiltCamera(dy, k) {
+        if (this.viewMode === 'first') {
+            this.fpPitch = Math.max(-1.0, Math.min(1.0, this.fpPitch - dy * k));
+        } else {
+            // drag up = look up = camera goes lower
+            this.camPitchOffset = Math.max(-0.3, Math.min(0.5, this.camPitchOffset + dy * k * 0.8));
+        }
+    }
+
+    /** Mobile virtual joystick (floating base inside #joy-zone); only active in first person. */
+    setupJoystick() {
+        const zone = document.getElementById('joy-zone');
+        const base = document.getElementById('joy-base');
+        const knob = document.getElementById('joy-knob');
+        if (!zone || !base || !knob) return;
+        if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window) document.body.classList.add('touch-ui');
+        const R = 52;
+        const place = (cx, cy) => { base.style.left = cx + 'px'; base.style.top = cy + 'px'; };
+        const reset = () => {
+            this.joy.active = false; this.joy.id = null; this.joy.x = 0; this.joy.y = 0;
+            knob.style.transform = 'translate(-50%, -50%)';
+            base.classList.remove('active');
+        };
+        let cx = 0, cy = 0;
+        zone.addEventListener('pointerdown', (e) => {
+            if (this.joy.active) return;
+            e.preventDefault();
+            this.joy.active = true; this.joy.id = e.pointerId;
+            try { zone.setPointerCapture(e.pointerId); } catch (_) {}
+            cx = e.clientX; cy = e.clientY; place(cx, cy);
+            base.classList.add('active');
+        });
+        zone.addEventListener('pointermove', (e) => {
+            if (!this.joy.active || e.pointerId !== this.joy.id) return;
+            let dx = e.clientX - cx, dy = e.clientY - cy;
+            const len = Math.hypot(dx, dy);
+            if (len > R) { dx = dx / len * R; dy = dy / len * R; }
+            knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            let nx = dx / R, ny = -dy / R;
+            if (Math.hypot(nx, ny) < 0.12) { nx = 0; ny = 0; } // dead zone
+            this.joy.x = nx; this.joy.y = ny;
+        });
+        const up = (e) => { if (e.pointerId === this.joy.id) reset(); };
+        zone.addEventListener('pointerup', up);
+        zone.addEventListener('pointercancel', up);
+        this._joyReset = reset;
+        // default position of the base hint
+        const place0 = () => place(90, window.innerHeight - 150);
+        place0(); window.addEventListener('resize', () => { if (!this.joy.active) place0(); });
+    }
+
+    /** First person: skills aim at the screen centre (crosshair); tooltip of whatever is under it. */
+    updateFpAim(delta) {
+        const touchAim = this.viewMode === 'first' && !!this.inputTouch;
+        document.body.classList.toggle('aim-center', touchAim);   // crosshair is shown only for touch aiming
+        if (!touchAim) return;                                    // mouse: the real cursor aims
+        const lp = this.lastPointer;
+        lp.x = window.innerWidth / 2; lp.y = window.innerHeight / 2; lp.type = 'mouse'; lp.valid = true;
+        this._hoverT = (this._hoverT || 0) - delta;
+        if (this._hoverT <= 0) {
+            this._hoverT = 0.1;
+            this.handleHover({ clientX: lp.x, clientY: lp.y, target: null });
+        }
+    }
+
+    /**
+     * Direct (WoW-style) movement in both views: WASD / arrows, LMB+RMB, joystick.
+     * Click-to-move (third person) still works; manual input simply takes over.
+     * First person and "RMB held": the hero faces where the camera looks (backpedal/strafe slower);
+     * otherwise he turns toward the direction he walks.
+     */
+    updateDirectMove(delta) {
+        const c = this.character;
+        if (!c || !c.driveStep) return;
+        const fp = this.viewMode === 'first';
+        if (this.combat && this.combat.isDead) {
+            if (c.driving) c.driveStep(0, 0, 0);
+            return;
+        }
+        const k = this.moveKeys;
+        // keyboard turning (arrows): right = camera angle decreases
+        const turn = (k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0);
+        if (turn) { this.cameraAngle += turn * 2.2 * delta; this.targetCameraAngle = this.cameraAngle; }
+
+        const rmb = this.isRightMouseDown;
+        let fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
+        let str = (k.KeyD || k.KeyE ? 1 : 0) - (k.KeyA || k.KeyQ ? 1 : 0);
+        if (this.leftDown && rmb) fwd += 1;      // WoW: LMB+RMB = forward
+        fwd += this.joy.y; str += this.joy.x;
+        const mag = Math.hypot(fwd, str);
+        if (mag > 1) { fwd /= mag; str /= mag; }
+        const a = this.cameraAngle;
+        const faceCam = fp || rmb;
+        const manual = mag > 0.01;
+
+        if (faceCam && (fp || manual || !c.isMoving || c.driving)) {   // hero looks where the camera looks
+            c.currentRotation = a; c.targetRotation = a; c.isTurning = false;
+        }
+        if (manual) {   // steering by hand: drop auto-chase / auto-walk / click-to-move
+            if (this.combat && this.combat.engagement) this.combat.cancel();
+            if (this.worldObjects && this.worldObjects.cancelPending) this.worldObjects.cancelPending();
+        }
+        const sp = c.moveSpeed * ((k.ShiftLeft || k.ShiftRight) ? 0.5 : 1);
+        let vx, vz;
+        const fx = -Math.sin(a), fz = -Math.cos(a), rx = Math.cos(a), rz = -Math.sin(a);
+        if (faceCam) {
+            const fSp = (fwd < 0 ? 0.6 : 1) * fwd, rSp = 0.85 * str;
+            vx = (fx * fSp + rx * rSp) * sp;
+            vz = (fz * fSp + rz * rSp) * sp;
+        } else {
+            vx = (fx * fwd + rx * str) * sp;
+            vz = (fz * fwd + rz * str) * sp;
+            if (manual && !c.isCasting && !c.isAttacking) {   // turn toward the walking direction
+                const tr = Math.atan2(vx, vz) + Math.PI;
+                let diff = tr - c.currentRotation;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                c.targetRotation = tr; c.isTurning = false;
+                c.currentRotation += diff * Math.min(1, 14 * delta);
+            }
+        }
+        const pf = this.pathfinder;
+        c.driveStep(delta, vx, vz, pf ? (x, z) => !pf.isWalkableWorld(x, z) : null);
+    }
+
+    /** 'first' | 'third'. Hides the whole hero body in first person, shows the crosshair. */
+    setViewMode(mode) {
+        if (mode === this.viewMode) return;
+        this.viewMode = mode;
+        this.viewSwitchT = performance.now();
+        this.isRightMouseDown = false;
+        if (this.character && this.character.driveStep) this.character.driveStep(0, 0, 0);
+        this.leftDown = false; this.lookTouchId = null;
+        if (this._joyReset) this._joyReset();
+        if (this.hideObjectTooltip) this.hideObjectTooltip();
+        if (this.creatures) this.creatures.hovered = null;
+        if (mode === 'first') {
+            if (this.character && this.character.isMoving) this.character.stopMovement(); // drop any click-to-move path
+            this.fpPitch = 0;
+            if (this.hideObjectTooltip) this.hideObjectTooltip();
+        } else {
+            this.cameraDistance = this.minDistance; // back at the zoom limit; the next zoom-out shrinks it
+        }
+        document.body.classList.toggle('fp-view', mode === 'first');
+        this.applyBodyVisibility();
+        this.updateCameraPosition(true);
+    }
+
+    applyBodyVisibility() {
+        const m = this.character && this.character.mesh;
+        if (m) m.visible = this.viewMode !== 'first';
+    }
+
     updateCameraPosition(instant = false, delta = 0.016) {
         if (!this.character || !this.character.position) return;
 
@@ -1416,8 +1716,27 @@ class AveloraGame {
             this.cameraAngle += diff * 0.12;
         }
 
+        // ---- First person: camera sits at the hero's eyes ----
+        const fp = this.viewMode === 'first';
+        const wantFov = fp ? this.fpFov : this.thirdFov;
+        if (Math.abs(this.camera.fov - wantFov) > 0.05) {
+            this.camera.fov = instant ? wantFov : this.camera.fov + (wantFov - this.camera.fov) * (1 - Math.exp(-10 * delta));
+            this.camera.updateProjectionMatrix();
+        }
+        this.applyBodyVisibility();
+        if (fp) {
+            const p = this.character.position;
+            this.cameraTarget.copy(p);
+            const yaw = this.cameraAngle, pit = this.fpPitch, cp = Math.cos(pit);
+            const ex = p.x - Math.sin(yaw) * 0.12, ey = p.y + this.fpEyeHeight, ez = p.z - Math.cos(yaw) * 0.12;
+            this.camera.position.set(ex, ey, ez);
+            this.camera.lookAt(ex - Math.sin(yaw) * cp, ey + Math.sin(pit), ez - Math.cos(yaw) * cp);
+        }
+
         // Target tracks character smoothly
-        if (instant) {
+        if (fp) {
+            // (camera already placed above)
+        } else if (instant) {
             this.cameraTarget.copy(this.character.position);
         } else {
             this.cameraTarget.lerp(this.character.position, 0.08);
@@ -1428,7 +1747,7 @@ class AveloraGame {
         // zoomed back out. zoomT: 0 at minDistance (fully zoomed in), 1 at
         // maxDistance (fully zoomed out).
         const zoomT = Math.max(0, Math.min(1, (this.cameraDistance - this.minDistance) / (this.maxDistance - this.minDistance)));
-        const targetPitch = this.pitchZoomedIn + (this.pitchZoomedOut - this.pitchZoomedIn) * zoomT;
+        const targetPitch = Math.max(0.08, Math.min(1.35, this.pitchZoomedIn + (this.pitchZoomedOut - this.pitchZoomedIn) * zoomT + this.camPitchOffset));
         if (instant) {
             this.cameraPitch = targetPitch;
         } else {
@@ -1439,20 +1758,22 @@ class AveloraGame {
             this.cameraPitch += (targetPitch - this.cameraPitch) * pitchLerp;
         }
 
-        const hDist = this.cameraDistance * Math.cos(this.cameraPitch);
-        const vDist = this.cameraDistance * Math.sin(this.cameraPitch);
+        if (!fp) {
+            const hDist = this.cameraDistance * Math.cos(this.cameraPitch);
+            const vDist = this.cameraDistance * Math.sin(this.cameraPitch);
 
-        const cx = this.cameraTarget.x + Math.sin(this.cameraAngle) * hDist;
-        const cz = this.cameraTarget.z + Math.cos(this.cameraAngle) * hDist;
-        const cy = this.cameraTarget.y + vDist;
+            const cx = this.cameraTarget.x + Math.sin(this.cameraAngle) * hDist;
+            const cz = this.cameraTarget.z + Math.cos(this.cameraAngle) * hDist;
+            const cy = this.cameraTarget.y + vDist;
 
-        if (instant) {
-            this.camera.position.set(cx, cy, cz);
-        } else {
-            this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
+            if (instant) {
+                this.camera.position.set(cx, cy, cz);
+            } else {
+                this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
+            }
+
+            this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y + 1.2, this.cameraTarget.z);
         }
-
-        this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y + 1.2, this.cameraTarget.z);
 
         // Keep sun shadow camera focused near character
         if (this.sunLight) {
@@ -1551,6 +1872,8 @@ class AveloraGame {
 
         // Update systems
         if (this.character) {
+            this.updateDirectMove(delta);
+            this.updateFpAim(delta);   // first person: direct movement (no-op in third person)
             this.character.update(delta);   // incl. the procedural swing / death pose overlay
         }
         if (this.combat) this.combat.update(delta);       // melee engagement, pending hits, HP regen

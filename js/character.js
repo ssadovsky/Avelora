@@ -902,6 +902,40 @@ class MedievalCharacter {
         this.fadeToLogical('idle', 0.25);
     }
 
+    /**
+     * Direct (non-path) movement for first person. Separate from setPath()/update():
+     * the path-following code is untouched; with an empty path update() ignores isMoving.
+     * vx/vz — velocity in m/s (world); isBlocked(x,z) — true if the point is not walkable.
+     * Stops at obstacles (slides along them per axis); the player steers around himself.
+     */
+    driveStep(delta, vx, vz, isBlocked) {
+        const want = (vx * vx + vz * vz) > 1e-6 && !this.isCasting && !this.isAttacking && this.deathT < 0;
+        if (!want) {
+            if (this.driving) { this.driving = false; if (this.isMoving) this.stopMovement(); }
+            return;
+        }
+        if (!this.driving || !this.isMoving) {
+            this.driving = true;
+            this._endChannel();
+            this.path = [];
+            this.currentWaypointIdx = 0;
+            this.isMoving = true;
+            this.isTurning = false;
+            this.idleTimer = 0;
+            this.isGreeting = false;
+            this.fadeToLogical('run', 0.2);
+        }
+        const px = this.position.x, pz = this.position.z;
+        const nx = px + vx * delta, nz = pz + vz * delta;
+        if (!isBlocked || isBlocked(px, pz) || !isBlocked(nx, nz)) {   // standing in a blocked cell: let him walk out
+            this.position.x = nx; this.position.z = nz;
+        } else if (!isBlocked(nx, pz)) {
+            this.position.x = nx;
+        } else if (!isBlocked(px, nz)) {
+            this.position.z = nz;
+        }
+    }
+
     /** Plays the character's 'greeting' clip once (if it has one), then returns to idle. */
     playGreeting() {
         const greetingAction = this.resolveAction('greeting');
