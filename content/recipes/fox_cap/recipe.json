@@ -1,0 +1,20 @@
+{
+  "id": "fox_cap",
+  "name": "Лисья шапка",
+  "description": "Шапка из лисьего меха.",
+  "category": "tailoring",
+  "ingredients": [
+    {
+      "item": "fox_hide",
+      "count": 2
+    },
+    {
+      "item": "fox_tail",
+      "count": 1
+    }
+  ],
+  "result": {
+    "item": "fox_cap",
+    "count": 1
+  }
+}

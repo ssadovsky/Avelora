@@ -49,6 +49,24 @@
       },
       {
         "item": "plank"
+      },
+      {
+        "item": "leather_cap"
+      },
+      {
+        "item": "traveler_cloak"
+      },
+      {
+        "item": "leather_jerkin"
+      },
+      {
+        "item": "leather_gloves"
+      },
+      {
+        "item": "leather_boots"
+      },
+      {
+        "item": "copper_ring"
       }
     ],
     "sell": true

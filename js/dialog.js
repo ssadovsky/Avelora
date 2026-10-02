@@ -442,8 +442,6 @@
             if (!st) return;
             const n = st.inventory.remove(itemId, count);
             if (n <= 0) return;
-            // the equipped tool must not vanish from under the hands
-            if (st.equipped.right && st.inventory.count(st.equipped.right) <= 0) st.equipped.right = null;
             st.addGold(n * price);
             this.ui.floatText(`+${n * price} золота`, 'gain');
         }

@@ -6,9 +6,9 @@
   "stackMax": 20,
   "ground": {
     "variants": 3,
-    "scale": 1.0,
+    "scale": 1.35,
     "pile": "heap"
   },
   "use": null,
   "value": 1
-}
+}

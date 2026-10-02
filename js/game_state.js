@@ -221,10 +221,22 @@
             this.hotbar = sanitizeHotbar(data.hotbar, characterId, this.learnedSkills);
             this.pickupsTaken = sanitizeTaken(data.pickupsTaken);
             const eq = (data.equipped && typeof data.equipped === 'object') ? data.equipped : {};
-            this.equipped = { right: null };
-            // Only keep an equipped item the character actually still carries
-            if (window.AveloraItems.isEquippable(eq.right) && this.inventory.count(eq.right) > 0) {
-                this.equipped.right = eq.right;
+            this.equipped = { right: null, head: null, cloak: null, body: null, hands: null, ring: null, feet: null };
+            ['head', 'cloak', 'body', 'hands', 'ring', 'feet'].forEach(slot => {
+                if (window.AveloraItems.isEquippable(eq[slot]) && window.AveloraItems.equipSlot(eq[slot]) === slot) this.equipped[slot] = eq[slot];
+            });
+            // An item in the hand (state.equipped) does NOT occupy a bag cell. Saves from before
+            // that change (no equipV2 flag) kept the item in the bag too: move it out of the bag.
+            if (window.AveloraItems.isEquippable(eq.right)) {
+                if (data.equipV2) {
+                    this.equipped.right = eq.right;
+                } else if (this.inventory.count(eq.right) > 0) {
+                    this.equipped.right = eq.right;
+                    const cb = this.inventory.onChange;
+                    this.inventory.onChange = null;          // (save() would run on a half-built state)
+                    this.inventory.remove(eq.right, 1);
+                    this.inventory.onChange = cb;
+                }
             }
             this.ground = sanitizeGround(data.ground);
             this.killed = sanitizeTimeMap(data.killed);
@@ -403,6 +415,47 @@
             this.save();
         }
 
+        /** How many of an item the hero owns: bag + the one in the hand. */
+        ownedCount(itemId) {
+            return this.inventory.count(itemId) + (this.equippedSlotOf(itemId) ? 1 : 0);
+        }
+
+        /** The slot an item is worn/held in right now, or null. */
+        equippedSlotOf(itemId) {
+            for (const k of Object.keys(this.equipped)) if (this.equipped[k] === itemId) return k;
+            return null;
+        }
+
+        /**
+         * Takes one `itemId` from the bag into the right hand; whatever was in the hand goes to the bag.
+         * Returns 'ok' | 'invalid' | 'missing' | 'full'.
+         */
+        equipFromBag(itemId) {
+            if (!window.AveloraItems.isEquippable(itemId)) return 'invalid';
+            if (this.inventory.count(itemId) <= 0) return 'missing';
+            const slot = window.AveloraItems.equipSlot(itemId);
+            const prev = this.equipped[slot];
+            this.inventory.remove(itemId, 1);
+            if (prev && this.inventory.add(prev, 1) < 1) {
+                this.inventory.add(itemId, 1);   // no room for the old item: roll back
+                return 'full';
+            }
+            this.equipped[slot] = itemId;
+            this.save();
+            return 'ok';
+        }
+
+        /** Slot (default: right hand) -> bag. Returns 'ok' | 'empty' | 'full'. */
+        unequipToBag(slot) {
+            slot = slot || 'right';
+            const prev = this.equipped[slot];
+            if (!prev) return 'empty';
+            if (this.inventory.add(prev, 1) < 1) return 'full';
+            this.equipped[slot] = null;
+            this.save();
+            return 'ok';
+        }
+
         /**
          * Inventory of one chest (same API as the bag: add/remove/move/...), created on first use.
          * key = "<locationId>/<propId>". Changes save the whole character state.
@@ -482,7 +535,8 @@
                 inventory: this.inventory.toJSON(),
                 hotbar: this.hotbar.map(e => (e ? { type: e.type, id: e.id } : null)),
                 pickupsTaken: this.pickupsTaken,
-                equipped: { right: this.equipped.right || null },
+                equipped: Object.keys(this.equipped).reduce((o, k) => { o[k] = this.equipped[k] || null; return o; }, {}),
+                equipV2: 1,
                 ground: this.ground,
                 killed: this.killed,
                 felled: this.felled,

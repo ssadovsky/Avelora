@@ -1,0 +1,16 @@
+{
+  "id": "wolf_cloak",
+  "name": "Волчий плащ",
+  "description": "Плащ из волчьих шкур.",
+  "category": "tailoring",
+  "ingredients": [
+    {
+      "item": "wolf_hide",
+      "count": 3
+    }
+  ],
+  "result": {
+    "item": "wolf_cloak",
+    "count": 1
+  }
+}

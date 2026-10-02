@@ -854,10 +854,6 @@
                 ? st.inventory.removeCountAt(cellIndex, count)
                 : st.inventory.removeAt(cellIndex); // saves
             if (!taken) return false;
-            if (st.equipped.right === taken.item && st.inventory.count(taken.item) <= 0) {
-                st.setEquipped('right', null);
-                if (this.game.ui) this.game.ui.applyEquipment();
-            }
             this.addDrop(taken.item, taken.count, spot.x, spot.z, rot + Math.PI / 2);
             const ui = this.game.ui;
             if (ui) ui.floatText(`−${taken.count} ${def ? def.name : taken.item}`, 'info');

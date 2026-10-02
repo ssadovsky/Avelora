@@ -1,0 +1,25 @@
+{
+  "id": "wolf_cloak",
+  "name": "Волчий плащ",
+  "description": "Плащ из шкуры серого волка. Защищает и придаёт проворства.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "cloak"
+  },
+  "armor": 3,
+  "stats": {
+    "dex": 2,
+    "str": 1
+  },
+  "requires": {
+    "level": 4
+  },
+  "value": 60
+}

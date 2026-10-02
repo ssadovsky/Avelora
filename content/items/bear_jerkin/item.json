@@ -1,0 +1,24 @@
+{
+  "id": "bear_jerkin",
+  "name": "Медвежья куртка",
+  "description": "Тяжёлая куртка из медвежьей шкуры. Мощная защита и сила.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "body"
+  },
+  "armor": 7,
+  "stats": {
+    "str": 4
+  },
+  "requires": {
+    "level": 5
+  },
+  "value": 60
+}

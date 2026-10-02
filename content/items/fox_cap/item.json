@@ -1,0 +1,25 @@
+{
+  "id": "fox_cap",
+  "name": "Лисья шапка",
+  "description": "Тёплая шапка из лисьего меха с ушками. Ловкость и сообразительность.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "head"
+  },
+  "armor": 2,
+  "stats": {
+    "int": 2,
+    "dex": 1
+  },
+  "requires": {
+    "level": 3
+  },
+  "value": 60
+}

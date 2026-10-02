@@ -205,6 +205,45 @@
             return false;
         }
 
+        /** An item in the bag that works as a chopping tool (weapon.chop > 0), or null. */
+        findChopToolInBag() {
+            const st = this.state;
+            if (!st) return null;
+            for (const c of st.inventory.cells) {
+                if (!c || !window.AveloraItems.isEquippable(c.item)) continue;
+                const w = window.AveloraItems.weaponOf(c.item);
+                if (w && w.chop > 0) return c.item;
+            }
+            return null;
+        }
+
+        /**
+         * No chop tool in hand but one in the bag: take it (the old hand item goes to the bag)
+         * and remember what to give back once the chopping is over (restoreTool).
+         */
+        autoEquipTool(node) {
+            if (!node || node.tool !== 'chop') return false;
+            const st = this.state, ui = this.game.ui;
+            const id = this.findChopToolInBag();
+            if (!st || !id) return false;
+            const prev = st.equipped.right;
+            if (st.equipFromBag(id) !== 'ok') return false;
+            if (!this.autoSwap) this.autoSwap = { prev, id };
+            else this.autoSwap.id = id;
+            this.toolIdle = 0;
+            if (ui) { ui.applyEquipment(); if (ui.renderAll) ui.renderAll(); }
+            return true;
+        }
+
+        /** Gives the hand back what it held before auto-equipping the axe (no-op if the player changed it meanwhile). */
+        restoreTool() {
+            const sw = this.autoSwap, st = this.state, ui = this.game.ui;
+            this.autoSwap = null;
+            if (!sw || !st || st.equipped.right !== sw.id) return;
+            const res = sw.prev && st.inventory.count(sw.prev) > 0 ? st.equipFromBag(sw.prev) : st.unequipToBag();
+            if (res === 'ok' && ui) { ui.applyEquipment(); if (ui.renderAll) ui.renderAll(); }
+        }
+
         /** Hover text for a harvestable object. */
         labelFor(entry) {
             const node = this.nodeFor(entry.kind);
@@ -213,7 +252,7 @@
                 return `${node.name || entry.label} — сорвать`;
             }
             if (node.tool === 'chop') {
-                if (!this.hasTool(node)) return `${node.name || entry.label} — нужен топор в руке`;
+                if (!this.hasTool(node)) return this.findChopToolInBag() ? `${node.name || entry.label} — рубить (возьмёт топор из сумки)` : `${node.name || entry.label} — нужен топор`;
                 return `${node.name || entry.label} — рубить`;
             }
             return `${node.name || entry.label}`;
@@ -232,11 +271,11 @@
             const c = g.character;
             const node = this.nodeFor(entry.kind);
             if (!c || !node || entry.visible === false) return false;
-            if (!this.hasTool(node)) {
+            if (!this.hasTool(node) && !this.autoEquipTool(node)) {
                 if (g.combat) g.combat.cancel();
                 const path = g.pathfinder ? g.pathfinder.findPath(c.position, new THREE.Vector3(entry.x, 0, entry.z)) : [];
                 if (path && path.length) c.setPath(path);
-                if (g.ui) g.ui.floatText('Нужен топор в руке', 'warn');
+                if (g.ui) g.ui.floatText('Нужен топор (в сумке или в руке)', 'warn');
                 return true;
             }
 
@@ -528,6 +567,12 @@
         // -----------------------------------------------------------
         update(delta) {
             if (this.disposed) return;
+            if (this.autoSwap) {
+                // give the previous hand item back ~1.2 s after the last tree engagement ended
+                const e = this.game.combat && this.game.combat.engagement;
+                if (e && e.kind === 'tree') this.toolIdle = 0;
+                else if ((this.toolIdle = (this.toolIdle || 0) + delta) > 1.2) this.restoreTool();
+            }
             this.checkTimer -= delta;
             if (this.checkTimer <= 0) {
                 this.checkTimer = REGROW_CHECK;
@@ -625,6 +670,7 @@
         }
 
         dispose() {
+            if (this.autoSwap) this.restoreTool();
             this.disposed = true;
             // Pivots / points are under locationRoot -> freed by teardownLocation().
             this.falling.length = 0;

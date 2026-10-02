@@ -53,6 +53,12 @@
             return !!(def && def.use && def.use.type);
         },
 
+        /** State slot an equippable item goes to: 'right' (hand) or item.json use.slot (head/cloak/body/hands/ring/feet). */
+        equipSlot(id) {
+            const def = this.get(id);
+            return (def && def.use && def.use.type === 'equip' && def.use.slot) || 'right';
+        },
+
         isEquippable(id) {
             const def = this.get(id);
             return !!(def && def.use && def.use.type === 'equip');

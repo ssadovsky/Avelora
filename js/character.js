@@ -40,6 +40,17 @@ const STAFF_KEYS = {
     spineYaw:   [[0, 0], [0.3, -6], [0.55, 4], [1, 0]],
     spinePitch: [[0, 0], [0.3, -4], [0.78, -4], [1, 0]]
 };
+// BOW shot (weapon.style 'bow'): the right (bow) arm reaches out toward the target with the bow kept upright
+// (belly toward the target), the left arm swings out and the forearm is drawn back to the cheek (string pulled);
+// at u = 0.55 the string is released (combat.js fires the arrow at that moment) and the left hand snaps forward.
+const BOW_KEYS = {
+    armPitch:  [[0, 0], [0.25, 88], [0.8, 88], [1, 0]],
+    forearm:   [[0, 0], [0.25, 6], [0.8, 6], [1, 0]],
+    lArmPitch: [[0, 0], [0.25, 80], [0.8, 80], [1, 0]],
+    lArmOut:   [[0, 0], [0.25, 28], [0.55, 28], [0.62, 20], [0.8, 20], [1, 0]],
+    lPull:     [[0, 0], [0.25, 0], [0.55, 118], [0.62, 12], [0.8, 12], [1, 0]],
+    spineYaw:  [[0, 0], [0.25, -16], [0.8, -16], [1, 0]]
+};
 // Fraction of the swing at which the weapon connects (end of the strike).
 const SWING_HIT_FRAC = 0.55;
 const DEG = Math.PI / 180;
@@ -365,9 +376,12 @@ class MedievalCharacter {
             shoulder: this.findBone('RightShoulder'),
             arm: this.findBone('RightArm'),
             forearm: this.findBone('RightForeArm'),
-            hand: this.rightHandBone
+            hand: this.rightHandBone,
+            lShoulder: this.findBone('LeftShoulder'),
+            lArm: this.findBone('LeftArm'),
+            lForearm: this.findBone('LeftForeArm')
         };
-        b.all = spine.concat([b.shoulder, b.arm, b.forearm, b.hand]).filter(Boolean); // pre-built: no per-frame arrays
+        b.all = spine.concat([b.shoulder, b.arm, b.forearm, b.hand, b.lShoulder, b.lArm, b.lForearm]).filter(Boolean); // pre-built: no per-frame arrays
         return b;
     }
 
@@ -510,6 +524,7 @@ class MedievalCharacter {
         const u = sw.t / sw.d;
         if (u >= 1) { this.swing = null; return; }
         if (sw.style === 'staff') { this.applyStaffOverlay(u); return; }
+        if (sw.style === 'bow') { this.applyBowOverlay(u); return; }
         const k = this.config.swing || {};
         const kArm = k.arm !== undefined ? k.arm : 1, kFore = k.forearm !== undefined ? k.forearm : 1;
         const kSpine = k.spine !== undefined ? k.spine : 1, kHand = k.hand !== undefined ? k.hand : 1;
@@ -594,6 +609,55 @@ class MedievalCharacter {
             const qp = this._q1;
             b.hand.parent.getWorldQuaternion(qp);
             b.hand.quaternion.copy(qp).invert().multiply(keep);
+        }
+    }
+
+    /** Bow shot: aim arm out, bow upright with its belly toward the target, other arm draws the string back. */
+    applyBowOverlay(u) {
+        const b = this.swingBones;
+        this.mesh.updateMatrixWorld(true);
+        for (let i = 0; i < b.all.length; i++) this.saveOverlayBone(b.all[i]);
+        const obj = this.handItem && this.handItem.children[0];
+        // bow orientation relative to the hand (constant: the bow is a child of the hand)
+        const rel = this._q4 || (this._q4 = new THREE.Quaternion());
+        const qH = this._q1, qO = this._q2;
+        let haveBow = false;
+        if (obj && b.hand) {
+            b.hand.getWorldQuaternion(qH); obj.getWorldQuaternion(qO);
+            rel.copy(qH).invert().multiply(qO);
+            haveBow = true;
+        }
+        const r = this.currentRotation;
+        this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+        const yaw = swingKey(BOW_KEYS.spineYaw, u) * DEG;
+        const n = b.spine.length || 1;
+        for (let i = 0; i < b.spine.length; i++) this.rotateBoneWorld(b.spine[i], this._up, yaw / n);
+        this._fwd.applyAxisAngle(this._up, yaw);
+        this._right.applyAxisAngle(this._up, yaw);
+
+        const ap = swingKey(BOW_KEYS.armPitch, u) * DEG;
+        this.rotateBoneWorld(b.shoulder, this._right, ap * 0.12);
+        this.rotateBoneWorld(b.arm, this._right, ap * 0.88);
+        this.rotateBoneWorld(b.forearm, this._right, swingKey(BOW_KEYS.forearm, u) * DEG);
+        // string arm: raised forward, out to the left, forearm folded back toward the face
+        const lp = swingKey(BOW_KEYS.lArmPitch, u) * DEG, lo = swingKey(BOW_KEYS.lArmOut, u) * DEG, pull = swingKey(BOW_KEYS.lPull, u) * DEG;
+        this.rotateBoneWorld(b.lShoulder, this._right, lp * 0.12);
+        this.rotateBoneWorld(b.lArm, this._right, lp * 0.88);
+        this.rotateBoneWorld(b.lArm, this._up, lo);
+        this.rotateBoneWorld(b.lForearm, this._up, -pull);
+        // wrist: bow long axis up, belly (model -X) toward the target
+        if (haveBow && b.hand && b.hand.parent) {
+            const X = this._cv1 || (this._cv1 = new THREE.Vector3()), Z = this._cv2 || (this._cv2 = new THREE.Vector3());
+            X.copy(this._fwd).multiplyScalar(-1);                 // model +X (string side) -> back toward the archer
+            Z.crossVectors(X, this._up);
+            const m = this._m4 || (this._m4 = new THREE.Matrix4());
+            m.makeBasis(X, this._up, Z);
+            const want = this._q3.setFromRotationMatrix(m);       // desired world orientation of the bow
+            const newH = want.multiply(rel.clone().invert());
+            const qp = this._q1;
+            b.hand.parent.getWorldQuaternion(qp);
+            b.hand.quaternion.copy(qp).invert().multiply(newH);
         }
     }
 

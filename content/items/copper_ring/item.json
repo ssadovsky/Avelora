@@ -1,0 +1,24 @@
+{
+  "id": "copper_ring",
+  "name": "Медное кольцо",
+  "description": "Кольцо с голубым камнем. Слегка обостряет разум.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "ring"
+  },
+  "armor": 0,
+  "stats": {
+    "int": 2
+  },
+  "requires": {
+    "level": 2
+  },
+  "value": 30
+}

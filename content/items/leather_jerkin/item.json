@@ -1,0 +1,25 @@
+{
+  "id": "leather_jerkin",
+  "name": "Кожаная куртка",
+  "description": "Куртка из прочной кожи, сшитая вручную.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "body"
+  },
+  "armor": 3,
+  "stats": {
+    "str": 1,
+    "dex": 1
+  },
+  "requires": {
+    "level": 2
+  },
+  "value": 40
+}

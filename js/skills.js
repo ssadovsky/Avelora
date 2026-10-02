@@ -594,6 +594,26 @@
         // -----------------------------------------------------------
         // Spawning
         // -----------------------------------------------------------
+        /**
+         * Basic attack of a bow (combat.js, weapon.style 'bow'): a plain arrow flies at a creature.
+         * Visuals = the 'arrow' skill; damage = the bow's weapon.damage (scaled by Ловкость via skillMult).
+         */
+        shootBasic(rec, weapon) {
+            const g = this.game, c = g.character;
+            if (!c || !rec || !g.creatures || !g.creatures.isAlive(rec)) return false;
+            const base = this.get('arrow') || {};
+            const def = Object.assign({}, base, {
+                id: 'bow_shot', mana: 0, cooldown: 0, castTime: 0,
+                range: (weapon.range || 12) + 2,
+                speed: base.speed || 34,
+                damage: { min: weapon.damage[0], max: weapon.damage[1], type: 'physical' }
+            });
+            const aim = this._v2 || (this._v2 = new THREE.Vector3());
+            aim.set(rec.x, rec.y + rec.height * 0.5 - AIM_HEIGHT, rec.z);
+            this.spawnProjectile(def, aim);
+            return true;
+        }
+
         spawnProjectile(def, target) {
             const r = this.ensureResources();
             const p = r.projectiles.find(q => !q.active) || r.projectiles[0];

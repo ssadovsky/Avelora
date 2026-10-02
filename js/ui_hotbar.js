@@ -260,8 +260,6 @@
 
         afterTransfer(from, to) {
             const st = this.state;
-            // The equipped tool must stay in the bag
-            if (st && st.equipped.right && st.inventory.count(st.equipped.right) <= 0) st.equipped.right = null;
             from.changed();
             if (to !== from) to.changed();
         }
@@ -302,13 +300,12 @@
         renderInventory() {
             if (!this.cells) return;
             const inv = this.state ? this.state.inventory : null;
-            const equipped = this.state ? this.state.equipped.right : null;
             let any = false;
             this.cells.forEach((cell, i) => {
                 const c = inv ? inv.cells[i] : null;
                 cell.innerHTML = '';
                 cell.classList.toggle('filled', !!c);
-                cell.classList.remove('equipped');
+                cell.classList.remove('equipped');   // (an item in the hand is not in the bag)
                 if (!c) return;
                 any = true;
                 const def = window.AveloraItems.get(c.item);
@@ -319,7 +316,6 @@
                     b.textContent = String(c.count);
                     cell.appendChild(b);
                 }
-                if (equipped && c.item === equipped) cell.classList.add('equipped');
             });
             if (this.invEmpty) this.invEmpty.style.display = any ? 'none' : '';
         }
@@ -342,10 +338,10 @@
                     slot.classList.add('is-item');
                     const def = window.AveloraItems.get(e.id);
                     slot._icon.appendChild(makeIcon(def));
-                    const n = this.state.inventory.count(e.id);
+                    const n = this.state.ownedCount(e.id);   // bag + hand
                     if (n <= 0) slot.classList.add('missing');
                     if (n > 1 || (def && def.stackMax > 1)) slot._count.textContent = n > 0 ? String(n) : '';
-                    if (this.state.equipped.right === e.id) slot.classList.add('equipped');
+                    if (this.state.equippedSlotOf(e.id)) slot.classList.add('equipped');
                 }
             });
         }
@@ -1056,6 +1052,8 @@
                 const sm = hero.skillMult({ damage: { type: 'lightning' } }), pm = hero.skillMult({ damage: { type: 'physical' } });
                 setText('hero-stat-spell', `маг. +${Math.round((sm - 1) * 100)}% · физ. +${Math.round((pm - 1) * 100)}%`);
                 setText('hero-stat-regen', `${hero.manaRegen.toFixed(1)} / с`);
+                setText('hero-stat-armor', `${Math.round(hero.armor() * 10) / 10} (−${Math.round(hero.mitigation() * 100)}% урона)`);
+                setText('hero-stat-dodge', `${Math.round(hero.dodge() * 100)}%`);
             }
 
             this.renderDoll();
@@ -1077,17 +1075,18 @@
             const SLOT_NAMES = { head: 'Голова', cloak: 'Плащ', body: 'Тело', hands: 'Перчатки', ring: 'Кольцо', weapon: 'Оружие', feet: 'Сапоги' };
             grid.querySelectorAll('.doll-slot').forEach(el => {
                 const slot = el.dataset.slot;
-                const itemId = slot === 'weapon' ? (st && st.equipped && st.equipped.right) : (st && st.equipped && st.equipped[slot]);
+                const key = slot === 'weapon' ? 'right' : slot;
+                const itemId = st && st.equipped ? st.equipped[key] : null;
                 const def = itemId ? window.AveloraItems.get(itemId) : null;
-                const key = def ? itemId : '';
-                if (el._shown === key) return;
-                el._shown = key;
+                const shownKey = def ? itemId : '';
+                if (el._shown === shownKey) return;
+                el._shown = shownKey;
                 el.querySelectorAll('.ui-icon').forEach(n => n.remove());
                 el.classList.toggle('filled', !!def);
                 if (def) {
                     el.insertBefore(makeIcon(def), el.firstChild);
-                    el.title = `${def.name} — нажмите, чтобы снять`;
-                    el.onclick = (e) => { e.stopPropagation(); this.toggleEquip(itemId); };
+                    el.title = `${def.name} — нажмите, чтобы снять (уйдёт в сумку)`;
+                    el.onclick = (e) => { e.stopPropagation(); this.unequip(key); };
                 } else {
                     el.title = `${SLOT_NAMES[slot] || slot}: пусто`;
                     el.onclick = null;
@@ -1193,7 +1192,7 @@
                 return;
             }
             const def = window.AveloraItems.get(e.id);
-            if (!def || this.state.inventory.count(e.id) <= 0) { this.flashSlot(slot, 'shake'); return; }
+            if (!def || this.state.ownedCount(e.id) <= 0) { this.flashSlot(slot, 'shake'); return; }
             if (def.use && def.use.type === 'equip') {
                 this.toggleEquip(e.id);
                 this.flashSlot(slot, 'pressed');
@@ -1246,21 +1245,62 @@
         // -----------------------------------------------------------
         // Equipment (right hand)
         // -----------------------------------------------------------
+        /**
+         * Hotbar / hand toggle for an equippable item: in the hand -> back to the bag;
+         * otherwise take it from the bag into the hand (the old hand item goes to the bag).
+         */
         toggleEquip(itemId) {
             const st = this.state;
-            const def = window.AveloraItems.get(itemId);
-            if (!st || !def) return;
-            if (st.equipped.right === itemId) {
-                st.setEquipped('right', null);
-                this.applyEquipment();
-                this.floatText(`${def.name}: убран`, 'info');
-            } else {
-                const lack = this.unmetRequirement(def);
-                if (lack) { this.floatText(lack, 'warn'); return false; }
-                st.setEquipped('right', itemId);
-                this.applyEquipment();
-                this.floatText(`${def.name} в руке`, 'info');
-            }
+            if (!st || !window.AveloraItems.get(itemId)) return false;
+            const slot = st.equippedSlotOf(itemId);
+            if (slot) return this.unequip(slot);
+            return this.equip(itemId);
+        }
+
+        /** Hero-panel slot id (data-slot) an item belongs to: 'weapon' for the hand, else head/cloak/body/hands/ring/feet. */
+        dollSlotOf(itemId) {
+            const s = window.AveloraItems.equipSlot(itemId);
+            return s === 'right' ? 'weapon' : s;
+        }
+
+        /** "Броня +3 · Сила +1 · …" line of an item (armor / stats), or ''. */
+        itemStatsLine(def) {
+            if (!def) return '';
+            const nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+            const parts = [];
+            if (def.armor) parts.push(`Броня +${def.armor}`);
+            if (def.stats) ['str', 'dex', 'int'].forEach(k => { if (def.stats[k]) parts.push(`${nm[k] || k} +${def.stats[k]}`); });
+            if (def.weapon && def.weapon.damage) parts.push(`Урон ${def.weapon.damage[0]}–${def.weapon.damage[1]}`);
+            return parts.join(' · ');
+        }
+
+        /** Bag -> right hand. Returns true on success. */
+        equip(itemId) {
+            const st = this.state, def = window.AveloraItems.get(itemId);
+            if (!st || !def) return false;
+            const lack = this.unmetRequirement(def);
+            if (lack) { this.floatText(lack, 'warn'); return false; }
+            const res = st.equipFromBag(itemId);
+            if (res === 'full') { this.floatText('Сумка полна: некуда убрать то, что в руке', 'warn'); return false; }
+            if (res !== 'ok') { this.floatText('Этого нет в сумке', 'warn'); return false; }
+            this.applyEquipment();
+            this.floatText(window.AveloraItems.equipSlot(itemId) === 'right' ? `${def.name} в руке` : `${def.name}: надето`, 'info');
+            this.renderAll && this.renderAll();
+            return true;
+        }
+
+        /** Right hand -> bag. */
+        unequip(slot) {
+            slot = slot || 'right';
+            const st = this.state;
+            if (!st || !st.equipped[slot]) return false;
+            const def = window.AveloraItems.get(st.equipped[slot]);
+            const res = st.unequipToBag(slot);
+            if (res === 'full') { this.floatText('Сумка полна: нельзя снять', 'warn'); return false; }
+            if (res !== 'ok') return false;
+            this.applyEquipment();
+            this.floatText(`${def ? def.name : 'Предмет'}: убран в сумку`, 'info');
+            this.renderAll && this.renderAll();
             return true;
         }
 
@@ -1281,6 +1321,7 @@
         applyEquipment() {
             const c = this.game.character;
             if (!c || !this.state) return;
+            if (this.game.hero && this.game.hero.state) { this.game.hero.refresh(false); this.game.hero.renderBars(true); }   // worn gear changes stats / max HP
             const itemId = this.state.equipped.right;
             const token = (this._equipToken = (this._equipToken || 0) + 1);
             if (!itemId) { c.setHandItem(null); return; }
@@ -1338,6 +1379,8 @@
             const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = lab.description || '';
             const m = document.createElement('div'); m.className = 'tt-meta'; m.textContent = meta;
             this.tooltip.append(n, d, m);
+            const sl = kind === 'skill' ? '' : this.itemStatsLine(def);
+            if (sl) { const sd = document.createElement('div'); sd.className = 'tt-req'; sd.style.color = '#a9d68c'; sd.textContent = sl; this.tooltip.appendChild(sd); }
             this.placeTooltip(el);
         }
 
@@ -1382,7 +1425,7 @@
             const def = window.AveloraItems.get(src.item);
             if (!def) return;
             const st = this.state;
-            const isEquipped = st && st.equipped && st.equipped.right === src.item;
+            const isEquipped = false;   // an item in the hand is not in the bag, so a bag card always offers "Надеть"
 
             this.tooltip.innerHTML = '';
             this.tooltip.classList.remove('warn');
@@ -1416,6 +1459,8 @@
             m.textContent = `Количество: ${src.count} · ${def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал'}`;
 
             this.tooltip.append(header, d, m);
+            const sl = this.itemStatsLine(def);
+            if (sl) { const sd = document.createElement('div'); sd.className = 'tt-req'; sd.style.color = '#a9d68c'; sd.textContent = sl; this.tooltip.appendChild(sd); }
             if (def.requires) {
                 const lack = this.unmetRequirement(def), rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
                 const parts = [];
@@ -1438,9 +1483,7 @@
                 btnEquip.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.hideTooltip();
-                    if (!isEquipped) { const lack = this.unmetRequirement(def); if (lack) { this.floatText(lack, 'warn'); return; } }
-                    st.setEquipped('right', isEquipped ? null : src.item);
-                    this.applyEquipment();
+                    this.equip(src.item);
                 });
                 actions.appendChild(btnEquip);
             }
@@ -1847,6 +1890,14 @@
                 if (src && !(e.relatedTarget && src.el.contains(e.relatedTarget)) && !(this.tooltip && this.tooltip.classList.contains('warn'))) this.hideTooltip();
             });
 
+            // Double click on a bag item that can be worn/held -> take it into the hand
+            document.addEventListener('dblclick', (e) => {
+                const cell = e.target && e.target.closest && e.target.closest('.inventory-cell');
+                if (!cell || !this.state || this.chestInv) return;
+                const c = this.state.inventory.cells[parseInt(cell.dataset.cell, 10)];
+                if (c && window.AveloraItems.isEquippable(c.item)) { this.hideTooltip(); this.equip(c.item); }
+            });
+
             window.addEventListener('game:pause', () => { this.cancelDrag(); this.hideTooltip(); });
         }
 
@@ -2006,6 +2057,8 @@
             if (cc && this.chestInv) return { kind: 'chest', index: parseInt(cc.dataset.cell, 10), el: cc };
             const cell = el.closest('.inventory-cell');
             if (cell) return { kind: 'inv', index: parseInt(cell.dataset.cell, 10), el: cell };
+            const doll = el.closest('.doll-slot');
+            if (doll) return { kind: 'doll', slot: doll.dataset.slot, el: doll };
             if (el.closest('#skill-bar')) return { kind: 'bar', el: null };
             return null;
         }
@@ -2016,6 +2069,10 @@
             if (tgt.kind === 'slot') {
                 if (src.kind === 'skill' || src.kind === 'slot') return true;
                 if (src.kind === 'inv') return window.AveloraItems.canHotbar(src.item);
+            }
+            if (tgt.kind === 'doll') {
+                if (src.kind !== 'inv') return null;
+                return window.AveloraItems.isEquippable(src.item) && this.dollSlotOf(src.item) === tgt.slot;
             }
             if (tgt.kind === 'inv') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
             if (tgt.kind === 'chest') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
@@ -2040,6 +2097,12 @@
             const st = this.state;
             if (!st) return;
 
+            if (tgt && tgt.kind === 'doll') {
+                // bag item dragged onto the dressing-room: weapon slot takes equippable items
+                if (src.kind === 'inv' && window.AveloraItems.isEquippable(src.item) && this.dollSlotOf(src.item) === tgt.slot) this.equip(src.item);
+                else if (src.kind === 'inv') this.showMessageAt(tgt.el, 'Сюда это не надеть');
+                return;
+            }
             if (tgt && tgt.kind === 'slot') {
                 if (src.kind === 'skill') {
                     this.bindSlot(tgt.index, { type: 'skill', id: src.id });

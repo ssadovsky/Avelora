@@ -1,0 +1,20 @@
+{
+  "id": "bear_jerkin",
+  "name": "Медвежья куртка",
+  "description": "Куртка из медвежьих и волчьих шкур.",
+  "category": "tailoring",
+  "ingredients": [
+    {
+      "item": "bear_hide",
+      "count": 2
+    },
+    {
+      "item": "wolf_hide",
+      "count": 2
+    }
+  ],
+  "result": {
+    "item": "bear_jerkin",
+    "count": 1
+  }
+}

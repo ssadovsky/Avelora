@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelora-v13'; // bump when the file list changes
+const CACHE_NAME = 'avelora-v17'; // bump when the file list changes
 const ASSETS_TO_CACHE = [
   './',
   'Avelora.html',

@@ -258,8 +258,9 @@
             c.faceTowards(e.x(), e.z());
             const casting = g.skills && g.skills.casting;
             if (!casting && !c.isSwinging && !c.isCasting && now >= this.nextSwingAt) {
-                const dur = Math.min(0.85, w.cooldown * 0.85);
-                if (c.playAttack) c.playAttack(dur, w.style);
+                const dur = w.style === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85);
+                if (w.style === 'bow') c.startSwing(dur, 'bow');
+                else if (c.playAttack) c.playAttack(dur, w.style);
                 else c.startSwing(dur, w.style);
                 this.nextSwingAt = now + w.cooldown;
                 this.pendingHit = { at: now + dur * window.MedievalCharacter.SWING_HIT_FRAC, target: e, weapon: w };
@@ -273,6 +274,15 @@
         damagePlayer(amount, source) {
             if (this.isDead || !(amount > 0)) return;
             const g = this.game;
+            const hero = g.hero;
+            if (hero && hero.state) {
+                const c0 = g.character;
+                if (Math.random() < hero.dodge()) {
+                    if (g.ui && g.ui.floatAt && c0) g.ui.floatAt('Уклонение', 'info', c0.position.x, c0.position.y + 2.0, c0.position.z);
+                    return;
+                }
+                amount = Math.max(1, Math.round(amount * (1 - hero.mitigation())));
+            }
             this.hp = Math.max(0, this.hp - amount);
             this.lastCombatAt = g.gameTime;
             if (this.hp <= this.maxHp * LOW_HP_FLASH_FRAC) this.flash = 1;
@@ -346,7 +356,8 @@
                     const e = ph.target;
                     if (e.isValid() && g.character && this.edgeDistance(e) <= e.range(ph.weapon) + HIT_TOLERANCE) {
                         if (ph.weapon.style === 'staff' && g.character.staffZap) g.character.staffZap(e.x(), e.z());
-                        e.onHit(ph.weapon);
+                        if (ph.weapon.style === 'bow' && e.kind === 'creature' && g.skills && g.skills.shootBasic) g.skills.shootBasic(e.rec, ph.weapon);
+                        else e.onHit(ph.weapon);
                         this.lastCombatAt = now;
                     }
                 }

@@ -112,6 +112,26 @@
             return out;
         }
 
+        /** Armor rating from worn items (item.json `armor`). */
+        armor() {
+            const eq = this.state && this.state.equipped, M = CFG().multipliers;
+            let a = 0;
+            if (eq) Object.keys(eq).forEach(slot => { const d = eq[slot] ? window.AveloraItems.get(eq[slot]) : null; if (d && d.armor) a += Number(d.armor) || 0; });
+            return a * (M.armor || 1);
+        }
+
+        /** Share of incoming damage absorbed by armor, 0..1. */
+        mitigation() {
+            const a = this.armor();
+            return a > 0 ? a / (a + CFG().derived.armorK) : 0;
+        }
+
+        /** Chance (0..cap) to dodge an attack completely, from Ловкость. */
+        dodge() {
+            const D = CFG().derived;
+            return Math.max(0, Math.min(D.dodgeCap, this.stats().dex * D.dodgePerDex));
+        }
+
         /** Base stats from class + level (no gear). */
         baseStats() {
             const cls = this.classCfg(), g = CFG().multipliers.statGrowth, out = {};

@@ -1,0 +1,24 @@
+{
+  "id": "leather_cap",
+  "name": "Кожаная шапка",
+  "description": "Простая шапка из выделанной кожи. Защищает голову от ударов.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "head"
+  },
+  "armor": 1,
+  "stats": {
+    "dex": 1
+  },
+  "requires": {
+    "level": 1
+  },
+  "value": 15
+}
