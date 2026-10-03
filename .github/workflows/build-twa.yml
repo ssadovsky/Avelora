@@ -7,6 +7,7 @@ on:
     paths:
       - "js/twa-manifest.json"
       - "js/manifest.json"
+      - "icons/**"
       - ".github/workflows/build-twa.yml"
 
 jobs:
@@ -42,6 +43,14 @@ jobs:
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android-upload.keystore
+
+      - name: Print signing key fingerprint (for assetlinks.json)
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.BUBBLEWRAP_KEYSTORE_PASSWORD }}
+        run: |
+          # the certificate fingerprint is public information (not a secret): paste it into
+          # https://ssadovsky.github.io/.well-known/assetlinks.json for com.ssadovsky.avelora
+          keytool -list -v -keystore android-upload.keystore -alias upload -storepass "$BUBBLEWRAP_KEYSTORE_PASSWORD" | grep -E "SHA256:|SHA-256:" || true
 
       - name: Point Bubblewrap at the already-installed JDK/Android SDK
         run: |

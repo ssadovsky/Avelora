@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#0c1214">
     <link rel="manifest" href="js/manifest.json">
     <link rel="icon" type="image/png" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Diablo Experience</title>
     <style>
         * {
@@ -337,6 +338,7 @@
             text-align: center;
             transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
         }
+        .charcard.disabled { opacity: 0.45; filter: grayscale(0.8); pointer-events: none; }
         .charcard:hover {
             border-color: rgba(212, 175, 55, 0.7);
             box-shadow: 0 0 20px rgba(239, 207, 122, 0.25), 0 16px 40px rgba(0, 0, 0, 0.7);
@@ -1308,7 +1310,7 @@
         .dlg-tab.active { border-color: #efcf7a; color: #efcf7a; background: rgba(195, 160, 95, 0.2); }
         .dlg-tab.back { margin-left: 8px; }
         .dlg-opt.quest { color: #f3dc8c; border-color: rgba(214,170,60,0.7); }
-        #quest-tracker { position: fixed; top: 84px; right: 14px; z-index: 40; min-width: 170px; max-width: 240px; padding: 8px 10px; display: none; pointer-events: none;
+        #quest-tracker { position: fixed; top: 152px; right: 14px; z-index: 40; min-width: 170px; max-width: 240px; padding: 8px 10px; display: none; pointer-events: none;
             background: rgba(14,16,20,0.72); border: 1px solid rgba(214,170,60,0.45); border-radius: 6px; color: #e8e2d0; font-size: 0.82rem; }
         #quest-tracker .qt-title { color: #efcf7a; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
         #quest-tracker .qt-row { display: flex; flex-direction: column; gap: 1px; }
@@ -2945,9 +2947,9 @@
     <script src="js/lib/GLTFLoader.js"></script>
     <script src="js/lib/Water.js"></script>
     <script src="js/lib/simplex-noise.js"></script>
-    <script src="js/assets_data.js?v=20261002_9"></script>
-    <script src="js/content_data.js?v=20261002_9"></script>
-    <script src="js/world_data.js?v=20261001_1"></script>
+    <script src="js/assets_data.js?v=20261003_6"></script>
+    <script src="js/content_data.js?v=20261003_6"></script>
+    <script src="js/world_data.js?v=20261003_6"></script>
     <script src="js/location_groups.js?v=20261001_1"></script>
     <script src="js/pathfinding.js?v=20261001_1"></script>
     <script src="js/terrain.js?v=20261001_1"></script>
@@ -2956,28 +2958,28 @@
     <script src="js/fire.js?v=20261001_1"></script>
     <script src="js/hitboxes.js?v=20261002_6"></script>
     <script src="js/environment.js?v=20261002_4"></script>
-    <script src="js/characters.js?v=20261001_1"></script>
+    <script src="js/characters.js?v=20261003_1"></script>
     <script src="js/save.js?v=20261001_1"></script>
     <script src="js/items.js?v=20261002_9"></script>
     <script src="js/game_state.js?v=20261002_9"></script>
     <script src="js/world_objects.js?v=20261002_7"></script>
-    <script src="js/creatures.js?v=20261002_5"></script>
+    <script src="js/creatures.js?v=20261003_3"></script>
     <script src="js/harvest.js?v=20261002_7"></script>
-    <script src="js/combat.js?v=20261002_10"></script>
+    <script src="js/combat.js?v=20261003_1"></script>
     <script src="js/progression_config.js?v=20261002_9"></script>
     <script src="js/hero.js?v=20261002_9"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
-    <script src="js/dialog.js?v=20261002_7"></script>
-    <script src="js/skills.js?v=20261002_9"></script>
+    <script src="js/dialog.js?v=20261003_1"></script>
+    <script src="js/skills.js?v=20261003_1"></script>
     <script src="js/ui_hotbar.js?v=20261002_10"></script>
     <script src="js/character.js?v=20261002_11"></script>
     <script src="js/map.js?v=20261001_1"></script>
-    <script src="js/main.js?v=20261002_10"></script>
+    <script src="js/main.js?v=20261003_1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('js/sw.js', { scope: './' }).catch(() => {});
+                navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {});
             });
         }
     </script>

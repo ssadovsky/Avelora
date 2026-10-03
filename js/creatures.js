@@ -337,7 +337,7 @@
             const m = rec.model;
             if (!m) return;
             const h = rec.height;
-            let py = 0, pz = 0, rx = 0, rz = 0;
+            let py = 0, pz = 0, rx = 0, rz = 0, ry = 0;
             if (rec.state === 'dead') {
                 if (!this.hasClip(rec, 'Death')) {
                     const t = Math.min(1, rec.deadT / 0.5);
@@ -349,6 +349,21 @@
                     rec.moveAnim += dt * (4 + rec.speed * 3);
                     py = Math.abs(Math.sin(rec.moveAnim)) * h * 0.06;
                     rx = Math.sin(rec.moveAnim * 2) * 0.05;
+                    if (rec.def.proceduralIdle) { rz = Math.sin(rec.moveAnim) * 0.05; ry = Math.sin(rec.moveAnim) * 0.07; }
+                } else if (rec.def.proceduralIdle && !this.hasClip(rec, 'Idle') && rec.state !== 'attack') {
+                    // no skeleton: breathing, periodic sniffing (nose down + twitch), looking around
+                    rec.idleT = (rec.idleT || Math.random() * 20) + dt;
+                    const t = rec.idleT, u = (t % 9) / 9;
+                    rx = Math.sin(t * 1.7) * 0.012;
+                    py = Math.sin(t * 1.7) * h * 0.004;
+                    if (u < 0.4) {
+                        const env = Math.sin(u / 0.4 * Math.PI);
+                        rx += env * (0.16 + Math.sin(t * 13) * 0.025);
+                        ry = Math.sin(t * 0.9) * 0.22 * env;
+                        py -= env * h * 0.01;
+                    } else if (u > 0.6 && u < 0.85) {
+                        ry = Math.sin((u - 0.6) / 0.25 * Math.PI) * 0.3 * Math.sin(t * 0.6 + 1);
+                    }
                 }
                 if (rec.attackT >= 0 && !this.hasClip(rec, 'Attack')) {
                     const u = rec.attackT / rec.attackDur;
@@ -361,7 +376,7 @@
                 }
             }
             m.position.set(0, py, pz);
-            m.rotation.set(rx, 0, rz);
+            m.rotation.set(rx, ry, rz);
         }
 
         // -----------------------------------------------------------
@@ -414,6 +429,7 @@
                 this.proceduralPose(rec, delta);
                 rec.group.position.set(rec.x, rec.y, rec.z);
                 rec.group.rotation.y = rec.yaw;
+                if (rec.def.tiltSpan && rec.state !== 'dead') this.alignToTerrain(rec, delta);
             }
             this.updateHpBars();
         }
@@ -472,7 +488,8 @@
                 case 'wander': {
                     if (this.moveTo(rec, rec.goal.x, rec.goal.z, def.walkSpeed || 1, dt, 0.3, now)) {
                         rec.state = 'idle';
-                        rec.timer = 2 + Math.random() * 4;
+                        const ip = def.idlePause || [2, 6];
+                        rec.timer = ip[0] + Math.random() * (ip[1] - ip[0]);
                     }
                     break;
                 }
@@ -501,6 +518,31 @@
                     break;
                 }
             }
+        }
+
+        /** Big animals: pitch/roll the body so the feet follow the slope (tiltSpan = [hindZ, frontZ, halfWidth] in metres, model space). */
+        alignToTerrain(rec, dt) {
+            const T = rec.def.tiltSpan, th = this.terrain;
+            if (!th || !th.getHeightAt) return;
+            const sy = Math.sin(rec.yaw), cy = Math.cos(rec.yaw);
+            const H = (fz, rx) => th.getHeightAt(rec.x + sy * fz + cy * rx, rec.z + cy * fz - sy * rx);
+            // the four feet (hind pair at T[0], front pair at T[1]); fit a plane, then lift so no foot is below ground
+            const hHL = H(T[0], -T[2]), hHR = H(T[0], T[2]), hFL = H(T[1], -T[2]), hFR = H(T[1], T[2]);
+            const span = T[1] - T[0];
+            const pitch = -Math.atan2((hFL + hFR) / 2 - (hHL + hHR) / 2, span);
+            const roll = Math.atan2((hHR + hFR) / 2 - (hHL + hFL) / 2, 2 * T[2]);
+            const sp = Math.sin(pitch), sr = Math.sin(roll);
+            const off = (z, x) => -sp * z + sr * x;
+            const y0 = Math.max(hHL - off(T[0], -T[2]), hHR - off(T[0], T[2]), hFL - off(T[1], -T[2]), hFR - off(T[1], T[2]));
+            const k = Math.min(1, 6 * dt);
+            rec.tiltX = (rec.tiltX || 0) + (pitch - (rec.tiltX || 0)) * k;
+            rec.tiltZ = (rec.tiltZ || 0) + (roll - (rec.tiltZ || 0)) * k;
+            rec.tiltY = (rec.tiltY === undefined ? y0 : rec.tiltY) + (y0 - (rec.tiltY === undefined ? y0 : rec.tiltY)) * k;
+            if (y0 > rec.tiltY) rec.tiltY = y0;   // never sink: rise at once, settle down smoothly
+            const g = rec.group;
+            g.rotation.order = 'YXZ';
+            g.rotation.x = rec.tiltX; g.rotation.z = rec.tiltZ;
+            g.position.y = rec.tiltY;
         }
 
         startAttack(rec, now) {

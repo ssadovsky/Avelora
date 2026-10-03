@@ -258,10 +258,12 @@
             c.faceTowards(e.x(), e.z());
             const casting = g.skills && g.skills.casting;
             if (!casting && !c.isSwinging && !c.isCasting && now >= this.nextSwingAt) {
-                const dur = w.style === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85);
-                if (w.style === 'bow') c.startSwing(dur, 'bow');
-                else if (c.playAttack) c.playAttack(dur, w.style);
-                else c.startSwing(dur, w.style);
+                // gathering a plant is not an attack: plain hand motion whatever is in the hand
+                const sty = e.kind === 'gather' ? null : w.style;
+                const dur = sty === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85);
+                if (sty === 'bow') c.startSwing(dur, 'bow');
+                else if (c.playAttack) c.playAttack(dur, sty);
+                else c.startSwing(dur, sty);
                 this.nextSwingAt = now + w.cooldown;
                 this.pendingHit = { at: now + dur * window.MedievalCharacter.SWING_HIT_FRAC, target: e, weapon: w };
                 this.lastCombatAt = now;
@@ -355,8 +357,9 @@
                     this.pendingHit = null;
                     const e = ph.target;
                     if (e.isValid() && g.character && this.edgeDistance(e) <= e.range(ph.weapon) + HIT_TOLERANCE) {
-                        if (ph.weapon.style === 'staff' && g.character.staffZap) g.character.staffZap(e.x(), e.z());
-                        if (ph.weapon.style === 'bow' && e.kind === 'creature' && g.skills && g.skills.shootBasic) g.skills.shootBasic(e.rec, ph.weapon);
+                        // bow / staff basic attack on a creature = a projectile; trees, plants etc. just get the hit
+                        const ws = ph.weapon.style;
+                        if ((ws === 'bow' || ws === 'staff') && e.kind === 'creature' && g.skills && g.skills.shootBasic) g.skills.shootBasic(e.rec, ph.weapon);
                         else e.onHit(ph.weapon);
                         this.lastCombatAt = now;
                     }

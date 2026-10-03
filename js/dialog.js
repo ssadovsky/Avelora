@@ -237,6 +237,7 @@
                     if (q.objective.type === 'collect') st.inventory.remove(q.objective.item, q.objective.count);
                     if (q.reward && q.reward.gold) st.addGold(q.reward.gold);
                     if (q.reward && q.reward.xp && this.game.hero) this.game.hero.addXp(q.reward.xp);
+                    this.giveClassRewards(q);
                     st.completeQuest(o.quest);
                     this.ui.floatText('Задание выполнено' + (q.reward && q.reward.gold ? ` · +${q.reward.gold} зол.` : ''), 'good');
                 }
@@ -253,6 +254,26 @@
                 this.nodeId = o.next;
                 this.render();
             }
+        }
+
+        /** reward.classItems = { <characterId>: [{item, count}] } — e.g. the first weapon (staff for the mage, bow for the archer). */
+        giveClassRewards(q) {
+            const ci = q.reward && q.reward.classItems;
+            const cfg = this.game.currentCharacterConfig, st = this.state;
+            const list = ci && cfg && ci[cfg.id];
+            if (!list || !st || !st.inventory) return;
+            const defs = window.AveloraItems;
+            list.forEach(r => {
+                const added = st.inventory.add(r.item, r.count || 1);
+                const def = defs ? defs.get(r.item) : null;
+                const name = def ? def.name : r.item;
+                if (added > 0) this.ui.floatText(`Получено: ${name}`, 'loot', 0.4);
+                if (added < (r.count || 1) && this.game.worldObjects && this.game.character) {
+                    const c = this.game.character;
+                    this.game.worldObjects.addDrop(r.item, (r.count || 1) - added, c.position.x, c.position.z);
+                    this.ui.floatText('Сумка полна — награда брошена на землю', 'warn', 0.8);
+                }
+            });
         }
 
         // -----------------------------------------------------------

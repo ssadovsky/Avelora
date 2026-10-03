@@ -185,6 +185,8 @@ window.LOCATIONS = {
             // Тестовые новые звери: медведь и волк агрессивные, лисы мирные
             { id: 'bear_1', type: 'bear', x: 103.0, z: -60.0, r: 0 },
             { id: 'wolf_1', type: 'wolf', x: 55.0, z: -60.0, r: 0 },
+            // Яша (Sailback Fury): сильнее медведя; пока не агрессивный (behavior: 'retaliate' в content/creatures/yasha)
+            { id: 'yasha_1', type: 'yasha', x: 0.0, z: 60.0, r: -2.89 },
             { id: 'fox_1', type: 'fire_fox', x: 93.0, z: -31.0, r: 1.0 },
             { id: 'fox_2', type: 'fire_fox', x: 97.5, z: -28.5, r: 3.0 },
             { id: 'fox_3', type: 'fire_fox', x: 95.5, z: -33.5, r: 5.0 },
@@ -227,12 +229,8 @@ window.LOCATIONS = {
             // x, z, y — точка хвата (низ топорища), y — высота над землёй;
             // rotation — наклон [x, y, z]: топорище смотрит вверх-наружу, лезвие в дереве.
             { id: 'stump_axe',    item: 'axe',   count: 1, x: 107.35, z: 68.12, y: 0.72, rotation: [3.142, 0.347, 1.082] },
-            // Посох лежит в траве у камней: rotation [0, поворот, -π/2] кладёт древко
-            // (+Y модели) горизонтально; y — толщина древка, чтобы не утонул в земле.
-            { id: 'start_staff',  item: 'staff', count: 1, only: 'mage', x: 105.4, z: 70.2, y: 0.04, rotation: [0, 0.6, -1.571] },
-            // Кинжал — для всех, лук — только для лучницы (лежат у пня рядом с остальным)
-            { id: 'start_dagger', item: 'dagger', count: 1, x: 108.6, z: 70.4, y: 0.03, rotation: [0, 0.9, -1.571] },
-            { id: 'start_bow',    item: 'bow',    count: 1, only: 'archer', x: 106.8, z: 71.6, y: 0.05, rotation: [0, 1.9, -1.571] }
+            // Кинжал лежит у пня; посох (маг) и лук (лучница) выдаёт Лираэль за первый квест
+            { id: 'start_dagger', item: 'dagger', count: 1, y: 0.03, x: 108.6, z: 70.4, rotation: [0, 0.9, -1.571] }
         ],
 
         props: [

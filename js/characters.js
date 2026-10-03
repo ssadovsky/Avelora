@@ -50,6 +50,7 @@
 window.CHARACTER_CATALOG = [
     {
         id: 'warrior',
+        disabled: true,   // temporarily not playable (kept in the game; remove this line to enable)
         name: 'Воин',
         className: 'Странствующий страж',
         icon: '⚔️',

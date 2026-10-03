@@ -205,7 +205,8 @@ class AveloraGame {
     // ---------------------------------------------------------------
     /** First thing that runs: exactly one valid save -> load it straight away, otherwise ask. */
     async bootstrap() {
-        const saves = (window.AveloraSave && window.AveloraSave.listValidSaves()) || [];
+        // characters with `disabled: true` (characters.js) are kept in the game but cannot be played yet
+        const saves = ((window.AveloraSave && window.AveloraSave.listValidSaves()) || []).filter(e => !e.character.disabled);
         if (saves.length === 1) {
             const { character, save } = saves[0];
             await this.startGame(character, { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r } });
@@ -241,7 +242,7 @@ class AveloraGame {
             const save = saveByCharId[char.id] || null;
 
             const card = document.createElement('div');
-            card.className = 'charcard';
+            card.className = 'charcard' + (char.disabled ? ' disabled' : '');
 
             const icon = document.createElement('div');
             icon.className = 'charcard-icon';
@@ -260,6 +261,12 @@ class AveloraGame {
 
             const progress = document.createElement('div');
             progress.className = 'charcard-progress';
+            if (char.disabled) {
+                progress.textContent = 'Скоро';
+                card.appendChild(progress);
+                grid.appendChild(card);
+                return;
+            }
             if (save) {
                 const loc = window.LOCATIONS && window.LOCATIONS[save.locationId];
                 progress.textContent = 'Прогресс: ' + (loc ? loc.name : save.locationId);

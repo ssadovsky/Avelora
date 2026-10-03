@@ -1,5 +1,5 @@
 {
-  "packageId": "com.ssadovsky.lakeland",
+  "packageId": "com.ssadovsky.avelora",
   "host": "ssadovsky.github.io",
   "name": "Avelora",
   "launcherName": "Avelora",
@@ -11,9 +11,9 @@
   "navigationColorDark": "#0C1214",
   "backgroundColor": "#0C1214",
   "enableNotifications": false,
-  "startUrl": "/lakeland/Avelora.html",
-  "iconUrl": "https://ssadovsky.github.io/lakeland/icons/icon-512.png",
-  "maskableIconUrl": "https://ssadovsky.github.io/lakeland/icons/icon-512-maskable.png",
+  "startUrl": "/Avelora/Avelora.html",
+  "iconUrl": "https://ssadovsky.github.io/Avelora/icons/icon-512.png",
+  "maskableIconUrl": "https://ssadovsky.github.io/Avelora/icons/icon-512-maskable.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android-upload.keystore",
@@ -23,7 +23,7 @@
   "appVersionName": "1.0.0",
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://ssadovsky.github.io/lakeland/js/manifest.json",
+  "webManifestUrl": "https://ssadovsky.github.io/Avelora/js/manifest.json",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -32,6 +32,6 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://ssadovsky.github.io/lakeland/",
+  "fullScopeUrl": "https://ssadovsky.github.io/Avelora/",
   "minSdkVersion": 21
-}
+}
