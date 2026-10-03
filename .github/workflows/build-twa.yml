@@ -78,6 +78,7 @@ jobs:
           sleep 1
           sed -i 's|https://ssadovsky.github.io/Avelora/icons/icon-512.png|http://localhost:8080/icons/icon-512.png|g' js/twa-manifest.json
           sed -i 's|https://ssadovsky.github.io/Avelora/icons/icon-512-maskable.png|http://localhost:8080/icons/icon-512-maskable.png|g' js/twa-manifest.json
+          cp js/twa-manifest.json ./twa-manifest.json
 
       - name: Regenerate Android project from twa-manifest.json
         run: |
@@ -90,7 +91,7 @@ jobs:
           BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.BUBBLEWRAP_KEY_PASSWORD }}
         run: |
           printf '%.0s\n' {1..30} > /tmp/answers.txt
-          bubblewrap build --skipPwaValidation < /tmp/answers.txt
+          bubblewrap build --manifest=./js/twa-manifest.json --skipPwaValidation < /tmp/answers.txt
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
