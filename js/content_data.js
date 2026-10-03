@@ -1099,6 +1099,39 @@ window.GAME_CONTENT = {
    "level": 2,
    "modelKey": "creatures/fire_fox"
   },
+  "minotaur": {
+   "id": "minotaur",
+   "name": "Железнокожий минотавр",
+   "hp": 220,
+   "damage": [
+    14,
+    22
+   ],
+   "attackRange": 2.0,
+   "attackCooldown": 2.2,
+   "walkSpeed": 0.9,
+   "runSpeed": 4.2,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 18,
+   "wanderRadius": 6,
+   "respawnMinutes": 8,
+   "hitRadius": 1.5,
+   "scale": 1.4,
+   "drops": [
+    {
+     "item": "meat",
+     "count": 5
+    }
+   ],
+   "xp": 180,
+   "level": 9,
+   "idlePause": [
+    4,
+    10
+   ],
+   "modelKey": "creatures/minotaur"
+  },
   "rat": {
    "id": "rat",
    "name": "Крыса",

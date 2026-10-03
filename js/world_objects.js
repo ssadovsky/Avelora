@@ -265,8 +265,20 @@
                     const k = target / height;
                     const holder = new THREE.Group();
                     model.scale.setScalar(k);
+                    model.traverse(o => {
+                        if (o.isMesh) {
+                            o.castShadow = true;
+                            o.receiveShadow = true;
+                            o.frustumCulled = false;
+                            if (o.material) {
+                                const mats = Array.isArray(o.material) ? o.material : [o.material];
+                                mats.forEach(m => {
+                                    if (m.map) m.map.encoding = THREE.LinearEncoding;
+                                });
+                            }
+                        }
+                    });
                     model.position.y = -box.min.y * k;
-                    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
                     holder.add(model);
                     holder.position.set(p.x, this.terrain.getHeightAt(p.x, p.z), p.z);
                     holder.rotation.y = p.r || 0;

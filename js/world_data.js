@@ -219,7 +219,11 @@ window.LOCATIONS = {
             { id: 'badger_15', type: 'badger', x: 80.4, z: 63.1, r: 4.51 },
             { id: 'waterfall_fawn', type: 'fawn', x: 110.0, z: 12.0, r: 2.8 },
             { id: 'portal_boar', type: 'boar', x: -118.0, z: 8.0,  r: 1.57 },
-            { id: 'stump_fawn',  type: 'fawn', x: -8.0,   z: -12.0, r: 1.2 }
+            // Оленёнок перемещён на сушу юго-восточнее пруда (раньше стоял в воде)
+            { id: 'stump_fawn',  type: 'fawn', x: 4.0,    z: -7.0,  r: 1.2 },
+            // Минотавр неагрессивный: патрулирует туда-обратно вдоль берега
+            { id: 'minotaur_1', type: 'minotaur', x: 0.0, z: -50.0, r: 0.5,
+              patrol: [{ x: 0.0, z: -40.0 }, { x: 0.0, z: -60.0 }] }
         ],
 
         pickups: [

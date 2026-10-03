@@ -518,6 +518,19 @@
                     break;
                 }
             }
+
+            // Separation: не проходим сквозь игрока в пассивных состояниях
+            if (p && rec.state !== 'chase' && rec.state !== 'attack') {
+                const sep = (def.hitRadius || 0.4) + PLAYER_RADIUS + 0.15;
+                const sdx = rec.x - p.x, sdz = rec.z - p.z;
+                const sd = Math.sqrt(sdx * sdx + sdz * sdz);
+                if (sd < sep && sd > 0.001) {
+                    const push = sep - sd;
+                    rec.x += (sdx / sd) * push;
+                    rec.z += (sdz / sd) * push;
+                    rec.y = this.terrain.getHeightAt(rec.x, rec.z);
+                }
+            }
         }
 
         /** Big animals: pitch/roll the body so the feet follow the slope (tiltSpan = [hindZ, frontZ, halfWidth] in metres, model space). */
@@ -561,6 +574,20 @@
         }
 
         pickWander(rec) {
+            // Patrol: фиксированный маршрут туда-обратно (задаётся в spawn как patrol:[{x,z},...])
+            const patrol = rec.spawn.patrol;
+            if (patrol && patrol.length >= 2) {
+                if (rec.patrolIdx === undefined) { rec.patrolIdx = 0; rec.patrolDir = 1; }
+                const next = rec.patrolIdx + rec.patrolDir;
+                if (next >= patrol.length)      { rec.patrolDir = -1; rec.patrolIdx = patrol.length - 2; }
+                else if (next < 0)              { rec.patrolDir =  1; rec.patrolIdx = 1; }
+                else                            { rec.patrolIdx = next; }
+                const pt = patrol[rec.patrolIdx];
+                rec.goal.x = pt.x; rec.goal.z = pt.z;
+                rec.state = 'wander';
+                rec.lastPath = -99;
+                return;
+            }
             const wr = rec.def.wanderRadius || 0;
             if (wr <= 0.2) { rec.timer = 3 + Math.random() * 3; return; }
             for (let k = 0; k < 6; k++) {

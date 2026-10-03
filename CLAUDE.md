@@ -51,6 +51,9 @@ The game is completely standalone, highly optimized, and follows strict serverle
      - **Idle Posture**: Natural upright stance, slight Spine1 pitch correction (-4°), Head pitch (-17°) and yaw (-3.5°) for a level forward gaze, soft chest breathing (60 frames). No backwards arching ("штырь" is forbidden).
      - **Cast Action**: Strictly dedicated `Cast` animation (right arm raises to shoulder level, 24 frames). Never use `Skill_01` or `Skill_03` for casting.
      - **Pipeline**: Build via `& "C:\Program Files\Blender Foundation\Blender 5.2\blender.exe" --background --python temp_work/build_perfect_mage.py`, then run `python temp_work/build_assets.py`.
+    - **GLB Texture Optimization (1K Standard)**:
+      - Tool: python temp_work/optimize_glb_textures.py <path.glb> [out.glb].
+      - Ensures embedded GLB textures (BaseColor, Normal, MetallicRoughness) are resized to 1K (1024x1024) to prevent bloated Base64 in js/assets_data.js and maintain fast game load times.
 
 ---
 

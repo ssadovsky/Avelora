@@ -182,6 +182,10 @@ class MedievalCharacter {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     if (child.material) {
+                        const mats = Array.isArray(child.material) ? child.material : [child.material];
+                        mats.forEach(m => {
+                            if (m.map) m.map.encoding = THREE.LinearEncoding;
+                        });
                         // Только воину задаем принудительную матовость; у мага и Ариссы сохраняем родной PBR
                         if (this.config.id === 'warrior') {
                             child.material.roughness = 0.8;

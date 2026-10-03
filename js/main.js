@@ -167,7 +167,7 @@ class AveloraGame {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.15;
+        this.renderer.toneMappingExposure = 1.05;
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
@@ -775,13 +775,14 @@ class AveloraGame {
     }
 
     setupLighting() {
-        // Hemisphere ambient lighting: cool sky, warm earthy bounce
-        const hemiLight = new THREE.HemisphereLight(0x89b8d6, 0x483d31, 0.85);
+        // HemisphereLight: небо (0x9ec8e8) даёт мягкий дневной рассеянный свет,
+        // земляной отскок (0x6e8060) убирает чёрные провалы в тени снизу.
+        const hemiLight = new THREE.HemisphereLight(0x9ec8e8, 0x6e8060, 1.8);
         hemiLight.position.set(0, 50, 0);
         this.scene.add(hemiLight);
 
-        // Directional Sun Light casting soft shadows
-        this.sunLight = new THREE.DirectionalLight(0xfff6dc, 1.45);
+        // Солнце: даёт направление и тени, но НЕ слепит (0.85 вместо оригинальных 1.45)
+        this.sunLight = new THREE.DirectionalLight(0xfff5e6, 0.85);
         this.sunLight.position.set(38, 48, 32);
         this.sunLight.castShadow = true;
 
