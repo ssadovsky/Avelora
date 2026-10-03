@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -26,15 +26,24 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      - name: Install Android SDK build tools / platform used by Bubblewrap
+      - name: Configure Android SDK layout and build tools for Bubblewrap
         run: |
+          # Bubblewrap CLI expects $ANDROID_HOME/tools or $ANDROID_HOME/bin to exist
+          CMDLINE_DIR=$(find "$ANDROID_HOME/cmdline-tools" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          sudo ln -sf "$CMDLINE_DIR" "$ANDROID_HOME/tools"
+          sudo ln -sf "$CMDLINE_DIR/bin" "$ANDROID_HOME/bin"
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" > /dev/null
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "build-tools;36.1.0" > /dev/null || true
+          # Ensure build-tools/36.1.0 directory exists for Bubblewrap
+          LATEST_BT=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          if [ ! -d "$ANDROID_HOME/build-tools/36.1.0" ] && [ -n "$LATEST_BT" ]; then
+            sudo ln -sf "$LATEST_BT" "$ANDROID_HOME/build-tools/36.1.0"
+          fi
 
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
@@ -62,6 +71,13 @@ jobs:
           }
           EOF
           cat "$HOME/.bubblewrap/config.json"
+
+      - name: Serve local icons for Bubblewrap
+        run: |
+          python3 -m http.server 8080 &
+          sleep 1
+          sed -i 's|https://ssadovsky.github.io/Avelora/icons/icon-512.png|http://localhost:8080/icons/icon-512.png|g' js/twa-manifest.json
+          sed -i 's|https://ssadovsky.github.io/Avelora/icons/icon-512-maskable.png|http://localhost:8080/icons/icon-512-maskable.png|g' js/twa-manifest.json
 
       - name: Regenerate Android project from twa-manifest.json
         run: |
