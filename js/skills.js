@@ -316,6 +316,13 @@
             if (def.type === 'teleport') return this.startTeleport(def);
 
             if (def.type === 'projectile') {
+                const range = (def.range || 12) + 2;
+                const tgt = (g.combat && g.combat.findBestTarget) ? g.combat.findBestTarget(range) : (g.combat && g.combat.selectedTarget);
+                if (!tgt || !(g.creatures && g.creatures.isAlive(tgt))) {
+                    if (g.ui && g.ui.floatText) g.ui.floatText('Нет цели', 'warn');
+                    return 'no_target';
+                }
+
                 if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
                     if (g.ui && g.ui.floatText) g.ui.floatText('Не хватает маны', 'warn');
                     return 'mana';

@@ -523,10 +523,19 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
   5. JS Canvas Resize (`js/main.js`): listen to `resize`, `orientationchange`, and `fullscreenchange` with delayed timeouts (`setTimeout(handleResize, 100)` and `setTimeout(handleResize, 300)`) to compensate for asynchronous Android navbar transitions.
   6. Inventory (`#inventory-panel`), Skills (`#skills-panel`), and Chest (`#chest-panel`): strictly compact fixed width (`270–290px`) docked to the right or side-by-side (`.beside-inventory`). Never use `left: 10px; right: 10px; width: auto;`, preventing popups from stretching across the entire landscape screen.
 
-### Mobile Joystick & Camera Standards (kids-games/racing architecture)
-- **Compact fixed base**: `#joy-zone` is fixed in the bottom-left corner (`150x150px`, mobile: `130x130px`) with clear directional arrows (▲, ▼, ◄, ►). Never stretch joystick zones to 40vw/50vh to avoid blocking world clicks and gathering.
-- **3rd-Person Follow Camera**: Moving via joystick or keyboard smoothly rotates the camera yaw behind the character (`cameraFollowEnabled`, lerp speed ~3.5).
-- **1st-Person Analog Steering**: Horizontal joystick deflection (`joy.x`) smoothly steers camera yaw and hero heading (`yaw steer rate ~2.8 rad/s`), while `joy.y` drives forward/backward. Avoid pure sideways strafing on analog sticks in 1st person.
-- **Single-Finger Camera Drag**: Dragging on the right half of the screen (`clientX > window.innerWidth * 0.42`) freely rotates camera in both 1st and 3rd person (clean single taps without motion remain click-to-move / target selection).
-- **PC Testing**: Press `J` or toggle in Pause -> Settings -> "Экранный джойстик" to test the virtual joystick with mouse on desktop anytime.
+### Mobile Joystick & Targeting Standards (Hybrid Action-RPG / FPS Architecture)
+- **Touch-Only Compact Base**: `#joy-zone` is active strictly on touch devices (`touch-ui`). On smartphones, virtual stick movement works immediately and permanently. The settings toggle ("Отображать джойстик") controls only visual rendering (`joy-visual-hidden`); touch movement always remains responsive.
+- **PC Version**: The virtual joystick and its settings row are strictly hidden on PC (desktop controls are WASD + mouse).
+- **3rd-Person View (Action-RPG / Kiting)**:
+  - Left stick: 360-degree free run relative to camera angle. The character turns and runs toward the stick direction.
+  - Camera: Free orbital camera, right finger swipe rotates view around the hero.
+  - Smart camera follow: Triggers ONLY during continuous forward running (`fwd > 0.65`, `|str| < 0.4`), ONLY after 1.8s cooldown from manual camera rotation. Disabled when kiting backwards (`fwd < 0`) or strafing.
+- **1st-Person View (FPS)**:
+  - Left stick: Pure FPS stick (up/down = forward/backward, left/right = pure sideways strafe without camera yaw alteration).
+  - Right half of screen: Direct look/head rotation (freelook).
+  - Camera auto-follow: Strictly DISABLED (no motion sickness).
+- **Targeting & Firing System**:
+  - No crosshair displayed on screen (`#fp-crosshair` hidden).
+  - Projectiles and spells strictly fly toward the selected target (`selectedTarget`).
+  - Without a locked target, the engine soft-targets the nearest valid enemy in front; if none exist, the cast is prevented without wasting mana or cooldown ("Нет цели").
 

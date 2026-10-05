@@ -130,7 +130,7 @@
             transform: rotate(-30deg);
         }
 
-        /* Mobile Analog Virtual Joystick (racing-style compact zone) */
+        /* Mobile Virtual Joystick */
         #joy-zone {
             position: fixed;
             bottom: max(env(safe-area-inset-bottom, 0px), 16px);
@@ -146,9 +146,22 @@
             user-select: none;
             -webkit-user-select: none;
         }
-        body.touch-ui #joy-zone,
-        body.joystick-enabled #joy-zone {
-            display: flex;
+        /* Only active on touch-enabled devices */
+        body.touch-ui #joy-zone {
+            display: flex !important;
+        }
+        /* When player hides visual joystick, touch movement stays active but graphics hide */
+        body.joy-visual-hidden #joy-base {
+            opacity: 0 !important;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        /* Joystick setting is shown only on touch devices */
+        .joystick-settings-row {
+            display: none !important;
+        }
+        body.touch-ui .joystick-settings-row {
+            display: flex !important;
         }
         #joy-base {
             position: relative;
@@ -219,11 +232,7 @@
         #cam-btn:hover { transform: scale(1.1); border-color: #efcf7a; box-shadow: 0 0 18px rgba(239, 207, 122, 0.5); }
         #cam-btn:active { transform: scale(0.94); }
         body.fp-view #cam-btn { border-color: #efcf7a; box-shadow: 0 0 14px rgba(239, 207, 122, 0.6); }
-        #fp-crosshair { position: fixed; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 90; display: none; }
-        body.fp-view.aim-center #fp-crosshair { display: block; }
-        #fp-crosshair::before, #fp-crosshair::after { content: ''; position: absolute; background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 2px rgba(0, 0, 0, 0.9); }
-        #fp-crosshair::before { left: -9px; top: -0.5px; width: 18px; height: 1px; }
-        #fp-crosshair::after { left: -0.5px; top: -9px; width: 1px; height: 18px; }
+        #fp-crosshair { display: none !important; }
 
         /* Google Maps Style Compass */
         #compass-btn {
@@ -3078,17 +3087,10 @@
                     <span class="switch-slider"></span>
                 </label>
             </div>
-            <div class="settings-row">
-                <span class="settings-label">Экранный джойстик</span>
+            <div class="settings-row joystick-settings-row">
+                <span class="settings-label">Отображать джойстик</span>
                 <label class="switch">
-                    <input type="checkbox" id="joystick-toggle">
-                    <span class="switch-slider"></span>
-                </label>
-            </div>
-            <div class="settings-row">
-                <span class="settings-label">Следование камеры</span>
-                <label class="switch">
-                    <input type="checkbox" id="camfollow-toggle" checked>
+                    <input type="checkbox" id="joystick-toggle" checked>
                     <span class="switch-slider"></span>
                 </label>
             </div>

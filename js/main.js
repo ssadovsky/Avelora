@@ -855,8 +855,6 @@ class AveloraGame {
                 }
             } else if (e.code === 'KeyI') { // physical key: works in RU layout too (Ш)
                 if (!this.isPaused && this.isReady) this.toggleInventory();
-            } else if (e.code === 'KeyJ') { // physical key: toggle screen joystick for testing
-                if (!this.isPaused && this.isReady) this.toggleJoystick();
             } else if (e.code === 'Tab') {
                 // Tab: cycle through nearest living creatures in front of the character
                 e.preventDefault();
@@ -1003,26 +1001,20 @@ class AveloraGame {
             });
         }
 
-        // Joystick toggle & Camera follow settings
-        const savedJoy = localStorage.getItem('avelora_joystick');
-        if (savedJoy === 'true') document.body.classList.add('joystick-enabled');
+        // Mobile visual joystick setting
+        this.lastManualCamTime = 0;
+        let savedJoyVisual = null;
+        try { savedJoyVisual = localStorage.getItem('avelora_joy_visual'); } catch (_) {}
+        if (savedJoyVisual === 'false') {
+            document.body.classList.add('joy-visual-hidden');
+        } else {
+            document.body.classList.remove('joy-visual-hidden');
+        }
         const joyToggle = document.getElementById('joystick-toggle');
         if (joyToggle) {
-            joyToggle.checked = document.body.classList.contains('joystick-enabled');
+            joyToggle.checked = !document.body.classList.contains('joy-visual-hidden');
             joyToggle.addEventListener('change', (e) => {
-                const en = e.target.checked;
-                document.body.classList.toggle('joystick-enabled', en);
-                localStorage.setItem('avelora_joystick', en ? 'true' : 'false');
-            });
-        }
-        const savedCamFollow = localStorage.getItem('avelora_camfollow');
-        this.cameraFollowEnabled = savedCamFollow !== 'false';
-        const camFollowToggle = document.getElementById('camfollow-toggle');
-        if (camFollowToggle) {
-            camFollowToggle.checked = this.cameraFollowEnabled;
-            camFollowToggle.addEventListener('change', (e) => {
-                this.cameraFollowEnabled = e.target.checked;
-                localStorage.setItem('avelora_camfollow', this.cameraFollowEnabled ? 'true' : 'false');
+                this.setVisualJoystick(e.target.checked);
             });
         }
 
@@ -1104,6 +1096,7 @@ class AveloraGame {
                 const deltaX = e.clientX - this.lastMouseX;
                 this.cameraAngle -= deltaX * 0.007;
                 this.targetCameraAngle = this.cameraAngle;
+                this.lastManualCamTime = performance.now();
                 this.lastMouseX = e.clientX;
                 this.tiltCamera(e.clientY - this.lastMouseY, 0.005);   // mouse up/down: look up/down (both views)
                 this.lastMouseY = e.clientY;
@@ -1203,6 +1196,7 @@ class AveloraGame {
                         if (Math.hypot(dx, dy) > 2) this.touchMoved = true;
                         this.cameraAngle -= dx * 0.006;
                         this.targetCameraAngle = this.cameraAngle;
+                        this.lastManualCamTime = performance.now();
                         this.tiltCamera(dy, 0.004);
                         this.touchLast = { x: t.clientX, y: t.clientY };
                     }
@@ -1375,14 +1369,13 @@ class AveloraGame {
         }
     }
 
-    toggleJoystick() {
-        const en = !document.body.classList.contains('joystick-enabled');
-        document.body.classList.toggle('joystick-enabled', en);
-        localStorage.setItem('avelora_joystick', en ? 'true' : 'false');
+    setVisualJoystick(show) {
+        document.body.classList.toggle('joy-visual-hidden', !show);
+        try { localStorage.setItem('avelora_joy_visual', show ? 'true' : 'false'); } catch (_) {}
         const joyToggle = document.getElementById('joystick-toggle');
-        if (joyToggle) joyToggle.checked = en;
+        if (joyToggle) joyToggle.checked = show;
         if (this.ui && this.ui.floatText) {
-            this.ui.floatText(en ? 'Экранный джойстик: Вкл (J)' : 'Экранный джойстик: Выкл (J)', 'info');
+            this.ui.floatText(show ? 'Отображение джойстика: Вкл' : 'Отображение джойстика: Скрыто', 'info');
         }
     }
 
@@ -1628,9 +1621,14 @@ class AveloraGame {
         const base = document.getElementById('joy-base');
         const knob = document.getElementById('joy-knob');
         if (!zone || !base || !knob) return;
-        if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window) {
-            document.body.classList.add('touch-ui');
-        }
+        const checkTouch = () => {
+            if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || window.innerWidth <= 840) {
+                document.body.classList.add('touch-ui');
+            }
+        };
+        checkTouch();
+        window.addEventListener('resize', checkTouch);
         const maxRadius = 42;
         const reset = () => {
             this.joy.active = false;
@@ -1730,17 +1728,11 @@ class AveloraGame {
         let str = (k.KeyD || k.KeyE ? 1 : 0) - (k.KeyA || k.KeyQ ? 1 : 0);
         if (this.leftDown && rmb) fwd += 1;      // WoW: LMB+RMB = forward
 
-        // First-person steering with joystick (racing style: joy.x turns camera yaw, joy.y drives forward/backward)
-        if (fp && this.joy.active) {
-            const steerTurn = -this.joy.x * 2.8; // smooth turn rate in rad/s
-            this.cameraAngle += steerTurn * delta;
-            this.targetCameraAngle = this.cameraAngle;
-            fwd += this.joy.y;
-            str += this.joy.x * 0.3; // subtle strafe lean
-        } else {
-            fwd += this.joy.y;
-            str += this.joy.x;
-        }
+        // Hybrid joystick input:
+        // 1st person: pure FPS stick (joy.y = fwd/back, joy.x = pure sideways strafe, camera orientation unchanged)
+        // 3rd person: 360-degree movement relative to current camera heading
+        fwd += this.joy.y;
+        str += this.joy.x;
 
         const mag = Math.hypot(fwd, str);
         if (mag > 1) { fwd /= mag; str /= mag; }
@@ -1773,13 +1765,18 @@ class AveloraGame {
                 c.targetRotation = tr; c.isTurning = false;
                 c.currentRotation += diff * Math.min(1, 14 * delta);
 
-                // Smooth camera follow (racing style): when running with joystick or manual keys in 3rd person,
-                // smoothly follow behind character if player is not manually rotating camera
-                if (this.cameraFollowEnabled !== false && !rmb && this.lookTouchId === null) {
+                // Smart subtle camera follow (3rd person only):
+                // Triggers ONLY when continuously running mostly forward (fwd > 0.65, |str| < 0.4),
+                // ONLY after a 1.8s cooldown from manual camera rotation,
+                // and NEVER when backing up / strafing / rotating camera by hand.
+                const now = performance.now();
+                const sinceManualCam = now - (this.lastManualCamTime || 0);
+                const isRunningForward = fwd > 0.65 && Math.abs(str) < 0.4;
+                if (!rmb && this.lookTouchId === null && isRunningForward && sinceManualCam > 1800) {
                     let camDiff = tr - this.cameraAngle;
                     while (camDiff < -Math.PI) camDiff += Math.PI * 2;
                     while (camDiff > Math.PI) camDiff -= Math.PI * 2;
-                    const followSpeed = this.joy.active ? 3.5 : 2.5;
+                    const followSpeed = 1.4; // gentle, smooth centering
                     this.cameraAngle += camDiff * Math.min(1.0, followSpeed * delta);
                     this.targetCameraAngle = this.cameraAngle;
                 }

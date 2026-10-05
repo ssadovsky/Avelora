@@ -175,6 +175,48 @@
             this.selectTarget(next);
         }
 
+        /**
+         * Find existing target or auto-acquire nearest candidate in front of the hero.
+         * Used by skills to guarantee projectiles only fire when a valid target exists.
+         */
+        findBestTarget(maxRange = 16) {
+            const cr = this.game.creatures;
+            const c = this.game.character;
+            if (!cr || !c || this.isDead) return null;
+
+            if (this.selectedTarget && cr.isAlive(this.selectedTarget)) {
+                const dist = Math.hypot(this.selectedTarget.x - c.position.x, this.selectedTarget.z - c.position.z);
+                if (dist <= maxRange + 4) return this.selectedTarget;
+            }
+
+            const p = c.position;
+            const facing = (this.game.viewMode === 'first') ? this.game.cameraAngle : c.currentRotation;
+            const fx = -Math.sin(facing), fz = -Math.cos(facing);
+
+            const candidates = (cr.list || [])
+                .filter(rec => {
+                    if (!cr.isAlive(rec)) return false;
+                    const dx = rec.x - p.x, dz = rec.z - p.z;
+                    const dist = Math.hypot(dx, dz);
+                    if (dist > maxRange) return false;
+                    if (dist < 3.5) return true; // immediate melee proximity: always targetable
+                    const dot = (dx * fx + dz * fz) / (dist || 0.001);
+                    return dot > 0.15; // in front cone (~140°)
+                })
+                .sort((a, b) => {
+                    const da = Math.hypot(a.x - p.x, a.z - p.z);
+                    const db = Math.hypot(b.x - p.x, b.z - p.z);
+                    return da - db;
+                });
+
+            if (candidates.length > 0) {
+                const best = candidates[0];
+                this.selectTarget(best);
+                return best;
+            }
+            return null;
+        }
+
         // -----------------------------------------------------------
         // Engagement
         // -----------------------------------------------------------
