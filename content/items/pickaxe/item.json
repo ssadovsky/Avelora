@@ -1,0 +1,32 @@
+{
+  "id": "pickaxe",
+  "name": "Кирка",
+  "description": "Шахтёрская кирка с кованым клювом. Берётся в правую руку: дробит камни, добывает руду и годится для боя.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single",
+    "rotation": [
+      1.5708,
+      0,
+      0
+    ],
+    "offsetY": 0.025
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "weapon": {
+    "damage": [
+      7,
+      11
+    ],
+    "range": 1.7,
+    "cooldown": 1.1,
+    "mine": 1,
+    "stat": "str"
+  }
+}

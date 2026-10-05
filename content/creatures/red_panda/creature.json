@@ -1,0 +1,29 @@
+{
+  "id": "red_panda",
+  "name": "Красная панда",
+  "hp": 150,
+  "damage": [
+    8,
+    14
+  ],
+  "attackRange": 1.4,
+  "attackCooldown": 1.2,
+  "walkSpeed": 1.1,
+  "runSpeed": 3.8,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 12,
+  "wanderRadius": 0,
+  "dance": true,
+  "respawnMinutes": 2,
+  "hitRadius": 0.8,
+  "scale": 0.95,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 2
+    }
+  ],
+  "xp": 50,
+  "level": 3
+}

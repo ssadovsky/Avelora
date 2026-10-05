@@ -24,9 +24,10 @@ const GLB_BUFFER_CACHE = {};
 // (not small ground filler), placed sparsely enough to be a real object.
 const KIND_LABELS = {
     trees: 'Дерево', boulders: 'Камень', shrubs: 'Куст', reeds: 'Камыш',
-    ferns: 'Папоротник', dandelions: 'Одуванчик', grass: 'Трава'
+    ferns: 'Папоротник', dandelions: 'Одуванчик', grass: 'Трава',
+    ores: 'Замшелый валун'
 };
-const HOVER_KINDS = new Set(['trees', 'boulders', 'shrubs', 'reeds', 'ferns']);
+const HOVER_KINDS = new Set(['trees', 'boulders', 'shrubs', 'reeds', 'ferns', 'ores']);
 
 // Of the hoverable kinds, only 'trees' gets an invisible generous proxy
 // cylinder for hit-testing instead of its real mesh. Reason: a tree's real
@@ -37,14 +38,15 @@ const HOVER_KINDS = new Set(['trees', 'boulders', 'shrubs', 'reeds', 'ferns']);
 // trees/rocks (a bigger tree/boulder proxy nearby would grab the raycast hit
 // before the smaller shrub/reed one, or the two would fight) — so they keep
 // raycasting their own visible InstancedMesh, same as before.
-const PROXY_HOVER_KINDS = new Set(['trees', 'ferns']);
+const PROXY_HOVER_KINDS = new Set(['trees', 'ferns', 'ores']);
 
 // object.visible stays true so the raycaster tests it; material.visible=false
 // keeps it out of the render list. Sizes are in local/unscaled units — the
 // object's own `s` scale is applied on top via the normal placement matrix.
 const HOVER_PROXY_SIZE = {
     trees: { radiusBottom: 0.7, radiusTop: 1.35, height: 3.4 },
-    ferns: { radiusBottom: 0.45, radiusTop: 0.4, height: 0.55 }
+    ferns: { radiusBottom: 0.45, radiusTop: 0.4, height: 0.55 },
+    ores:  { radiusBottom: 0.75, radiusTop: 0.65, height: 0.75 }
 };
 
 class LakesideEnvironment {
@@ -265,7 +267,7 @@ class LakesideEnvironment {
                 proxyMesh.instanceMatrix.needsUpdate = true;
                 this.hoverMeshes.push(proxyMesh);
                 this.root.add(proxyMesh);
-                if (window.AveloraHitDebug) window.AveloraHitDebug.attachInstanced(proxyMesh, kind === 'trees' ? 'tree' : 'fern', this.root);
+                if (window.AveloraHitDebug) window.AveloraHitDebug.attachInstanced(proxyMesh, kind === 'trees' ? 'tree' : kind === 'ferns' ? 'fern' : 'ore', this.root);
             }
         });
     }
@@ -347,6 +349,7 @@ class LakesideEnvironment {
     init() {
         this.loadBoulders();
         this.loadRealisticTrees();
+        this.loadOres();
         this.loadShrubs();
         this.loadFerns();
         this.loadDandelions();
@@ -386,6 +389,42 @@ class LakesideEnvironment {
 
             // Trunk obstacle (a single tree is walk-around-able, a dense forest acts as a wall)
             treePositions.forEach(p => this.pathfinder.addObstacle(p.x, p.z, (p.obstacle || 0.8) * (p.s || 1.0)));
+        });
+    }
+
+    loadOres() {
+        const orePlacements = this.getDecorations('ores');
+        if (orePlacements.length === 0) return;
+
+        this.loadModel('rock_moss', (gltf) => {
+            const meshes = [];
+            gltf.scene.traverse(o => {
+                if (o.isMesh) meshes.push(o);
+            });
+            if (meshes.length === 0) return;
+            meshes.sort((a, b) => a.name.localeCompare(b.name));
+
+            // Group placements by rock model index (0..5)
+            const groups = new Map();
+            orePlacements.forEach((p, idx) => {
+                const mIdx = (p.modelIndex !== undefined ? p.modelIndex : idx) % meshes.length;
+                if (!groups.has(mIdx)) groups.set(mIdx, []);
+                groups.get(mIdx).push(p);
+            });
+
+            groups.forEach((list, mIdx) => {
+                const sourceMesh = meshes[mIdx] || meshes[0];
+                this.buildInstanced('ores', [{ geometry: sourceMesh.geometry, material: sourceMesh.material }],
+                    list, (p, idx, d) => {
+                        const groundY = this.terrain.getHeightAt(p.x, p.z);
+                        const scale = p.s || 1.0;
+                        d.position.set(p.x, groundY, p.z);
+                        d.rotation.set(0, p.r !== undefined ? p.r : 0, 0);
+                        d.scale.set(scale, scale, scale);
+                    });
+            });
+
+            orePlacements.forEach(p => this.pathfinder.addObstacle(p.x, p.z, Math.max(0.65, (p.s || 0.25) * 2.2)));
         });
     }
 

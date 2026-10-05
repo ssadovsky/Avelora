@@ -263,11 +263,11 @@
                 rec.mixer = null; rec.actions = {}; rec.current = null; rec.anim = null;
                 if (tpl.clips.length) {
                     rec.mixer = new THREE.AnimationMixer(model);
-                    ['Idle', 'Walk', 'Run', 'Attack', 'Hit', 'Death'].forEach(n => {
+                    ['Idle', 'Walk', 'Run', 'Attack', 'Hit', 'Death', 'Dance1', 'Dance2', 'Dance3'].forEach(n => {
                         const clip = findClip(tpl.clips, n);
                         if (!clip) return;
                         const a = rec.mixer.clipAction(clip);
-                        if (n === 'Attack' || n === 'Hit' || n === 'Death') {
+                        if (n === 'Attack' || n === 'Hit' || n === 'Death' || n.startsWith('Dance')) {
                             a.setLoop(THREE.LoopOnce, 1);
                             a.clampWhenFinished = true;
                         }
@@ -284,7 +284,12 @@
                     }
                 }
                 if (!rec.actions.Attack) { rec.attackDur = 0.55; rec.hitAt = 0.28; }
-                this.play(rec, 'Idle', 0);
+                if (def.dance && rec.actions.Dance1) {
+                    rec.danceIdx = 1;
+                    this.play(rec, 'Dance1', 0);
+                } else {
+                    this.play(rec, 'Idle', 0);
+                }
 
                 this.root.add(group);
                 this.proxies.push(proxy);
@@ -331,6 +336,34 @@
         }
 
         hasClip(rec, name) { return !!rec.actions[name]; }
+
+        updateDance(rec, dt) {
+            if (rec.spawn && typeof rec.spawn.r === 'number') {
+                this.turnToYaw(rec, rec.spawn.r, dt);
+            }
+            rec.danceIdx = rec.danceIdx || 1;
+            const currentName = 'Dance' + rec.danceIdx;
+            const act = rec.actions && rec.actions[currentName];
+            if (!act) {
+                this.play(rec, 'Idle');
+                return;
+            }
+            if (rec.anim !== currentName) {
+                this.play(rec, currentName, 0.4);
+            } else {
+                const dur = act.getClip().duration;
+                if (act.time >= dur - 0.45) {
+                    let nextIdx = (rec.danceIdx % 3) + 1;
+                    let nextName = 'Dance' + nextIdx;
+                    if (!rec.actions[nextName]) {
+                        nextIdx = 1;
+                        nextName = 'Dance1';
+                    }
+                    rec.danceIdx = nextIdx;
+                    this.play(rec, nextName, 0.4, true);
+                }
+            }
+        }
 
         /** Procedural stand-ins for missing clips (bob when moving, lunge, hit tilt, death roll). */
         proceduralPose(rec, dt) {
@@ -480,9 +513,13 @@
 
             switch (rec.state) {
                 case 'idle': {
-                    this.play(rec, 'Idle');
-                    rec.timer -= dt;
-                    if (rec.timer <= 0) this.pickWander(rec);
+                    if (def.dance && rec.actions && rec.actions.Dance1) {
+                        this.updateDance(rec, dt);
+                    } else {
+                        this.play(rec, 'Idle');
+                        rec.timer -= dt;
+                        if (rec.timer <= 0) this.pickWander(rec);
+                    }
                     break;
                 }
                 case 'wander': {
@@ -514,6 +551,9 @@
                         rec.state = 'idle';
                         rec.timer = 1 + Math.random() * 2;
                         rec.hp = rec.maxHp;
+                        if (rec.spawn && typeof rec.spawn.r === 'number') {
+                            rec.yaw = rec.spawn.r;
+                        }
                     }
                     break;
                 }
@@ -678,6 +718,14 @@
             while (diff < -Math.PI) diff += Math.PI * 2;
             while (diff > Math.PI) diff -= Math.PI * 2;
             rec.yaw += diff * Math.min(1, TURN_RATE * dt);
+        }
+
+        turnToYaw(rec, targetYaw, dt) {
+            let diff = targetYaw - rec.yaw;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            rec.yaw += diff * Math.min(1, TURN_RATE * dt);
+            return Math.abs(diff) < 0.05;
         }
 
         updateDead(rec, dt) {

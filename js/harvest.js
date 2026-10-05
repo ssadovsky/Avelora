@@ -202,29 +202,33 @@
             if (node.tool === 'gather' || !node.tool) return true;
             const w = this.game.combat ? this.game.combat.weapon() : null;
             if (node.tool === 'chop') return !!(w && w.chop > 0);
+            if (node.tool === 'mine') return !!(w && w.mine > 0);
             return false;
         }
 
-        /** An item in the bag that works as a chopping tool (weapon.chop > 0), or null. */
-        findChopToolInBag() {
+        /** An item in the bag that works as a tool (weapon.chop > 0 or weapon.mine > 0), or null. */
+        findToolInBag(toolName) {
             const st = this.state;
             if (!st) return null;
             for (const c of st.inventory.cells) {
                 if (!c || !window.AveloraItems.isEquippable(c.item)) continue;
                 const w = window.AveloraItems.weaponOf(c.item);
-                if (w && w.chop > 0) return c.item;
+                if (w && w[toolName] > 0) return c.item;
             }
             return null;
         }
 
+        /** Legacy helper for chopping */
+        findChopToolInBag() { return this.findToolInBag('chop'); }
+
         /**
-         * No chop tool in hand but one in the bag: take it (the old hand item goes to the bag)
-         * and remember what to give back once the chopping is over (restoreTool).
+         * No tool in hand but one in the bag: take it (the old hand item goes to the bag)
+         * and remember what to give back once the task is over (restoreTool).
          */
         autoEquipTool(node) {
-            if (!node || node.tool !== 'chop') return false;
+            if (!node || (node.tool !== 'chop' && node.tool !== 'mine')) return false;
             const st = this.state, ui = this.game.ui;
-            const id = this.findChopToolInBag();
+            const id = this.findToolInBag(node.tool);
             if (!st || !id) return false;
             const prev = st.equipped.right;
             if (st.equipFromBag(id) !== 'ok') return false;
@@ -235,7 +239,7 @@
             return true;
         }
 
-        /** Gives the hand back what it held before auto-equipping the axe (no-op if the player changed it meanwhile). */
+        /** Gives the hand back what it held before auto-equipping the axe/pickaxe (no-op if the player changed it meanwhile). */
         restoreTool() {
             const sw = this.autoSwap, st = this.state, ui = this.game.ui;
             this.autoSwap = null;
@@ -252,8 +256,12 @@
                 return `${node.name || entry.label} — сорвать`;
             }
             if (node.tool === 'chop') {
-                if (!this.hasTool(node)) return this.findChopToolInBag() ? `${node.name || entry.label} — рубить (возьмёт топор из сумки)` : `${node.name || entry.label} — нужен топор`;
+                if (!this.hasTool(node)) return this.findToolInBag('chop') ? `${node.name || entry.label} — рубить (возьмёт топор из сумки)` : `${node.name || entry.label} — нужен топор`;
                 return `${node.name || entry.label} — рубить`;
+            }
+            if (node.tool === 'mine') {
+                if (!this.hasTool(node)) return this.findToolInBag('mine') ? `${node.name || entry.label} — добывать (возьмёт кирку из сумки)` : `${node.name || entry.label} — нужна кирка`;
+                return `${node.name || entry.label} — добывать`;
             }
             return `${node.name || entry.label}`;
         }
@@ -265,7 +273,7 @@
         // -----------------------------------------------------------
         // Interaction
         // -----------------------------------------------------------
-        /** Click/tap on a tree: chop it with a chop tool; herb: gather it; otherwise walk there. */
+        /** Click/tap on a tree or rock: chop/mine it with a tool; herb: gather it; otherwise walk there. */
         request(entry) {
             const g = this.game;
             const c = g.character;
@@ -275,7 +283,8 @@
                 if (g.combat) g.combat.cancel();
                 const path = g.pathfinder ? g.pathfinder.findPath(c.position, new THREE.Vector3(entry.x, 0, entry.z)) : [];
                 if (path && path.length) c.setPath(path);
-                if (g.ui) g.ui.floatText('Нужен топор (в сумке или в руке)', 'warn');
+                const warnText = node.tool === 'mine' ? 'Нужна кирка (в сумке или в руке)' : 'Нужен топор (в сумке или в руке)';
+                if (g.ui) g.ui.floatText(warnText, 'warn');
                 return true;
             }
 
@@ -295,15 +304,14 @@
             }
 
             const s = entry.s || 1;
-            const trunkR = TRUNK_RADIUS * s;
-            // The trunk's nav obstacle (environment.js: 0.8·s) can keep the character
-            // farther than CHOP_REACH from the bark — reach past it by a cell.
-            const reach = Math.max(CHOP_REACH, 0.8 * s + 0.95 - trunkR);
+            const isOre = entry.kind === 'ores';
+            const r = isOre ? 0.6 * s : TRUNK_RADIUS * s;
+            const reach = isOre ? Math.max(1.3, 0.6 * s + 0.9) : Math.max(CHOP_REACH, 0.8 * s + 0.95 - r);
             g.combat.engage({
-                kind: 'tree', id: entry.id, label: node.name,
+                kind: entry.kind, id: entry.id, label: node.name,
                 isValid: () => entry.visible !== false && this.game.harvest === this && !this.disposed,
                 x: () => entry.x, z: () => entry.z,
-                radius: trunkR,
+                radius: r,
                 range: () => reach,
                 onHit: () => this.hit(entry, node)
             });
@@ -364,16 +372,26 @@
             if (!c || entry.visible === false) return;
             const n = (this.hits.get(entry.id) || 0) + 1;
             this.hits.set(entry.id, n);
-            // Direction tree -> player (chips fly toward the chopper)
+            // Direction node -> player (chips fly toward the player)
             let dx = c.position.x - entry.x, dz = c.position.z - entry.z;
             const d = Math.hypot(dx, dz) || 1;
             dx /= d; dz /= d;
             const s = entry.s || 1;
             const by = this.baseY(entry);
-            this.burstChips(entry.x + dx * TRUNK_RADIUS * s, by + 0.9, entry.z + dz * TRUNK_RADIUS * s, dx, dz);
+            const isOre = entry.kind === 'ores' || node.tool === 'mine';
+            const r = isOre ? 0.6 * s : TRUNK_RADIUS * s;
+            const hitY = isOre ? by + 0.3 * s + 0.1 : by + 0.9;
+            if (isOre) {
+                this.burstStoneChips(entry.x + dx * r, hitY, entry.z + dz * r, dx, dz);
+            } else {
+                this.burstChips(entry.x + dx * r, hitY, entry.z + dz * r, dx, dz);
+            }
             this.shakes.set(entry.id, { t: 0, ax: dz, az: -dx, entry }); // tip away from the player
             window.dispatchEvent(new CustomEvent('game:treeHit', { detail: { id: entry.id, hits: n, of: node.hits || 5 } }));
-            if (n >= (node.hits || 5)) this.fell(entry, node, -dx, -dz);
+            if (n >= (node.hits || (isOre ? 3 : 5))) {
+                if (isOre) this.shatterRock(entry, node, -dx, -dz);
+                else this.fell(entry, node, -dx, -dz);
+            }
         }
 
         // -----------------------------------------------------------
@@ -394,6 +412,42 @@
             this.falling.push({ entry, node, pivot, axis, fx, fz, t: 0, landed: false });
             window.dispatchEvent(new CustomEvent('game:treeFelled', { detail: { id: entry.id } }));
             if (g.ui) g.ui.floatText(`${node.name || 'Дерево'} срублено`, 'info');
+        }
+
+        shatterRock(entry, node, fx, fz) {
+            const g = this.game;
+            this.hits.delete(entry.id);
+            this.shakes.delete(entry.id);
+            if (this.env) this.env.setObjectTransform(entry.id, null);
+            if (this.state) this.state.setFelled(this.location.id, entry.id, this.playTime);
+            if (this.env) this.env.setObjectVisible(entry.id, false);
+            if (g.hideObjectTooltip) g.hideObjectTooltip();
+
+            // Burst stone rubble particles
+            const by = this.baseY(entry);
+            this.burstRockCrumble(entry.x, by + 0.5, entry.z);
+
+            // Spawn drops on the ground around the shattered rock
+            const wo = g.worldObjects;
+            const drops = node.drops || [];
+            drops.forEach(d => {
+                const lo = Math.max(1, d.min | 0), hi = Math.max(lo, d.max | 0);
+                const count = lo + Math.floor(Math.random() * (hi - lo + 1));
+                if (count <= 0) return;
+                const ox = (Math.random() - 0.5) * 0.9;
+                const oz = (Math.random() - 0.5) * 0.9;
+                if (wo) wo.addDrop(d.item, count, entry.x + ox, entry.z + oz);
+            });
+
+            // Remove obstacle from pathfinder so player and creatures can walk through
+            if (g.pathfinder) {
+                const obsR = Math.max(0.65, (entry.s || 0.25) * 2.2);
+                g.pathfinder.removeObstacle(entry.x, entry.z, obsR);
+            }
+
+            this.restoreTool();
+            window.dispatchEvent(new CustomEvent('game:oreMined', { detail: { id: entry.id } }));
+            if (g.ui) g.ui.floatText(`${node.name || 'Жила'} выработана`, 'info');
         }
 
         /**
@@ -470,7 +524,14 @@
                     return;
                 }
                 this.env.setObjectVisible(id, false);
-                this.addStump(entry, node);
+                if (entry.kind === 'ores') {
+                    if (this.game.pathfinder) {
+                        const obsR = Math.max(0.65, (entry.s || 0.25) * 2.2);
+                        this.game.pathfinder.removeObstacle(entry.x, entry.z, obsR);
+                    }
+                } else {
+                    this.addStump(entry, node);
+                }
             });
         }
 
@@ -489,6 +550,12 @@
                 st.clearFelled(this.location.id, id);
                 if (this.game.worldObjects) this.game.worldObjects.removeProp('stump:' + id);
                 this.env.setObjectVisible(id, true);
+                if (entry.kind === 'ores') {
+                    if (this.game.pathfinder) {
+                        const obsR = Math.max(0.65, (entry.s || 0.25) * 2.2);
+                        this.game.pathfinder.addObstacle(entry.x, entry.z, obsR);
+                    }
+                }
                 this.regrowing.set(id, { t: 0, entry });
                 this.applyScale(entry, 0.02);
                 window.dispatchEvent(new CustomEvent('game:treeRegrown', { detail: { id } }));
@@ -548,6 +615,47 @@
             }
         }
 
+        burstStoneChips(x, y, z, dx, dz) {
+            const fx = this.ensureFx();
+            for (let i = 0; i < 14; i++) {
+                const a = (Math.random() - 0.5) * 2.2;
+                const ca = Math.cos(a), sa = Math.sin(a);
+                const vx = (dx * ca - dz * sa), vz = (dz * ca + dx * sa);
+                const sp = 1.4 + Math.random() * 2.4;
+                const dark = Math.random() < 0.5;
+                const col = dark ? 0.35 : 0.68;
+                fx.chips.add(x, y + (Math.random() - 0.5) * 0.2, z,
+                    vx * sp, 1.0 + Math.random() * 2.2, vz * sp,
+                    0.8 + Math.random() * 0.5, 0.05 + Math.random() * 0.05, 0, 1,
+                    col, col, col * 1.05, 1);
+            }
+            for (let i = 0; i < 5; i++) {
+                fx.dust.add(x + dx * 0.1, y, z + dz * 0.1,
+                    dx * (0.2 + Math.random() * 0.3), 0.2 + Math.random() * 0.25, dz * (0.2 + Math.random() * 0.3),
+                    0.9 + Math.random() * 0.4, 0.25, 1.4, 0, 0.6, 0.6, 0.62, 0.5);
+            }
+        }
+
+        burstRockCrumble(x, y, z) {
+            const fx = this.ensureFx();
+            for (let i = 0; i < 28; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const sp = 0.8 + Math.random() * 2.0;
+                const col = 0.35 + Math.random() * 0.35;
+                fx.chips.add(x, y + 0.1, z,
+                    Math.cos(ang) * sp, 1.2 + Math.random() * 2.5, Math.sin(ang) * sp,
+                    1.0 + Math.random() * 0.6, 0.06 + Math.random() * 0.06, 0, 1,
+                    col, col, col * 1.05, 1);
+            }
+            for (let i = 0; i < 12; i++) {
+                const ang = Math.random() * Math.PI * 2;
+                const sp = 0.3 + Math.random() * 0.6;
+                fx.dust.add(x, y + 0.1, z,
+                    Math.cos(ang) * sp, 0.3 + Math.random() * 0.4, Math.sin(ang) * sp,
+                    1.2 + Math.random() * 0.5, 0.5, 1.8, 0, 0.58, 0.58, 0.6, 0.6);
+            }
+        }
+
         dustAlongTrunk(f) {
             const fx = this.ensureFx();
             const e = f.entry;
@@ -568,9 +676,9 @@
         update(delta) {
             if (this.disposed) return;
             if (this.autoSwap) {
-                // give the previous hand item back ~1.2 s after the last tree engagement ended
+                // give the previous hand item back ~1.2 s after the last tree/ore engagement ended
                 const e = this.game.combat && this.game.combat.engagement;
-                if (e && e.kind === 'tree') this.toolIdle = 0;
+                if (e && (e.kind === 'tree' || e.kind === 'ores')) this.toolIdle = 0;
                 else if ((this.toolIdle = (this.toolIdle || 0) + delta) > 1.2) this.restoreTool();
             }
             this.checkTimer -= delta;

@@ -138,6 +138,41 @@ class DiabloPathfinder {
         return null;
     }
 
+    isBaseBlocked(wx, wz) {
+        const height = this.terrain.getHeightAt(wx, wz);
+        const slope = this.terrain.getSlopeAt(wx, wz);
+
+        // Water level is at Y = 0.0; shallow wading allowed down to -0.25m
+        const isWater = height < -0.25;
+        // Cliffs too steep to walk (slope > 0.18 = angle > ~28 deg, or mountain altitude > 3.6m)
+        const isCliff = slope > 0.18 || height > 3.6;
+
+        // Keep a safe non-walkable rim along the map edge (player cannot reach the world edge)
+        const edgeMargin = 4.0;
+        const isEdge = Math.abs(wx) > this.halfWorldX - edgeMargin || Math.abs(wz) > this.halfWorldZ - edgeMargin;
+
+        // In western pass: portal is at X = -138.0. Player cannot walk past the portal into the back cliff wall
+        const isPastPortal = wx < -138.8 && Math.abs(wz - 8.0) < 14.0;
+
+        if (isWater || isCliff || isEdge || isPastPortal) return true;
+
+        // Bridge railings: along the deck only the strip between the rails is walkable
+        const br = this.terrain.bridges;
+        if (br) {
+            for (let i = 0; i < br.length; i++) {
+                const b = br[i];
+                if (Math.abs(wz - b.z) < b.length / 2) {
+                    const inner = b.width / 2 - 0.3;
+                    const reach = b.width / 2 + 0.6 + this.cellWidth;
+                    const dx = Math.abs(wx - b.x);
+                    if (dx > inner && dx <= reach) return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     addObstacle(wx, wz, radius) {
         this.obstacles.push({ x: wx, z: wz, r: radius });
         const minG = this.worldToGrid(wx - radius, wz - radius);
@@ -154,33 +189,63 @@ class DiabloPathfinder {
         }
     }
 
+    removeObstacle(wx, wz, radius = 1.0) {
+        let bestIdx = -1;
+        let bestDistSq = Infinity;
+        for (let i = 0; i < this.obstacles.length; i++) {
+            const ob = this.obstacles[i];
+            const distSq = (ob.x - wx) * (ob.x - wx) + (ob.z - wz) * (ob.z - wz);
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestIdx = i;
+            }
+        }
+
+        let effRadius = radius;
+        if (bestIdx !== -1 && bestDistSq <= (radius + 0.6) * (radius + 0.6)) {
+            effRadius = Math.max(effRadius, this.obstacles[bestIdx].r);
+            this.obstacles.splice(bestIdx, 1);
+        }
+
+        const minG = this.worldToGrid(wx - effRadius, wz - effRadius);
+        const maxG = this.worldToGrid(wx + effRadius, wz + effRadius);
+
+        for (let gz = minG.z; gz <= maxG.z; gz++) {
+            for (let gx = minG.x; gx <= maxG.x; gx++) {
+                const pos = this.gridToWorld(gx, gz);
+                const distSq = (pos.x - wx) * (pos.x - wx) + (pos.z - wz) * (pos.z - wz);
+                if (distSq <= effRadius * effRadius) {
+                    if (this.isBaseBlocked(pos.x, pos.z)) {
+                        this.grid[this.getIndex(gx, gz)] = 1;
+                    } else {
+                        let blockedByOther = false;
+                        for (let j = 0; j < this.obstacles.length; j++) {
+                            const ob = this.obstacles[j];
+                            const odx = pos.x - ob.x;
+                            const odz = pos.z - ob.z;
+                            if (odx * odx + odz * odz <= ob.r * ob.r) {
+                                blockedByOther = true;
+                                break;
+                            }
+                        }
+                        this.grid[this.getIndex(gx, gz)] = blockedByOther ? 1 : 0;
+                    }
+                }
+            }
+        }
+    }
+
     initGrid() {
         for (let gz = 0; gz < this.gridSizeZ; gz++) {
             for (let gx = 0; gx < this.gridSizeX; gx++) {
                 const wpos = this.gridToWorld(gx, gz);
-                const height = this.terrain.getHeightAt(wpos.x, wpos.z);
-                const slope = this.terrain.getSlopeAt(wpos.x, wpos.z);
-
-                // Water level is at Y = 0.0; shallow wading allowed down to -0.25m
-                const isWater = height < -0.25;
-                // Cliffs too steep to walk (slope > 0.18 = angle > ~28 deg, or mountain altitude > 3.6m)
-                const isCliff = slope > 0.18 || height > 3.6;
-
-                // Keep a safe non-walkable rim along the map edge (player cannot reach the world edge)
-                const edgeMargin = 4.0;
-                const isEdge = Math.abs(wpos.x) > this.halfWorldX - edgeMargin || Math.abs(wpos.z) > this.halfWorldZ - edgeMargin;
-
-                // In western pass: portal is at X = -138.0. Player cannot walk past the portal into the back cliff wall
-                const isPastPortal = wpos.x < -138.8 && Math.abs(wpos.z - 8.0) < 14.0;
-
-                if (isWater || isCliff || isEdge || isPastPortal) {
+                if (this.isBaseBlocked(wpos.x, wpos.z)) {
                     this.grid[this.getIndex(gx, gz)] = 1;
                 } else {
                     this.grid[this.getIndex(gx, gz)] = 0;
                 }
             }
         }
-        this.blockBridgeRails();
     }
 
     /** Bridge railings: along the deck only the strip between the rails is walkable. */

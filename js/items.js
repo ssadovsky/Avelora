@@ -19,7 +19,7 @@
     const INVENTORY_SIZE = 32;
 
     // Fists: what everyone fights with when the right hand holds no weapon.
-    const BARE_HANDS = Object.freeze({ id: null, name: 'Кулаки', damage: [1, 3], range: 1.2, cooldown: 0.9, chop: 0 });
+    const BARE_HANDS = Object.freeze({ id: null, name: 'Кулаки', damage: [1, 3], range: 1.2, cooldown: 0.9, chop: 0, mine: 0 });
 
     function content() {
         return (window.GAME_CONTENT && window.GAME_CONTENT.items) || {};
@@ -66,7 +66,7 @@
 
         /**
          * Melee stats of an item (item.json `weapon`: {damage:[min,max], range (m),
-         * cooldown (s), chop?}) or BARE_HANDS when the item has none / no item.
+         * cooldown (s), chop?, mine?}) or BARE_HANDS when the item has none / no item.
          * Always returns a complete, sane object.
          */
         weaponOf(id) {
@@ -81,6 +81,7 @@
                 range: Math.max(0.6, Number(w.range) || BARE_HANDS.range),
                 cooldown: Math.max(0.3, Number(w.cooldown) || BARE_HANDS.cooldown),
                 chop: Number(w.chop) || 0,
+                mine: Number(w.mine) || 0,
                 style: w.style || null,
                 stat: w.stat || null
             };

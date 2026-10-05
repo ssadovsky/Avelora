@@ -19,9 +19,10 @@
 (function () {
     'use strict';
 
-    const KINDS = ['trees', 'boulders', 'shrubs', 'ferns', 'dandelions', 'reeds', 'grass'];
+    const KINDS = ['trees', 'ores', 'boulders', 'shrubs', 'ferns', 'dandelions', 'reeds', 'grass'];
     const SINGULAR = {
-        trees: 'tree', boulders: 'boulder', shrubs: 'shrub', ferns: 'fern',
+        trees: 'tree',
+        ores: 'ore', boulders: 'boulder', shrubs: 'shrub', ferns: 'fern',
         dandelions: 'flower', reeds: 'reed', grass: 'grass'
     };
 
