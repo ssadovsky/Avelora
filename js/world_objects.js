@@ -58,6 +58,88 @@
     const NPC_TMP_Q = new THREE.Quaternion();
     const NPC_TMP_E = new THREE.Euler();
 
+    let _questTexExclamation = null;
+    let _questTexQuestion = null;
+
+    function getQuestMarkerTexture(type) {
+        if (type === '?' && _questTexQuestion) return _questTexQuestion;
+        if (type === '!' && _questTexExclamation) return _questTexExclamation;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 128, 128);
+
+        // Золотое свечение
+        ctx.shadowColor = 'rgba(255, 205, 0, 0.95)';
+        ctx.shadowBlur = 14;
+
+        // Тёмный контур для контраста
+        ctx.font = '900 96px "Cinzel", "Arial Black", Georgia, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 12;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#1a1005';
+        ctx.strokeText(type, 64, 62);
+
+        // Сочный золотой градиент
+        const grad = ctx.createLinearGradient(0, 14, 0, 110);
+        grad.addColorStop(0, '#fffce6');
+        grad.addColorStop(0.25, '#ffe033');
+        grad.addColorStop(0.65, '#f5a600');
+        grad.addColorStop(1, '#b36b00');
+        ctx.fillStyle = grad;
+        ctx.fillText(type, 64, 62);
+
+        // Внутренний тонкий светлый блик
+        ctx.shadowBlur = 0;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText(type, 64, 62);
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.needsUpdate = true;
+        if (type === '?') _questTexQuestion = tex;
+        else _questTexExclamation = tex;
+        return tex;
+    }
+
+    function getNpcQuestMarkerState(game, npc) {
+        if (!npc || !npc.quests || !game || !game.gameState) return null;
+        const st = game.gameState;
+        const quests = (window.GAME_CONTENT && window.GAME_CONTENT.quests) || {};
+        let hasAvailable = false;
+        let hasReadyToTurnIn = false;
+
+        for (const qid of npc.quests) {
+            const q = quests[qid];
+            if (!q) continue;
+            const status = st.questStatus(qid);
+            if (status === 'done') continue;
+
+            const available = !q.requires || st.questStatus(q.requires) === 'done';
+            if (!available) continue;
+
+            if (!status) {
+                hasAvailable = true;
+            } else if (status === 'active') {
+                const o = q.objective || {};
+                let have = 0;
+                if (o.type === 'collect') have = (st.inventory ? st.inventory.count(o.item) : 0);
+                else if (o.type === 'kill') have = (st.questKills && st.questKills[qid]) || 0;
+                if (have >= (o.count || 0)) {
+                    hasReadyToTurnIn = true;
+                }
+            }
+        }
+
+        if (hasReadyToTurnIn) return '?';
+        if (hasAvailable) return '!';
+        return null;
+    }
+
     class AveloraWorldObjects {
         constructor(game, location) {
             this.game = game;
@@ -287,6 +369,19 @@
                     if (rec.object) rec.object.visible = false;
                     rec.model = holder;
                     rec.h = target;
+                    const markerMat = new THREE.SpriteMaterial({
+                        map: getQuestMarkerTexture('!'),
+                        transparent: true,
+                        depthTest: false
+                    });
+                    const marker = new THREE.Sprite(markerMat);
+                    marker.scale.set(0.65, 0.65, 1);
+                    marker.position.set(0, target + 0.45, 0);
+                    marker.renderOrder = 999;
+                    marker.visible = false;
+                    holder.add(marker);
+                    rec.questMarker = marker;
+                    rec.questMarkerType = '!';
                     const mixer = new THREE.AnimationMixer(model);
                     const actions = {};
                     (gltf.animations || []).forEach(c => { actions[c.name] = mixer.clipAction(c); });
@@ -354,6 +449,24 @@
                     let d = rec.baseYaw - rec.model.rotation.y;
                     d = Math.atan2(Math.sin(d), Math.cos(d));
                     rec.model.rotation.y += d * Math.min(1, (delta || 0) * 2);
+                }
+
+                if (rec.questMarker) {
+                    const qState = getNpcQuestMarkerState(this.game, rec.npc);
+                    if (qState) {
+                        if (rec.questMarkerType !== qState) {
+                            rec.questMarker.material.map = getQuestMarkerTexture(qState);
+                            rec.questMarker.material.needsUpdate = true;
+                            rec.questMarkerType = qState;
+                        }
+                        rec.questMarker.visible = true;
+                        const baseH = rec.h || 1.75;
+                        rec.questMarker.position.y = baseH + 0.45 + Math.sin(rec.t * 3.5) * 0.07;
+                        const s = 0.65 + Math.sin(rec.t * 3.5) * 0.03;
+                        rec.questMarker.scale.set(s, s, 1);
+                    } else {
+                        rec.questMarker.visible = false;
+                    }
                 }
             }
         }

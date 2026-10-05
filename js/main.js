@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
+const UI_SELECTOR = '#hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -376,6 +376,14 @@ class AveloraGame {
         if (this.locationRoot) this.teardownLocation();
         if (this.character) { this.character.dispose(); this.character = null; }
         if (this.skills) { this.skills.clearAll(); this.skills.resetCooldowns(); }
+        if (this.ui) {
+            if (this.ui.closeDialog) this.ui.closeDialog();
+            if (this.ui.closeChest) this.ui.closeChest();
+        }
+        if (this.worldObjects && this.worldObjects.openContainer) {
+            this.worldObjects.openContainer = null;
+        }
+        if (this.setInventoryOpen) this.setInventoryOpen(false);
 
         this.currentCharacterConfig = characterConfig;
         // Per-character inventory/hotbar/pickups (separate key from the position save)
@@ -1327,15 +1335,16 @@ class AveloraGame {
             this.showPausePanel('main'); // always open on the main panel, not a leftover sub-view
         }
 
+        const shouldOpen = paused && showOverlay;
+        if (!shouldOpen && document.activeElement && this.pauseOverlay && this.pauseOverlay.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (_) {}
+        }
         if (this.pauseOverlay) {
-            const shouldOpen = paused && showOverlay;
             this.pauseOverlay.classList.toggle('open', shouldOpen);
             this.pauseOverlay.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
         }
         if (paused && showOverlay) {
             if (this.pauseResumeBtn) this.pauseResumeBtn.focus({ preventScroll: true });
-        } else if (document.activeElement && document.activeElement.blur) {
-            document.activeElement.blur();
         }
 
         // Если пауза снята (например кнопкой «Продолжить»), закрываем карту
@@ -1358,15 +1367,15 @@ class AveloraGame {
 
     setInventoryOpen(open) {
         this.isInventoryOpen = open;
+        if (!open && document.activeElement && this.inventoryPanel && this.inventoryPanel.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (_) {}
+        }
         if (this.inventoryPanel) {
             this.inventoryPanel.classList.toggle('open', open);
             this.inventoryPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
         }
         if (this.inventoryBtn) this.inventoryBtn.classList.toggle('active', open);
         if (this.ui) this.ui.layoutPanels();
-        if (!open && document.activeElement && document.activeElement.blur) {
-            document.activeElement.blur();
-        }
     }
 
     setVisualJoystick(show) {

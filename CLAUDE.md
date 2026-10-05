@@ -539,3 +539,20 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
   - Projectiles and spells strictly fly toward the selected target (`selectedTarget`).
   - Without a locked target, the engine soft-targets the nearest valid enemy in front; if none exist, the cast is prevented without wasting mana or cooldown ("Нет цели").
 
+### Mobile Combat Interface Standards (BDM Arc Cluster)
+- **Top-Left Corner (Hero Vitals)**:
+  - HP, Mana, and XP bars are placed in the top-left below coordinates (`top: 28px, 42px, 56px; left: 10px`), freeing the bottom half of the screen and preventing overlap with combat buttons.
+- **Bottom-Right Corner (Radial Combat Cluster for Right Thumb)**:
+  - Slot 0 (Main Attack): Central large circular button (64px, gold border, `right: 20px, bottom: 8px`).
+  - Slots 1..4 (Skills): Circular buttons (44px) arranged along a smooth radial arc (radius R ≈ 76px) around Slot 0 with ~40° angular spacing and 7–9px clean gaps (no overlapping).
+  - Slot 5: Auxiliary skill / dodge / recall (40px, `right: 156px, bottom: 60px`).
+  - Health Potion: Compact circular flask (44px, `right: 158px, bottom: 8px`) to the left of the combat cluster.
+  - Slots 6..9 are hidden on mobile (desktop keeps all 10 slots in the classic horizontal bar).
+- **Top-Right Corner (Mobile System Dock)**:
+  - Buttons [Compass | Menu ☰ | Bag | Micro-menu ⭐] are arranged in a clean horizontal row with 6px spacing.
+  - All panels open in a single tap. The Skills panel supports tap-to-equip (tapping a skill places it into the first available hotbar slot) and smooth drag-and-drop.
+- **NPC Dialog & Shop Panel (#dialog-panel)**:
+  - Talk mode: Centered compact window (`width: min(520px, calc(100% - 24px)); top: 8px; bottom: 8px`), close button visible and easily tappable.
+  - Shop mode: Gets `.shop-mode` class and sits **to the left of the open bag** (`right: calc(...) + 300px; width: min(390px, calc(100% - 316px))`). Side-by-side layout prevents overlapping. Shop list scrolls smoothly inside (`.dlg-list: overflow-y: auto`).
+  - Close & Back buttons: Always reset state to initial talk greeting (`mode = 'talk'`, `nodeId = 'start'`) and close the shop-opened bag. Interacting with the NPC or restarting the game always starts from the dialogue root.
+

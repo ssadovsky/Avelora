@@ -108,13 +108,23 @@
 
     function sanitizeHotbar(raw, characterId, learned) {
         const out = new Array(HOTBAR_SIZE).fill(null);
-        if (!Array.isArray(raw)) return out;
         const skills = characterSkills(characterId, learned);
-        for (let i = 0; i < HOTBAR_SIZE && i < raw.length; i++) {
-            const e = raw[i];
-            if (!e || typeof e !== 'object' || typeof e.id !== 'string') continue;
-            if (e.type === 'skill' && skills.includes(e.id)) out[i] = { type: 'skill', id: e.id };
-            else if (e.type === 'item' && window.AveloraItems.canHotbar(e.id)) out[i] = { type: 'item', id: e.id };
+        if (Array.isArray(raw)) {
+            for (let i = 0; i < HOTBAR_SIZE && i < raw.length; i++) {
+                const e = raw[i];
+                if (!e || typeof e !== 'object' || typeof e.id !== 'string') continue;
+                if (e.type === 'skill' && skills.includes(e.id)) out[i] = { type: 'skill', id: e.id };
+                else if (e.type === 'item' && window.AveloraItems.canHotbar(e.id)) out[i] = { type: 'item', id: e.id };
+            }
+        }
+        // If hotbar has no skills, populate initial slots with learned skills
+        const hasAnySkill = out.some(e => e && e.type === 'skill');
+        if (!hasAnySkill && skills.length > 0) {
+            skills.forEach((skillId, idx) => {
+                if (idx < HOTBAR_SIZE && !out[idx]) {
+                    out[idx] = { type: 'skill', id: skillId };
+                }
+            });
         }
         return out;
     }

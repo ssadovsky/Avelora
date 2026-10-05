@@ -187,9 +187,14 @@ window.LOCATIONS = {
             { id: 'wolf_1', type: 'wolf', x: 55.0, z: -60.0, r: 0 },
             // Яша (Sailback Fury): сильнее медведя; пока не агрессивный (behavior: 'retaliate' в content/creatures/yasha)
             { id: 'yasha_1', type: 'yasha', x: 0.0, z: 60.0, r: -2.89 },
-            { id: 'fox_1', type: 'fire_fox', x: 93.0, z: -31.0, r: 1.0 },
-            { id: 'fox_2', type: 'fire_fox', x: 97.5, z: -28.5, r: 3.0 },
-            { id: 'fox_3', type: 'fire_fox', x: 95.5, z: -33.5, r: 5.0 },
+            // 5 огненных лисиц на холмах к северу от водопада (квест Лираэль)
+            { id: 'fox_1', type: 'fire_fox', x: 88.0, z: -24.0, r: 1.0 },
+            { id: 'fox_2', type: 'fire_fox', x: 104.0, z: -28.0, r: 3.0 },
+            { id: 'fox_3', type: 'fire_fox', x: 93.0, z: -38.0, r: 5.0 },
+            { id: 'fox_4', type: 'fire_fox', x: 81.0, z: -33.0, r: 2.2 },
+            { id: 'fox_5', type: 'fire_fox', x: 100.0, z: -43.0, r: 4.1 },
+            // Серый волк в лесной глуши за озером (квест Лираэль)
+            { id: 'forest_wolf', type: 'wolf', x: -60.0, z: -35.0, r: 1.8 },
             // Десяток крыс (все с локации собраны сюда, вокруг 90; 19)
             { id: 'rat_1', type: 'rat', x: 78.0, z: 21.9, r: 5.8 },
             { id: 'rat_2', type: 'rat', x: 84.0, z: 16.1, r: 3.21 },

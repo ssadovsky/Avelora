@@ -42,12 +42,15 @@
                 const close = this.panel.querySelector('.dlg-close');
                 if (close) close.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (this.game.worldObjects) this.game.worldObjects.closeChest(); else this.close();
+                    this.close();
                 });
             }
             this.goldEl = document.getElementById('gold-amount');
             this.tracker = document.createElement('div');
             this.tracker.id = 'quest-tracker';
+            ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'mousedown', 'mouseup'].forEach(evt => {
+                this.tracker.addEventListener(evt, (e) => e.stopPropagation());
+            });
             document.body.appendChild(this.tracker);
             window.addEventListener('game:creatureKilled', (e) => this.onKilled(e.detail));
         }
@@ -90,15 +93,27 @@
                 }
             }
             this.panel.classList.add('open');
+            this.panel.classList.remove('shop-mode');
             this.panel.setAttribute('aria-hidden', 'false');
             this.render();
         }
 
         close() {
             this.npc = null;
+            this.mode = 'talk';
+            this.nodeId = null;
             if (this.panel) {
-                this.panel.classList.remove('open');
+                if (document.activeElement && this.panel.contains(document.activeElement)) {
+                    try { document.activeElement.blur(); } catch (_) {}
+                }
+                this.panel.classList.remove('open', 'shop-mode');
                 this.panel.setAttribute('aria-hidden', 'true');
+            }
+            if (this.game.worldObjects && this.game.worldObjects.openContainer) {
+                this.game.worldObjects.openContainer = null;
+            }
+            if (this.game.setInventoryOpen) {
+                this.game.setInventoryOpen(false);
             }
         }
 
@@ -114,6 +129,9 @@
         render() {
             if (!this.npc || !this.body) return;
             this.body.innerHTML = '';
+            if (this.panel) {
+                this.panel.classList.toggle('shop-mode', this.mode !== 'talk');
+            }
             if (this.mode === 'talk') this.renderTalk();
             else if (this.mode === 'teach') this.renderTeach();
             else this.renderShop();
@@ -171,8 +189,23 @@
                 const p = this.questProgress(q);
                 lines.push(`<div class="qt-row${p.ready ? ' ready' : ''}"><b>${q.name}</b><span>${p.ready ? 'Вернись к ' + (this.giverName(q) || 'заказчику') : this.questLabel(q, p)}</span></div>`);
             });
-            this.tracker.innerHTML = lines.length ? '<div class="qt-title">Задания</div>' + lines.join('') : '';
-            this.tracker.style.display = lines.length ? 'block' : 'none';
+            if (lines.length) {
+                const isCollapsed = this.tracker.classList.contains('collapsed');
+                this.tracker.innerHTML = `<div class="qt-title"><span>Задания</span><span class="qt-toggle">${isCollapsed ? '▸' : '▾'}</span></div><div class="qt-list">${lines.join('')}</div>`;
+                this.tracker.style.display = 'block';
+                const title = this.tracker.querySelector('.qt-title');
+                if (title) {
+                    title.onclick = (e) => {
+                        e.stopPropagation();
+                        this.tracker.classList.toggle('collapsed');
+                        const tog = this.tracker.querySelector('.qt-toggle');
+                        if (tog) tog.textContent = this.tracker.classList.contains('collapsed') ? '▸' : '▾';
+                    };
+                }
+            } else {
+                this.tracker.innerHTML = '';
+                this.tracker.style.display = 'none';
+            }
         }
 
         giverName(q) {
@@ -226,7 +259,7 @@
 
         choose(o) {
             if (o.action === 'close') {
-                if (this.game.worldObjects) this.game.worldObjects.closeChest(); else this.close();
+                this.close();
             } else if (o.action === 'questAccept') {
                 if (this.state.startQuest(o.quest)) this.ui.floatText('Новое задание', 'good');
                 this.nodeId = this.npc.start || 'start';
@@ -292,7 +325,12 @@
             back.type = 'button';
             back.className = 'dlg-tab back';
             back.textContent = '← Назад';
-            back.addEventListener('click', (e) => { e.stopPropagation(); this.mode = 'talk'; this.render(); });
+            back.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mode = 'talk';
+                this.nodeId = this.npc.start || 'start';
+                this.render();
+            });
             const gold = document.createElement('div');
             gold.className = 'dlg-gold';
             gold.innerHTML = '<span class="coin"></span> ' + (st ? st.gold : 0);
@@ -383,7 +421,13 @@
             back.type = 'button';
             back.className = 'dlg-tab back';
             back.textContent = '← Назад';
-            back.addEventListener('click', (e) => { e.stopPropagation(); this.mode = 'talk'; this.render(); });
+            back.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mode = 'talk';
+                this.nodeId = this.npc.start || 'start';
+                if (this.game.setInventoryOpen) this.game.setInventoryOpen(false);
+                this.render();
+            });
             tabs.appendChild(back);
             const gold = document.createElement('div');
             gold.className = 'dlg-gold';

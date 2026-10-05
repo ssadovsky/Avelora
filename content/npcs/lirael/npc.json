@@ -79,6 +79,8 @@
     "fern_gathering",
     "rat_hunt",
     "badger_hunt",
-    "portal_boar"
+    "portal_boar",
+    "fox_hunt",
+    "wolf_hunt"
   ]
 }

@@ -126,6 +126,7 @@
             this.dialog = window.AveloraDialog ? new window.AveloraDialog(game, this) : null;
             window.addEventListener('game:location', () => { if (this.state) this.renderSkills(); }); // skill names depend on the location
             this.setupEvents();
+            this.setupDraggablePanels();
         }
 
         // -----------------------------------------------------------
@@ -190,8 +191,7 @@
                 this.chestGrid.appendChild(c);
                 this.chestCells.push(c);
             }
-            this.chestPanel.classList.add('open');
-            this.chestPanel.setAttribute('aria-hidden', 'false');
+            this.setPanelAria(this.chestPanel, true);
             this.game.setInventoryOpen(true); // bag opens next to the chest
             if (this.switchInventoryTab) this.switchInventoryTab('inv');
             this.renderChest();
@@ -200,10 +200,7 @@
         closeChest() {
             this.chestInv = null;
             this.cancelDrag();
-            if (this.chestPanel) {
-                this.chestPanel.classList.remove('open');
-                this.chestPanel.setAttribute('aria-hidden', 'true');
-            }
+            this.setPanelAria(this.chestPanel, false);
             this.hideTooltip();
         }
 
@@ -273,6 +270,9 @@
             if (state) state.onChange(() => this.renderAll());
             this.cancelDrag();
             this.clearFloats();
+            this.closeDialog();
+            this.closeChest();
+            if (this.game && this.game.setInventoryOpen) this.game.setInventoryOpen(false);
             const has = this.characterSkills().length > 0;
             if (this.skillsBtn) this.skillsBtn.style.display = has ? '' : 'none';
             if (!has) this.setSkillsOpen(false);
@@ -594,6 +594,15 @@
         // -----------------------------------------------------------
         // Panels
         // -----------------------------------------------------------
+        setPanelAria(panel, open) {
+            if (!panel) return;
+            if (!open && document.activeElement && panel.contains(document.activeElement)) {
+                try { document.activeElement.blur(); } catch (_) {}
+            }
+            panel.classList.toggle('open', !!open);
+            panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+        }
+
         isSkillsOpen() { return this.skillsOpen; }
 
         toggleSkills() { this.setSkillsOpen(!this.skillsOpen); }
@@ -601,18 +610,135 @@
         setSkillsOpen(open) {
             if (open && !this.characterSkills().length) open = false;
             this.skillsOpen = open;
-            if (this.skillsPanel) {
-                this.skillsPanel.classList.toggle('open', open);
-                this.skillsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-            }
+            this.setPanelAria(this.skillsPanel, open);
             if (this.skillsBtn) this.skillsBtn.classList.toggle('active', open);
             this.layoutPanels();
             if (!open) this.hideTooltip();
         }
 
-        /** Desktop: skills panel sits left of the inventory when both are open. */
+        /** Desktop: skills panel sits left of the inventory when both are open (unless user dragged it manually). */
         layoutPanels() {
-            if (this.skillsPanel) this.skillsPanel.classList.toggle('beside-inventory', !!this.game.isInventoryOpen);
+            if (this.skillsPanel && !this.skillsPanel.dataset.dragged) {
+                this.skillsPanel.classList.toggle('beside-inventory', !!this.game.isInventoryOpen);
+            }
+        }
+
+        setupDraggablePanels() {
+            this.makePanelDraggable(this.invPanel, '.inventory-header');
+            this.makePanelDraggable(this.skillsPanel, '.inventory-header');
+            this.makePanelDraggable(this.chestPanel, '.inventory-header');
+            this.makePanelDraggable(this.heroPanel, '.panel-header');
+            this.makePanelDraggable(this.questsPanel, '.panel-header');
+            if (this.dialog && this.dialog.panel) {
+                this.makePanelDraggable(this.dialog.panel, '.dlg-side');
+            }
+
+            window.addEventListener('resize', () => {
+                this.clampPanelInsideViewport(this.invPanel);
+                this.clampPanelInsideViewport(this.skillsPanel);
+                this.clampPanelInsideViewport(this.chestPanel);
+                this.clampPanelInsideViewport(this.heroPanel);
+                this.clampPanelInsideViewport(this.questsPanel);
+                if (this.dialog && this.dialog.panel) this.clampPanelInsideViewport(this.dialog.panel);
+            });
+        }
+
+        /** Makes any modal/window panel freely draggable by its header on both mouse and touch. */
+        makePanelDraggable(panel, handleSelector = '.inventory-header') {
+            if (!panel) return;
+            const handle = panel.querySelector(handleSelector);
+            if (!handle) return;
+
+            // Clicking anywhere on the window elevates it above other windows
+            panel.addEventListener('pointerdown', () => {
+                AveloraHotbarUI.topZ = Math.max(AveloraHotbarUI.topZ || 200, 200) + 1;
+                panel.style.zIndex = String(AveloraHotbarUI.topZ);
+            });
+
+            let isDragging = false;
+            let startPointerX = 0, startPointerY = 0;
+            let startPanelX = 0, startPanelY = 0;
+            let panelW = 0, panelH = 0;
+
+            const onPointerDown = (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                // Don't drag if clicking buttons, tabs, inputs, or interactive controls
+                if (e.target.closest('button, input, select, textarea, .tab-btn, .inv-tab-btn, a, [role="button"], .interactive')) return;
+
+                AveloraHotbarUI.topZ = Math.max(AveloraHotbarUI.topZ || 200, 200) + 1;
+                panel.style.zIndex = String(AveloraHotbarUI.topZ);
+
+                isDragging = true;
+                panel.dataset.dragged = '1';
+                startPointerX = e.clientX;
+                startPointerY = e.clientY;
+
+                const rect = panel.getBoundingClientRect();
+                startPanelX = rect.left;
+                startPanelY = rect.top;
+                panelW = rect.width;
+                panelH = rect.height;
+
+                panel.style.left = `${startPanelX}px`;
+                panel.style.top = `${startPanelY}px`;
+                panel.style.right = 'auto';
+                panel.style.bottom = 'auto';
+                panel.style.transform = 'none';
+
+                panel.classList.add('panel-is-dragging');
+                document.body.classList.add('ui-dragging');
+
+                try {
+                    handle.setPointerCapture(e.pointerId);
+                } catch (_) {}
+
+                e.preventDefault();
+            };
+
+            const onPointerMove = (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startPointerX;
+                const dy = e.clientY - startPointerY;
+
+                const margin = 8;
+                const maxLeft = Math.max(margin, window.innerWidth - panelW - margin);
+                const maxTop = Math.max(margin, window.innerHeight - panelH - margin);
+                const newX = Math.max(margin, Math.min(maxLeft, startPanelX + dx));
+                const newY = Math.max(margin, Math.min(maxTop, startPanelY + dy));
+
+                panel.style.left = `${newX}px`;
+                panel.style.top = `${newY}px`;
+            };
+
+            const onPointerUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                panel.classList.remove('panel-is-dragging');
+                document.body.classList.remove('ui-dragging');
+                try {
+                    handle.releasePointerCapture(e.pointerId);
+                } catch (_) {}
+            };
+
+            handle.addEventListener('pointerdown', onPointerDown);
+            handle.addEventListener('pointermove', onPointerMove);
+            handle.addEventListener('pointerup', onPointerUp);
+            handle.addEventListener('pointercancel', onPointerUp);
+        }
+
+        clampPanelInsideViewport(panel) {
+            if (!panel || !panel.style.left || panel.style.left === 'auto') return;
+            const rect = panel.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) return;
+            const margin = 8;
+            const maxLeft = Math.max(margin, window.innerWidth - rect.width - margin);
+            const maxTop = Math.max(margin, window.innerHeight - rect.height - margin);
+            const curLeft = parseFloat(panel.style.left) || rect.left;
+            const curTop = parseFloat(panel.style.top) || rect.top;
+            const newLeft = Math.max(margin, Math.min(maxLeft, curLeft));
+            const newTop = Math.max(margin, Math.min(maxTop, curTop));
+            panel.style.left = `${newLeft}px`;
+            panel.style.top = `${newTop}px`;
         }
 
         pulseInventory() {
@@ -733,20 +859,14 @@
 
         openPotionModal() {
             this.potionOpen = true;
-            if (this.potionModal) {
-                this.potionModal.classList.add('open');
-                this.potionModal.setAttribute('aria-hidden', 'false');
-            }
+            this.setPanelAria(this.potionModal, true);
             if (this.microMenuOpen) this.closeMicroMenu();
             this.updatePotionModal();
         }
 
         closePotionModal() {
             this.potionOpen = false;
-            if (this.potionModal) {
-                this.potionModal.classList.remove('open');
-                this.potionModal.setAttribute('aria-hidden', 'true');
-            }
+            this.setPanelAria(this.potionModal, false);
         }
 
         updatePotionSlot() {
@@ -984,10 +1104,7 @@
 
         setHeroOpen(open) {
             this.heroOpen = open;
-            if (this.heroPanel) {
-                this.heroPanel.classList.toggle('open', open);
-                this.heroPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-            }
+            this.setPanelAria(this.heroPanel, open);
             if (open) {
                 this.updateHeroStats();
                 if (this.questsOpen) this.setQuestsOpen(false);
@@ -1121,10 +1238,7 @@
 
         setQuestsOpen(open) {
             this.questsOpen = open;
-            if (this.questsPanel) {
-                this.questsPanel.classList.toggle('open', open);
-                this.questsPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
-            }
+            this.setPanelAria(this.questsPanel, open);
             if (open) {
                 this.updateQuestsProgress();
                 if (this.heroOpen) this.setHeroOpen(false);
@@ -1883,7 +1997,9 @@
             });
             window.addEventListener('pointermove', (e) => this.onPointerMove(e));
             window.addEventListener('pointerup', (e) => this.onPointerUp(e));
-            window.addEventListener('pointercancel', () => this.cancelDrag());
+            window.addEventListener('pointercancel', (e) => {
+                if (this.drag && (!e || e.pointerId === this.drag.pointerId)) this.cancelDrag();
+            });
 
             // Hover tooltips (mouse only)
             document.addEventListener('pointerover', (e) => {
@@ -1965,9 +2081,15 @@
                 active: false,
                 over: null,
                 shiftKey: !!e.shiftKey,
-                ctrlKey: !!e.ctrlKey
+                ctrlKey: !!e.ctrlKey,
+                captureEl: e.target
             };
-            if (e.pointerType !== 'mouse') e.preventDefault(); // no emulated mouse/click storm on touch
+            e.preventDefault();
+            try {
+                if (e.target && e.target.setPointerCapture) {
+                    e.target.setPointerCapture(e.pointerId);
+                }
+            } catch (_) {}
         }
 
         onPointerMove(e) {
@@ -1989,6 +2111,9 @@
         onPointerUp(e) {
             const d = this.drag;
             if (!d || e.pointerId !== d.pointerId) return;
+            if (d.captureEl) {
+                try { d.captureEl.releasePointerCapture(d.pointerId); } catch (_) {}
+            }
             this.drag = null;
             if (!d.active) {
                 // Plain tap/click
@@ -2021,6 +2146,30 @@
                         return;
                     }
                     this.showItemCard(d.src);
+                } else if (d.src.kind === 'skill') {
+                    // Tap on a skill in the skills panel: assign to first empty hotbar slot
+                    if (this.state) {
+                        const hb = this.state.hotbar;
+                        const existingIdx = hb.findIndex(e => e && e.type === 'skill' && e.id === d.src.id);
+                        if (existingIdx >= 0) {
+                            this.showMessageAt(d.src.el, `Навык уже на панели (слот ${existingIdx + 1})`);
+                        } else {
+                            // Find first empty slot among active combat slots
+                            let targetSlot = hb.findIndex((e, idx) => idx < 6 && !e);
+                            if (targetSlot < 0) targetSlot = hb.findIndex(e => !e);
+                            if (targetSlot >= 0) {
+                                this.state.setHotbar(targetSlot, { type: 'skill', id: d.src.id });
+                                const skillDef = this.game.skills ? this.game.skills.get(d.src.id) : null;
+                                const lab = (this.game.skills && skillDef) ? this.game.skills.labelOf(skillDef) : { name: d.src.id };
+                                this.floatText(`${lab.name} добавлен в слот ${targetSlot + 1}`, 'good');
+                            } else {
+                                this.showMessageAt(d.src.el, 'Боевая панель заполнена (перетащите для замены)');
+                            }
+                        }
+                    }
+                    this.showSourceTooltip(d.src);
+                    clearTimeout(this.tooltipTimer);
+                    this.tooltipTimer = setTimeout(() => this.hideTooltip(), 2000);
                 } else if (d.pointerType !== 'mouse') {
                     // Touch: no hover, so a tap shows the tooltip for a moment
                     this.showSourceTooltip(d.src);
@@ -2035,7 +2184,12 @@
         }
 
         cancelDrag() {
-            if (this.drag && this.drag.active) this.endDragVisuals();
+            if (this.drag) {
+                if (this.drag.captureEl) {
+                    try { this.drag.captureEl.releasePointerCapture(this.drag.pointerId); } catch (_) {}
+                }
+                if (this.drag.active) this.endDragVisuals();
+            }
             this.drag = null;
         }
 
