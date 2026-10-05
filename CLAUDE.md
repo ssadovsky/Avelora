@@ -485,3 +485,48 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
 - NEVER set the character's yaw via `mesh.quaternion.setFromAxisAngle(...)` and then keep writing `mesh.rotation.y = ...`. A yaw > 90° decomposes into Euler (PI, PI - y, PI); later writes to `.rotation.y` alone leave x/z = PI and MIRROR the model (effective yaw = PI - y) -> backwards/sideways running that depended on the saved heading at load (`combat.bindCharacter()` -> `resetDeathPose()`).
 - Always use `mesh.rotation.set(0, currentRotation + facingOffset, 0)` (character.js update/teleport/resetDeathPose). Only `applyDeathPose()` may use quaternions (tilt), and `resetDeathPose()` clears it.
 - The earlier "Hips yaw -16°" and `cos(diff)` explanations were misdiagnoses of this bug.
+
+## 10. Android TWA / WebView Responsiveness & Mobile Controls Standards (Recorded 2026-10-05)
+
+### Screen-Clipping Bug Prevention (Android 11–12 Chromium WebView / TWA)
+- **Symptom**: Cold fullscreen launch cuts off bottom of screen (hotbar pushed off, bottom shadows sliced), until Android system nav gestures are swiped.
+- **Root Cause**: Chromium caches viewport height prior to hiding system navigation bars when using `100vh` / `100dvh` / `calc(100dvh - ...)`.
+- **Mandatory CSS Rules**:
+  1. Root container (`html, body` and canvas `#game-container`):
+     ```css
+     html, body {
+         position: fixed;
+         inset: 0;
+         width: 100%;
+         height: 100%;
+         box-sizing: border-box;
+         overflow: hidden;
+         touch-action: none;
+         -webkit-touch-callout: none;
+     }
+     #game-container {
+         position: absolute;
+         inset: 0;
+         width: 100%;
+         height: 100%;
+     }
+     ```
+  2. **NEVER use `100vh`, `100vw`, `100dvh`** for root or modal containers. Use percentage heights, `min()`, `max()`, and `calc(100% - ...)`.
+  3. Safe-area insets **MUST ALWAYS** include a 0px fallback inside `env()`:
+     ```css
+     top: max(env(safe-area-inset-top, 0px), 14px);
+     bottom: max(env(safe-area-inset-bottom, 0px), 14px);
+     left: max(env(safe-area-inset-left, 0px), 18px);
+     right: max(env(safe-area-inset-right, 0px), 25px);
+     ```
+  4. Bottom action bar (`.skill-bar`): must maintain `padding-bottom: 2px` and `bottom: max(env(safe-area-inset-bottom, 0px), 14px)` (mobile landscape: `8px`) so bottom `box-shadow` is not clipped by screen borders or system gesture bars.
+  5. JS Canvas Resize (`js/main.js`): listen to `resize`, `orientationchange`, and `fullscreenchange` with delayed timeouts (`setTimeout(handleResize, 100)` and `setTimeout(handleResize, 300)`) to compensate for asynchronous Android navbar transitions.
+  6. Inventory (`#inventory-panel`), Skills (`#skills-panel`), and Chest (`#chest-panel`): strictly compact fixed width (`270–290px`) docked to the right or side-by-side (`.beside-inventory`). Never use `left: 10px; right: 10px; width: auto;`, preventing popups from stretching across the entire landscape screen.
+
+### Mobile Joystick & Camera Standards (kids-games/racing architecture)
+- **Compact fixed base**: `#joy-zone` is fixed in the bottom-left corner (`150x150px`, mobile: `130x130px`) with clear directional arrows (▲, ▼, ◄, ►). Never stretch joystick zones to 40vw/50vh to avoid blocking world clicks and gathering.
+- **3rd-Person Follow Camera**: Moving via joystick or keyboard smoothly rotates the camera yaw behind the character (`cameraFollowEnabled`, lerp speed ~3.5).
+- **1st-Person Analog Steering**: Horizontal joystick deflection (`joy.x`) smoothly steers camera yaw and hero heading (`yaw steer rate ~2.8 rad/s`), while `joy.y` drives forward/backward. Avoid pure sideways strafing on analog sticks in 1st person.
+- **Single-Finger Camera Drag**: Dragging on the right half of the screen (`clientX > window.innerWidth * 0.42`) freely rotates camera in both 1st and 3rd person (clean single taps without motion remain click-to-move / target selection).
+- **PC Testing**: Press `J` or toggle in Pause -> Settings -> "Экранный джойстик" to test the virtual joystick with mouse on desktop anytime.
+

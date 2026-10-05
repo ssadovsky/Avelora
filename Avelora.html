@@ -16,15 +16,22 @@
             user-select: none;
             -webkit-user-select: none;
         }
-        body, html {
+        html, body {
+            position: fixed;
+            inset: 0;
             width: 100%;
             height: 100%;
+            box-sizing: border-box;
             overflow: hidden;
             background-color: #0c1214;
             font-family: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', Palatino, serif;
             color: #d8cbb5;
+            touch-action: none;
+            -webkit-touch-callout: none;
         }
         #game-container {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             display: block;
@@ -80,8 +87,8 @@
         /* Diablo HUD */
         #hud-top-left {
             position: fixed;
-            top: 14px;
-            left: 18px;
+            top: max(env(safe-area-inset-top, 0px), 14px);
+            left: max(env(safe-area-inset-left, 0px), 18px);
             pointer-events: none;
         }
         #hud-coords {
@@ -123,22 +130,90 @@
             transform: rotate(-30deg);
         }
 
-        /* Mobile joystick (first person) */
-        #joy-zone { position: fixed; left: 0; bottom: 0; width: 40vw; height: 50vh; z-index: 80; display: none; touch-action: none; }
-        body.touch-ui #joy-zone { display: block; }
-        #joy-base { position: absolute; width: 104px; height: 104px; margin: -52px 0 0 -52px; border-radius: 50%;
-            background: rgba(14, 18, 20, 0.35); border: 2px solid rgba(239, 207, 122, 0.45); pointer-events: none; }
-        #joy-base.active { background: rgba(14, 18, 20, 0.5); border-color: rgba(239, 207, 122, 0.85); }
-        #joy-knob { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%;
-            background: rgba(239, 207, 122, 0.55); border: 2px solid rgba(255, 240, 190, 0.8); transform: translate(-50%, -50%); }
+        /* Mobile Analog Virtual Joystick (racing-style compact zone) */
+        #joy-zone {
+            position: fixed;
+            bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+            left: max(env(safe-area-inset-left, 0px), 16px);
+            width: 150px;
+            height: 150px;
+            z-index: 80;
+            display: none;
+            touch-action: none;
+            pointer-events: auto;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body.touch-ui #joy-zone,
+        body.joystick-enabled #joy-zone {
+            display: flex;
+        }
+        #joy-base {
+            position: relative;
+            width: 126px;
+            height: 126px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(239, 207, 122, 0.08) 0%, rgba(12, 16, 18, 0.72) 70%);
+            border: 2px solid rgba(212, 175, 55, 0.45);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(212, 175, 55, 0.15);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            pointer-events: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        #joy-base.active {
+            border-color: rgba(239, 207, 122, 0.9);
+            box-shadow: 0 0 20px rgba(239, 207, 122, 0.35), inset 0 0 16px rgba(239, 207, 122, 0.25);
+        }
+        .joy-arrow {
+            position: absolute;
+            font-size: 11px;
+            color: rgba(212, 175, 55, 0.45);
+            pointer-events: none;
+            line-height: 1;
+            font-family: Arial, sans-serif;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        .joy-arrow-up { top: 7px; left: 50%; transform: translateX(-50%); }
+        .joy-arrow-down { bottom: 7px; left: 50%; transform: translateX(-50%); }
+        .joy-arrow-left { left: 8px; top: 50%; transform: translateY(-50%); }
+        .joy-arrow-right { right: 8px; top: 50%; transform: translateY(-50%); }
+        #joy-knob {
+            position: absolute;
+            left: calc(50% - 25px);
+            top: calc(50% - 25px);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #f1dfba, #b38b3f 65%, #634b1c 100%);
+            border: 2px solid rgba(255, 245, 210, 0.9);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75), inset 0 0 6px rgba(255, 255, 255, 0.4);
+            transform: translate(0, 0);
+            pointer-events: none;
+            transition: transform 0.05s ease-out;
+        }
 
         /* View switch button + first-person crosshair */
         #cam-btn {
-            position: fixed; top: 86px; right: 25px; width: 54px; height: 54px;
-            background: rgba(14, 18, 20, 0.88); border: 2px solid rgba(212, 175, 55, 0.5);
-            border-radius: 50%; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
-            cursor: pointer; display: flex; justify-content: center; align-items: center;
-            font-size: 24px; line-height: 1; user-select: none; z-index: 100;
+            position: fixed;
+            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 66px);
+            right: max(env(safe-area-inset-right, 0px), 25px);
+            width: 54px;
+            height: 54px;
+            background: rgba(14, 18, 20, 0.88);
+            border: 2px solid rgba(212, 175, 55, 0.5);
+            border-radius: 50%;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            line-height: 1;
+            user-select: none;
+            z-index: 100;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
         #cam-btn:hover { transform: scale(1.1); border-color: #efcf7a; box-shadow: 0 0 18px rgba(239, 207, 122, 0.5); }
@@ -153,8 +228,8 @@
         /* Google Maps Style Compass */
         #compass-btn {
             position: fixed;
-            top: 20px;
-            right: 25px;
+            top: max(env(safe-area-inset-top, 0px), 20px);
+            right: max(env(safe-area-inset-right, 0px), 25px);
             width: 54px;
             height: 54px;
             background: rgba(14, 18, 20, 0.88);
@@ -676,7 +751,7 @@
         /* Skill Bar */
         .skill-bar {
             position: fixed;
-            bottom: 14px;
+            bottom: max(env(safe-area-inset-bottom, 0px), 14px);
             left: 50%;
             transform: translateX(-50%);
             display: flex;
@@ -684,6 +759,7 @@
             align-items: center;
             pointer-events: none;
             z-index: 100;
+            padding-bottom: 2px;
         }
         .skill-slot {
             -webkit-tap-highlight-color: transparent; /* no blue flash on tap (mobile) */
@@ -924,7 +1000,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
             width: 340px;
-            max-width: 92vw;
+            max-width: calc(100% - 24px);
             background: rgba(12, 16, 18, 0.95);
             border: 1.5px solid rgba(212, 175, 55, 0.6);
             border-radius: 6px;
@@ -1078,7 +1154,7 @@
         }
 
         /* Hero panel: equipment slots (left) + stats (right) */
-        #hero-panel { width: 680px; max-height: 90vh; overflow-y: auto; }
+        #hero-panel { width: 680px; max-height: min(92%, 620px); overflow-y: auto; }
         .hero-layout { display: flex; gap: 16px; align-items: flex-start; }
         .hero-doll { flex: 0 0 204px; background: rgba(18, 22, 24, 0.7); border: 1px solid rgba(195, 160, 95, 0.2); border-radius: 4px; padding: 10px 10px 12px; }
         .hero-info { flex: 1; min-width: 0; }
@@ -1112,7 +1188,7 @@
         .hero-attr-row b { color: #efcf7a; font-size: 0.95rem; }
         .hero-attr-row i { color: #7fd19a; font-style: normal; font-size: 0.75rem; margin-left: 4px; }
         @media (max-width: 720px) {
-            #hero-panel { width: 92vw; }
+            #hero-panel { width: calc(100% - 24px); }
             .hero-layout { flex-direction: column; }
             .hero-doll { flex: none; width: 100%; box-sizing: border-box; }
         }
@@ -1180,7 +1256,7 @@
             top: 50%;
             transform: translate(-50%, -50%);
             width: 350px;
-            max-width: 92vw;
+            max-width: calc(100% - 24px);
             background: rgba(12, 16, 18, 0.96);
             border: 1.5px solid rgba(212, 175, 55, 0.65);
             border-radius: 6px;
@@ -1279,7 +1355,7 @@
         /* NPC dialog / shop window */
         #dialog-panel {
             position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
-            width: min(660px, 94vw); z-index: 160; display: none; cursor: default;
+            width: min(660px, calc(100% - 20px)); z-index: 160; display: none; cursor: default;
             background: rgba(12, 16, 18, 0.94); border: 1px solid rgba(195, 160, 95, 0.55); border-radius: 4px;
             box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 24px rgba(0, 0, 0, 0.6);
             padding: 14px; gap: 14px;
@@ -1317,7 +1393,7 @@
         #quest-tracker .qt-row span { color: #b9c3b0; }
         #quest-tracker .qt-row.ready span { color: #9fe28a; }
         .dlg-gold { margin-left: auto; color: #efcf7a; font-size: 0.9rem; }
-        .dlg-list { max-height: 34vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
+        .dlg-list { max-height: min(320px, calc(100% - 80px)); overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
         .dlg-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: rgba(22, 27, 29, 0.7); border: 1px solid rgba(195, 160, 95, 0.15); border-radius: 3px; }
         .dlg-icon { flex: 0 0 34px; width: 34px; height: 34px; background: rgba(10, 13, 14, 0.9); border: 1px solid rgba(195, 160, 95, 0.25); border-radius: 2px; }
         .dlg-icon img { width: 100%; height: 100%; display: block; }
@@ -1365,9 +1441,6 @@
         .chest-cell.filled { cursor: grab; padding: 2px; border-color: rgba(195, 160, 95, 0.4); }
         .chest-cell.filled:hover { border-color: rgba(239, 207, 122, 0.8); }
         .chest-hint { margin-top: 8px; font-size: 0.72rem; font-style: italic; color: #7e8a89; text-align: center; }
-        @media (max-width: 720px) {
-            #chest-panel { left: 10px; right: 10px; width: auto; bottom: auto; top: 60px; }
-        }
 
         /* Inventory Panel (stub) */
         #inventory-panel {
@@ -2275,7 +2348,7 @@
         .float-text.miss { color: #c9c9c9; font-size: 0.85rem; font-style: italic; }
 
         /* Mobile Responsive Styles */
-        @media (max-width: 680px) {
+        @media (max-width: 680px), (max-height: 520px) and (orientation: landscape) {
             .loading-title {
                 font-size: 1.9rem;
                 letter-spacing: 0.18rem;
@@ -2285,21 +2358,21 @@
                 margin-bottom: 1.5rem;
             }
             #hud-top-left {
-                top: 10px;
-                left: 10px;
+                top: max(env(safe-area-inset-top, 0px), 8px);
+                left: max(env(safe-area-inset-left, 0px), 10px);
             }
             #hud-coords {
                 font-size: 0.75rem;
             }
             #compass-btn {
-                top: 10px;
-                right: 12px;
+                top: max(env(safe-area-inset-top, 0px), 8px);
+                right: max(env(safe-area-inset-right, 0px), 12px);
                 width: 44px;
                 height: 44px;
             }
             #cam-btn {
-                top: 62px;
-                right: 12px;
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 50px);
+                right: max(env(safe-area-inset-right, 0px), 12px);
                 width: 44px;
                 height: 44px;
                 font-size: 20px;
@@ -2326,8 +2399,25 @@
                 font-size: 0.8rem;
             }
             .skill-bar {
-                bottom: 8px;
+                bottom: max(env(safe-area-inset-bottom, 0px), 8px);
                 gap: 3px;
+                padding-bottom: 2px;
+            }
+            #joy-zone {
+                bottom: max(env(safe-area-inset-bottom, 0px), 10px);
+                left: max(env(safe-area-inset-left, 0px), 10px);
+                width: 130px;
+                height: 130px;
+            }
+            #joy-base {
+                width: 110px;
+                height: 110px;
+            }
+            #joy-knob {
+                left: calc(50% - 22px);
+                top: calc(50% - 22px);
+                width: 44px;
+                height: 44px;
             }
             .skill-slot {
                 width: 26px;
@@ -2370,35 +2460,80 @@
                 display: none;
             }
             #inventory-panel {
-                left: 10px;
-                right: 10px;
-                width: auto;
-                bottom: 70px;
+                left: auto;
+                right: max(env(safe-area-inset-right, 0px), 12px);
+                width: 290px;
+                max-width: calc(100% - 24px);
+                bottom: calc(max(env(safe-area-inset-bottom, 0px), 8px) + 48px);
+                max-height: calc(100% - 64px);
+                overflow-y: auto;
+                padding: 10px 12px 10px;
             }
-            #skills-panel,
+            #skills-panel {
+                left: auto;
+                right: max(env(safe-area-inset-right, 0px), 12px);
+                width: 270px;
+                max-width: calc(100% - 24px);
+                top: auto;
+                bottom: calc(max(env(safe-area-inset-bottom, 0px), 8px) + 48px);
+                max-height: calc(100% - 64px);
+                overflow-y: auto;
+                padding: 10px 12px 10px;
+            }
             #skills-panel.beside-inventory {
-                left: 10px;
-                right: 10px;
-                width: auto;
-                top: 64px;
-                bottom: auto;
-                max-height: 38vh;
-                padding: 10px 10px 8px;
+                left: auto;
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 300px);
+                top: auto;
+                bottom: calc(max(env(safe-area-inset-bottom, 0px), 8px) + 48px);
+            }
+            #chest-panel {
+                left: auto;
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 300px);
+                width: 290px;
+                max-width: calc(100% - 24px);
+                top: auto;
+                bottom: calc(max(env(safe-area-inset-bottom, 0px), 8px) + 48px);
+                max-height: calc(100% - 64px);
+                overflow-y: auto;
+                padding: 10px 12px 10px;
             }
             .slot-key { font-size: 7px; left: 2px; top: 0; }
             .slot-count, .cell-count { font-size: 8px; }
             .icon-fallback { font-size: 0.8em; }
             .hp-bar {
-                right: 10px;
+                right: max(env(safe-area-inset-right, 0px), 10px);
                 bottom: 48px;
                 width: 90px;
                 height: 10px;
             }
             .hp-text { font-size: 7px; }
-            .mana-bar { right: 10px; bottom: 62px; width: 90px; height: 10px; }
-            .xp-bar { right: 10px; bottom: 76px; width: 90px; height: 9px; }
+            .mana-bar { right: max(env(safe-area-inset-right, 0px), 10px); bottom: 62px; width: 90px; height: 10px; }
+            .xp-bar { right: max(env(safe-area-inset-right, 0px), 10px); bottom: 76px; width: 90px; height: 9px; }
             .xp-bar .hp-text { font-size: 6px; }
             .death-title { font-size: 1.9rem; letter-spacing: 0.2rem; }
+        }
+
+        /* Narrow portrait smartphones (centered compact panels) */
+        @media (max-width: 620px) and (orientation: portrait) {
+            #inventory-panel {
+                left: 50%;
+                transform: translateX(-50%);
+                right: auto;
+                width: min(320px, calc(100% - 24px));
+            }
+            #skills-panel,
+            #skills-panel.beside-inventory {
+                left: 50%;
+                transform: translateX(-50%);
+                right: auto;
+                width: min(300px, calc(100% - 24px));
+            }
+            #chest-panel {
+                left: 50%;
+                transform: translateX(-50%);
+                right: auto;
+                width: min(320px, calc(100% - 24px));
+            }
         }
 
         /* ========= Map Overlay ========= */
@@ -2424,8 +2559,8 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-width: 90vw;
-            max-height: 90vh;
+            max-width: calc(100% - 24px);
+            max-height: calc(100% - 24px);
         }
         #map-header {
             display: flex;
@@ -2503,7 +2638,15 @@
 
     <div id="cam-btn" title="Вид от первого лица / от третьего (или колесо мыши за пределом зума)">🎥</div>
     <div id="fp-crosshair"></div>
-    <div id="joy-zone"><div id="joy-base"><div id="joy-knob"></div></div></div>
+    <div id="joy-zone">
+        <div id="joy-base">
+            <span class="joy-arrow joy-arrow-up">▲</span>
+            <span class="joy-arrow joy-arrow-down">▼</span>
+            <span class="joy-arrow joy-arrow-left">◄</span>
+            <span class="joy-arrow joy-arrow-right">►</span>
+            <div id="joy-knob"></div>
+        </div>
+    </div>
 
     <!-- Google Maps Style Interactive Compass -->
     <div id="compass-btn" title="Сбросить ориентацию на Север">
@@ -2932,6 +3075,20 @@
                 <span class="settings-label">Счётчик FPS</span>
                 <label class="switch">
                     <input type="checkbox" id="fps-toggle">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Экранный джойстик</span>
+                <label class="switch">
+                    <input type="checkbox" id="joystick-toggle">
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Следование камеры</span>
+                <label class="switch">
+                    <input type="checkbox" id="camfollow-toggle" checked>
                     <span class="switch-slider"></span>
                 </label>
             </div>

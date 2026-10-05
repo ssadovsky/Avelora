@@ -802,11 +802,24 @@ class AveloraGame {
     }
 
     setupEvents() {
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
+        const handleResize = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.setSize(w, h);
             this.needsRender = true; // resize clears the canvas; redraw even if paused
+        };
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', () => {
+            handleResize();
+            setTimeout(handleResize, 100);
+            setTimeout(handleResize, 300);
+        });
+        document.addEventListener('fullscreenchange', () => {
+            handleResize();
+            setTimeout(handleResize, 100);
+            setTimeout(handleResize, 300);
         });
 
         // Pause menu: Escape toggles, "Продолжить" / ☰ button as alternatives
@@ -842,6 +855,8 @@ class AveloraGame {
                 }
             } else if (e.code === 'KeyI') { // physical key: works in RU layout too (Ш)
                 if (!this.isPaused && this.isReady) this.toggleInventory();
+            } else if (e.code === 'KeyJ') { // physical key: toggle screen joystick for testing
+                if (!this.isPaused && this.isReady) this.toggleJoystick();
             } else if (e.code === 'Tab') {
                 // Tab: cycle through nearest living creatures in front of the character
                 e.preventDefault();
@@ -988,6 +1003,29 @@ class AveloraGame {
             });
         }
 
+        // Joystick toggle & Camera follow settings
+        const savedJoy = localStorage.getItem('avelora_joystick');
+        if (savedJoy === 'true') document.body.classList.add('joystick-enabled');
+        const joyToggle = document.getElementById('joystick-toggle');
+        if (joyToggle) {
+            joyToggle.checked = document.body.classList.contains('joystick-enabled');
+            joyToggle.addEventListener('change', (e) => {
+                const en = e.target.checked;
+                document.body.classList.toggle('joystick-enabled', en);
+                localStorage.setItem('avelora_joystick', en ? 'true' : 'false');
+            });
+        }
+        const savedCamFollow = localStorage.getItem('avelora_camfollow');
+        this.cameraFollowEnabled = savedCamFollow !== 'false';
+        const camFollowToggle = document.getElementById('camfollow-toggle');
+        if (camFollowToggle) {
+            camFollowToggle.checked = this.cameraFollowEnabled;
+            camFollowToggle.addEventListener('change', (e) => {
+                this.cameraFollowEnabled = e.target.checked;
+                localStorage.setItem('avelora_camfollow', this.cameraFollowEnabled ? 'true' : 'false');
+            });
+        }
+
         // Inventory (stub window; does NOT pause the game, like Diablo)
         this.isInventoryOpen = false;
         this.inventoryPanel = document.getElementById('inventory-panel');
@@ -1118,11 +1156,12 @@ class AveloraGame {
 
         window.addEventListener('touchstart', (e) => {
             this.inputTouch = true;
+            document.body.classList.add('touch-ui');
             if (this.viewMode !== 'first') this.lastPointer.type = 'touch'; // skills fire straight ahead after touch input
-            // Touch screens (and first person): a finger on the right half of the screen rotates the camera
-            if (!this.isPaused && (this.viewMode === 'first' || document.body.classList.contains('touch-ui'))) {
+            // Touch screens: a finger on the right half of the screen rotates the camera (both 1st and 3rd person)
+            if (!this.isPaused) {
                 for (const t of e.changedTouches) {
-                    if (this.lookTouchId === null && !(t.target && t.target.closest && t.target.closest(UI_SELECTOR)) && t.clientX > window.innerWidth * 0.5) {
+                    if (this.lookTouchId === null && !(t.target && t.target.closest && t.target.closest(UI_SELECTOR)) && t.clientX > window.innerWidth * 0.42) {
                         this.lookTouchId = t.identifier;
                         this.touchLast = { x: t.clientX, y: t.clientY };
                         this.lookStart = { x: t.clientX, y: t.clientY, t: performance.now() };
@@ -1159,9 +1198,12 @@ class AveloraGame {
             if (!this.isPaused && this.lookTouchId !== null && (e.touches.length === 1 || this.joy.active || this.viewMode === 'first')) {
                 for (const t of e.changedTouches) {
                     if (t.identifier === this.lookTouchId && this.touchLast) {
-                        this.cameraAngle -= (t.clientX - this.touchLast.x) * 0.006;
+                        const dx = t.clientX - this.touchLast.x;
+                        const dy = t.clientY - this.touchLast.y;
+                        if (Math.hypot(dx, dy) > 2) this.touchMoved = true;
+                        this.cameraAngle -= dx * 0.006;
                         this.targetCameraAngle = this.cameraAngle;
-                        this.tiltCamera(t.clientY - this.touchLast.y, 0.004);
+                        this.tiltCamera(dy, 0.004);
                         this.touchLast = { x: t.clientX, y: t.clientY };
                     }
                 }
@@ -1330,6 +1372,17 @@ class AveloraGame {
         if (this.ui) this.ui.layoutPanels();
         if (!open && document.activeElement && document.activeElement.blur) {
             document.activeElement.blur();
+        }
+    }
+
+    toggleJoystick() {
+        const en = !document.body.classList.contains('joystick-enabled');
+        document.body.classList.toggle('joystick-enabled', en);
+        localStorage.setItem('avelora_joystick', en ? 'true' : 'false');
+        const joyToggle = document.getElementById('joystick-toggle');
+        if (joyToggle) joyToggle.checked = en;
+        if (this.ui && this.ui.floatText) {
+            this.ui.floatText(en ? 'Экранный джойстик: Вкл (J)' : 'Экранный джойстик: Выкл (J)', 'info');
         }
     }
 
@@ -1569,46 +1622,74 @@ class AveloraGame {
         }
     }
 
-    /** Mobile virtual joystick (floating base inside #joy-zone); only active in first person. */
+    /** Mobile virtual joystick (compact racing style, works with touch and mouse). */
     setupJoystick() {
         const zone = document.getElementById('joy-zone');
         const base = document.getElementById('joy-base');
         const knob = document.getElementById('joy-knob');
         if (!zone || !base || !knob) return;
-        if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window) document.body.classList.add('touch-ui');
-        const R = 52;
-        const place = (cx, cy) => { base.style.left = cx + 'px'; base.style.top = cy + 'px'; };
+        if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window) {
+            document.body.classList.add('touch-ui');
+        }
+        const maxRadius = 42;
         const reset = () => {
-            this.joy.active = false; this.joy.id = null; this.joy.x = 0; this.joy.y = 0;
-            knob.style.transform = 'translate(-50%, -50%)';
+            this.joy.active = false;
+            this.joy.id = null;
+            this.joy.x = 0;
+            this.joy.y = 0;
+            knob.style.transform = 'translate(0px, 0px)';
             base.classList.remove('active');
         };
-        let cx = 0, cy = 0;
+
+        const handleMove = (clientX, clientY) => {
+            const rect = base.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            const dx = clientX - centerX;
+            const dy = clientY - centerY;
+            const dist = Math.hypot(dx, dy);
+
+            let clampedX = dx;
+            let clampedY = dy;
+            if (dist > maxRadius) {
+                clampedX = (dx / dist) * maxRadius;
+                clampedY = (dy / dist) * maxRadius;
+            }
+
+            knob.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
+            let nx = clampedX / maxRadius;
+            let ny = -clampedY / maxRadius;
+            if (Math.hypot(nx, ny) < 0.1) { nx = 0; ny = 0; } // dead zone
+            this.joy.x = nx;
+            this.joy.y = ny;
+        };
+
         zone.addEventListener('pointerdown', (e) => {
             if (this.joy.active) return;
             e.preventDefault();
-            this.joy.active = true; this.joy.id = e.pointerId;
+            this.joy.active = true;
+            this.joy.id = e.pointerId;
             try { zone.setPointerCapture(e.pointerId); } catch (_) {}
-            cx = e.clientX; cy = e.clientY; place(cx, cy);
             base.classList.add('active');
+            handleMove(e.clientX, e.clientY);
         });
+
         zone.addEventListener('pointermove', (e) => {
             if (!this.joy.active || e.pointerId !== this.joy.id) return;
-            let dx = e.clientX - cx, dy = e.clientY - cy;
-            const len = Math.hypot(dx, dy);
-            if (len > R) { dx = dx / len * R; dy = dy / len * R; }
-            knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-            let nx = dx / R, ny = -dy / R;
-            if (Math.hypot(nx, ny) < 0.12) { nx = 0; ny = 0; } // dead zone
-            this.joy.x = nx; this.joy.y = ny;
+            e.preventDefault();
+            handleMove(e.clientX, e.clientY);
         });
-        const up = (e) => { if (e.pointerId === this.joy.id) reset(); };
+
+        const up = (e) => {
+            if (e.pointerId === this.joy.id) {
+                e.preventDefault();
+                reset();
+            }
+        };
         zone.addEventListener('pointerup', up);
         zone.addEventListener('pointercancel', up);
         this._joyReset = reset;
-        // default position of the base hint
-        const place0 = () => place(90, window.innerHeight - 150);
-        place0(); window.addEventListener('resize', () => { if (!this.joy.active) place0(); });
     }
 
     /** First person: skills aim at the screen centre (crosshair); tooltip of whatever is under it. */
@@ -1648,7 +1729,19 @@ class AveloraGame {
         let fwd = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
         let str = (k.KeyD || k.KeyE ? 1 : 0) - (k.KeyA || k.KeyQ ? 1 : 0);
         if (this.leftDown && rmb) fwd += 1;      // WoW: LMB+RMB = forward
-        fwd += this.joy.y; str += this.joy.x;
+
+        // First-person steering with joystick (racing style: joy.x turns camera yaw, joy.y drives forward/backward)
+        if (fp && this.joy.active) {
+            const steerTurn = -this.joy.x * 2.8; // smooth turn rate in rad/s
+            this.cameraAngle += steerTurn * delta;
+            this.targetCameraAngle = this.cameraAngle;
+            fwd += this.joy.y;
+            str += this.joy.x * 0.3; // subtle strafe lean
+        } else {
+            fwd += this.joy.y;
+            str += this.joy.x;
+        }
+
         const mag = Math.hypot(fwd, str);
         if (mag > 1) { fwd /= mag; str /= mag; }
         const a = this.cameraAngle;
@@ -1679,6 +1772,17 @@ class AveloraGame {
                 while (diff > Math.PI) diff -= Math.PI * 2;
                 c.targetRotation = tr; c.isTurning = false;
                 c.currentRotation += diff * Math.min(1, 14 * delta);
+
+                // Smooth camera follow (racing style): when running with joystick or manual keys in 3rd person,
+                // smoothly follow behind character if player is not manually rotating camera
+                if (this.cameraFollowEnabled !== false && !rmb && this.lookTouchId === null) {
+                    let camDiff = tr - this.cameraAngle;
+                    while (camDiff < -Math.PI) camDiff += Math.PI * 2;
+                    while (camDiff > Math.PI) camDiff -= Math.PI * 2;
+                    const followSpeed = this.joy.active ? 3.5 : 2.5;
+                    this.cameraAngle += camDiff * Math.min(1.0, followSpeed * delta);
+                    this.targetCameraAngle = this.cameraAngle;
+                }
             }
         }
         const pf = this.pathfinder;
