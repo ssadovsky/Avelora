@@ -182,24 +182,34 @@
             if (!this.tracker) return;
             const st = this.state;
             const lines = [];
+            let hasReady = false;
             if (st) Object.keys(st.quests || {}).forEach(id => {
                 if (st.quests[id] !== 'active') return;
                 const q = this.questDef(id);
                 if (!q) return;
                 const p = this.questProgress(q);
+                if (p.ready) hasReady = true;
                 lines.push(`<div class="qt-row${p.ready ? ' ready' : ''}"><b>${q.name}</b><span>${p.ready ? 'Вернись к ' + (this.giverName(q) || 'заказчику') : this.questLabel(q, p)}</span></div>`);
             });
             if (lines.length) {
-                const isCollapsed = this.tracker.classList.contains('collapsed');
-                this.tracker.innerHTML = `<div class="qt-title"><span>Задания</span><span class="qt-toggle">${isCollapsed ? '▸' : '▾'}</span></div><div class="qt-list">${lines.join('')}</div>`;
-                this.tracker.style.display = 'block';
+                const iconChar = hasReady ? '?' : '!';
+                this.tracker.innerHTML = `<div class="qt-btn-icon${hasReady ? ' ready' : ''}" title="Задания">${iconChar}</div><div class="qt-content"><div class="qt-title"><span>Задания</span><span class="qt-toggle" title="Свернуть задания">▸</span></div><div class="qt-list">${lines.join('')}</div></div>`;
+                this.tracker.style.display = 'flex';
+
+                // Click when collapsed expands the tracker
+                this.tracker.onclick = (e) => {
+                    if (this.tracker.classList.contains('collapsed')) {
+                        e.stopPropagation();
+                        this.tracker.classList.remove('collapsed');
+                    }
+                };
+
+                // Click on header / close button collapses tracker into the round button under camera
                 const title = this.tracker.querySelector('.qt-title');
                 if (title) {
                     title.onclick = (e) => {
                         e.stopPropagation();
-                        this.tracker.classList.toggle('collapsed');
-                        const tog = this.tracker.querySelector('.qt-toggle');
-                        if (tog) tog.textContent = this.tracker.classList.contains('collapsed') ? '▸' : '▾';
+                        this.tracker.classList.add('collapsed');
                     };
                 }
             } else {

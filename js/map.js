@@ -40,6 +40,7 @@
             this._overlay  = document.getElementById('map-overlay');
             this._canvas   = document.getElementById('map-canvas');
             this._locName  = document.getElementById('map-loc-name');
+            this._coordsEl = document.getElementById('map-coords');
             this._closeBtn = document.getElementById('map-close-btn');
             this._mapBtn   = document.getElementById('map-btn');
 
@@ -85,10 +86,14 @@
             this._wasPaused = this.game.isPaused;
             if (!this._wasPaused) this.game.setPaused(true, false);
 
-            // Обновить заголовок
+            // Обновить заголовок и координаты
             const loc = this.game.location;
             if (this._locName) {
                 this._locName.textContent = loc ? (loc.name || loc.id) : '—';
+            }
+            if (this._coordsEl && this.game.character) {
+                const p = this.game.character.position;
+                this._coordsEl.textContent = `X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
             }
 
             this._overlay.classList.add('open');
@@ -126,6 +131,11 @@
 
             const S = MAP_SIZE;
             ctx.clearRect(0, 0, S, S);
+
+            if (this._coordsEl && this.game.character) {
+                const p = this.game.character.position;
+                this._coordsEl.textContent = `X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
+            }
 
             const t = loc.terrain || {};
             const sizeX = t.sizeX || (Array.isArray(t.size) ? t.size[0] : t.size) || 120;
@@ -309,7 +319,7 @@
             ctx.strokeRect(PADDING - 8, PADDING - 8, S - (PADDING - 8) * 2, S - (PADDING - 8) * 2);
             ctx.restore();
 
-            // === Стрелки сторон света (N/S/W/E) ===
+            // === Стрелки сторон света (N/S/W/E) и координаты игрока ===
             ctx.save();
             ctx.font = 'bold 11px sans-serif';
             ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -318,6 +328,13 @@
             ctx.fillText('Ю', S / 2, S - 4);
             ctx.fillText('З', 10, S / 2 + 4);
             ctx.fillText('В', S - 10, S / 2 + 4);
+
+            if (ch) {
+                ctx.font = 'bold 10px monospace';
+                ctx.fillStyle = 'rgba(239, 207, 122, 0.9)';
+                ctx.textAlign = 'left';
+                ctx.fillText(`X: ${ch.position.x.toFixed(1)}  Z: ${ch.position.z.toFixed(1)}`, PADDING, S - 10);
+            }
             ctx.restore();
         }
     }

@@ -320,7 +320,13 @@ class AveloraGame {
     }
 
     async chooseCharacter(char, save) {
+        this.tryLockLandscape();
+        clearTimeout(this.loadingHideTimer);
+        this.showLoading('Avelora', char && char.name ? `Входит ${char.name}...` : 'Вход в средневековый мир...');
+        await nextFrame();
+        await nextFrame();
         this.hideCharacterSelect();
+        if (this.pauseOverlay) this.pauseOverlay.classList.remove('open');
         const opts = save
             ? { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r } }
             : {};
@@ -361,7 +367,9 @@ class AveloraGame {
 
     async startGame(characterConfig, opts) {
         opts = opts || {};
+        clearTimeout(this.loadingHideTimer);
         this.showLoading('Avelora', characterConfig.name ? `Входит ${characterConfig.name}...` : 'Вход в средневековый мир...');
+        this.isTransitioning = true;
         await nextFrame();
 
         // Persist the OUTGOING character's progress before tearing anything
@@ -414,8 +422,16 @@ class AveloraGame {
         this.applyLocationCamera(this.location);
         this.updateCameraPosition(true);
 
-        await Promise.all([characterLoaded, this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
-            this.creatures ? this.creatures.ready : null, this.harvest ? this.harvest.ready : null]);
+        const minLoadTime = new Promise(r => setTimeout(r, 450));
+
+        await Promise.all([
+            characterLoaded,
+            this.environment ? this.environment.ready : null,
+            this.worldObjects ? this.worldObjects.ready : null,
+            this.creatures ? this.creatures.ready : null,
+            this.harvest ? this.harvest.ready : null,
+            minLoadTime
+        ]);
         if (this.hero) this.hero.bind(this.gameState, characterConfig);
         if (this.combat) this.combat.bindCharacter(characterConfig); // full HP, no fight
         if (this.ui) {
@@ -423,6 +439,20 @@ class AveloraGame {
             this.ui.applyEquipment();
         }
         if (this.skills && this.skills.forCharacter(characterConfig.id).length) this.skills.prewarm();
+
+        // Warm up shaders & render fresh frame under loading overlay so old frame is never seen
+        try {
+            if (this.renderer && this.scene && this.camera) {
+                if (typeof this.renderer.compile === 'function') {
+                    this.renderer.compile(this.scene, this.camera);
+                }
+                this.renderer.render(this.scene, this.camera);
+            }
+        } catch (e) {
+            console.warn('[Avelora] Shader warmup warning:', e);
+        }
+
+        await nextFrame();
         await nextFrame();
 
         this.clock.getDelta(); // don't count select/loading time as game time
@@ -765,13 +795,28 @@ class AveloraGame {
         if (s) s.textContent = subtitle || '';
         clearTimeout(this.loadingHideTimer);
         this.loadingEl.style.display = 'flex';
+        this.loadingEl.style.transition = 'none';
+        this.loadingEl.style.opacity = '1';
         this.loadingEl.classList.remove('hidden');
+        void this.loadingEl.offsetWidth; // force browser layout
+        requestAnimationFrame(() => {
+            if (this.loadingEl) this.loadingEl.style.transition = '';
+        });
     }
 
     hideLoading() {
         if (!this.loadingEl) return;
+        this.loadingEl.style.transition = 'opacity 0.5s ease-out';
         this.loadingEl.classList.add('hidden');
-        this.loadingHideTimer = setTimeout(() => { this.loadingEl.style.display = 'none'; }, 600);
+        this.loadingHideTimer = setTimeout(() => { this.loadingEl.style.display = 'none'; }, 550);
+    }
+
+    tryLockLandscape() {
+        try {
+            if (screen.orientation && typeof screen.orientation.lock === 'function') {
+                screen.orientation.lock('landscape').catch(() => {});
+            }
+        } catch (_) {}
     }
 
     showLocationBanner(name) {
@@ -941,6 +986,46 @@ class AveloraGame {
             });
         }
 
+        const pauseExitBtn = document.getElementById('pause-exit-btn');
+        if (pauseExitBtn) {
+            pauseExitBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!window.confirm('Вы действительно хотите выйти из игры? Весь прогресс сохранён.')) return;
+                this.saveProgress();
+                if (this.gameState) this.gameState.save();
+
+                // 1. Android Native Bridges (WebView JavascriptInterface)
+                if (window.Android && typeof window.Android.exitApp === 'function') { window.Android.exitApp(); return; }
+                if (window.Android && typeof window.Android.closeApp === 'function') { window.Android.closeApp(); return; }
+                if (window.AndroidBridge && typeof window.AndroidBridge.closeApp === 'function') { window.AndroidBridge.closeApp(); return; }
+                if (window.AveloraApp && typeof window.AveloraApp.exit === 'function') { window.AveloraApp.exit(); return; }
+
+                // 2. Cordova / Capacitor
+                if (navigator.app && typeof navigator.app.exitApp === 'function') { navigator.app.exitApp(); return; }
+                if (navigator.device && typeof navigator.device.exitApp === 'function') { navigator.device.exitApp(); return; }
+
+                // 3. Web Window Close (handles WebChromeClient.onCloseWindow)
+                try {
+                    window.close();
+                } catch (_) {}
+
+                // 4. Exit fullscreen if active so mobile system navigation reappears
+                try {
+                    const doc = document;
+                    const exitFs = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+                    if (exitFs && (doc.fullscreenElement || doc.webkitFullscreenElement)) {
+                        exitFs.call(doc).catch(() => {});
+                    }
+                } catch (_) {}
+
+                // 5. Fallback if browser policy blocks window.close():
+                // Safely dismiss pause menu, return to character select, and notify user
+                if (this.pauseOverlay) this.pauseOverlay.classList.remove('open');
+                this.showCharacterSelect(false);
+                this.showLocationBanner('Игра сохранена');
+            });
+        }
+
         // Final safety net: capture progress if the tab/window closes without
         // hitting a location change or an autosave tick in between.
         window.addEventListener('beforeunload', () => {
@@ -1041,6 +1126,17 @@ class AveloraGame {
             inventoryClose.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.setInventoryOpen(false);
+            });
+        }
+
+        const orientBtn = document.getElementById('orient-lock-btn');
+        if (orientBtn) {
+            orientBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.tryLockLandscape();
+                const doc = document.documentElement;
+                const req = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.mozRequestFullScreen || doc.msRequestFullscreen;
+                if (req) req.call(doc).catch(() => {});
             });
         }
 
@@ -1156,6 +1252,7 @@ class AveloraGame {
         this.touchInitialCamAngle = this.cameraAngle;
 
         window.addEventListener('touchstart', (e) => {
+            this.tryLockLandscape();
             this.inputTouch = true;
             document.body.classList.add('touch-ui');
             if (this.viewMode !== 'first') this.lastPointer.type = 'touch'; // skills fire straight ahead after touch input

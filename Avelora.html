@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0c1214">
-    <link rel="manifest" href="js/manifest.json">
+    <script>if (location.protocol !== 'file:') { const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'js/manifest.json'; document.head.appendChild(l); }</script>
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Diablo Experience</title>
@@ -50,8 +49,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
-            transition: opacity 0.6s ease-out;
+            z-index: 2500;
+            transition: opacity 0.5s ease-out;
         }
         #loading-overlay.hidden {
             opacity: 0;
@@ -89,15 +88,22 @@
             position: fixed;
             top: max(env(safe-area-inset-top, 0px), 14px);
             left: max(env(safe-area-inset-left, 0px), 18px);
+            z-index: 105;
             pointer-events: none;
         }
         #hud-coords {
-            font-size: 0.85rem;
-            color: #1c1812;
-            font-weight: bold;
-            letter-spacing: 0.05rem;
+            font-size: 0.82rem;
+            color: #efcf7a;
+            font-weight: 600;
+            letter-spacing: 0.04rem;
             font-family: 'Consolas', 'Courier New', monospace;
-            text-shadow: 0 0 3px rgba(255, 250, 235, 0.7), 0 0 8px rgba(255, 250, 235, 0.45);
+            background: rgba(12, 16, 18, 0.75);
+            border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 4px;
+            padding: 3px 8px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            white-space: nowrap;
         }
 
         /* Diablo Classic Orbs */
@@ -1430,9 +1436,34 @@
             justify-content: space-between;
             align-items: center;
         }
-        #quest-tracker .qt-title:hover { color: #fff0be; }
-        #quest-tracker .qt-toggle { font-size: 0.8rem; color: #efcf7a; user-select: none; }
-        #quest-tracker .qt-list {
+        #quest-tracker .qt-toggle {
+            font-size: 1.15rem;
+            color: #ffd700;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 20px;
+            padding: 0 6px;
+            background: rgba(212, 175, 55, 0.22);
+            border: 1px solid rgba(212, 175, 55, 0.55);
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+            transition: all 0.15s ease;
+            line-height: 1;
+        }
+        #quest-tracker .qt-toggle:hover {
+            color: #ffffff;
+            background: rgba(212, 175, 55, 0.45);
+            border-color: #ffe066;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+            transform: scale(1.1);
+        }
+        #quest-tracker .qt-toggle:active {
+            transform: scale(0.92);
+        }
             max-height: 80px;
             overflow-y: auto;
             display: flex;
@@ -1442,7 +1473,56 @@
         }
         #quest-tracker .qt-list::-webkit-scrollbar { width: 3px; }
         #quest-tracker .qt-list::-webkit-scrollbar-thumb { background: rgba(214, 170, 60, 0.4); border-radius: 2px; }
-        #quest-tracker.collapsed .qt-list { display: none !important; }
+        #quest-tracker .qt-content { width: 100%; display: flex; flex-direction: column; }
+        #quest-tracker .qt-btn-icon { display: none; }
+        #quest-tracker.collapsed {
+            cursor: pointer;
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+            max-width: 44px !important;
+            max-height: 44px !important;
+            padding: 0 !important;
+            border-radius: 50% !important;
+            background: radial-gradient(circle, rgba(28, 22, 14, 0.95) 0%, rgba(12, 10, 6, 0.95) 100%) !important;
+            border: 2px solid rgba(212, 175, 55, 0.8) !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(212, 175, 55, 0.35) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important;
+            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 128px) !important;
+            right: max(env(safe-area-inset-right, 0px), 30px) !important;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        #quest-tracker.collapsed:hover {
+            transform: scale(1.08);
+            border-color: #ffd700 !important;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.6) !important;
+        }
+        #quest-tracker.collapsed .qt-content { display: none !important; }
+        #quest-tracker.collapsed .qt-btn-icon {
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: 1.35rem;
+            font-weight: 900;
+            font-family: 'Cinzel', Georgia, serif;
+            color: #ffd700;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 0 2px 4px #000;
+            user-select: none;
+        }
+        #quest-tracker.collapsed .qt-btn-icon.ready {
+            color: #70ff70;
+            text-shadow: 0 0 10px rgba(112, 255, 112, 0.9), 0 2px 4px #000;
+            animation: qt-pulse 1.2s infinite ease-in-out;
+        }
+        @keyframes qt-pulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #50c878); }
+            50% { transform: scale(1.15); filter: drop-shadow(0 0 8px #70ff70); }
+        }
         #quest-tracker .qt-row { display: flex; flex-direction: column; gap: 1px; line-height: 1.25; }
         #quest-tracker .qt-row b { font-size: 0.78rem; color: #f5eedc; font-weight: 600; }
         #quest-tracker .qt-row span { color: #b9c3b0; font-size: 0.72rem; }
@@ -1818,6 +1898,99 @@
         }
         .hotbar-slot.missing .slot-icon { filter: grayscale(1) brightness(0.45); }
         .hotbar-slot.equipped { border-color: #efcf7a; box-shadow: 0 0 10px rgba(239, 207, 122, 0.45), inset 0 0 8px rgba(0,0,0,0.7); }
+        .hotbar-slot.is-basic-attack {
+            border-color: rgba(212, 175, 55, 0.95) !important;
+            background: radial-gradient(circle, rgba(38, 30, 18, 0.95) 0%, rgba(16, 13, 8, 0.95) 100%) !important;
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.35), inset 0 0 10px rgba(0, 0, 0, 0.8) !important;
+        }
+
+        /* Slot 0 Ornamental Runic Frame (instead of plain yellow circle) */
+        .slot0-medal-frame {
+            position: absolute;
+            inset: -12px;
+            background-position: center;
+            background-size: contain;
+            background-repeat: no-repeat;
+            pointer-events: none;
+            z-index: 10;
+            filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 6px rgba(245, 206, 98, 0.45));
+            transition: transform 0.12s ease-out, filter 0.12s ease-out;
+        }
+        .hotbar-slot[data-slot="0"]:hover .slot0-medal-frame {
+            transform: scale(1.06);
+            filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.85));
+        }
+        .hotbar-slot[data-slot="0"]:active .slot0-medal-frame {
+            transform: scale(0.94);
+        }
+
+        /* Ornamental Skill Frames (from Common skil buttons.jpg) */
+        .slot-combat-frame,
+        .slot-heal-frame,
+        .slot-utility-frame {
+            position: absolute;
+            inset: -4px;
+            background-position: center;
+            background-size: contain;
+            background-repeat: no-repeat;
+            pointer-events: none;
+            z-index: 10;
+            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.85));
+            transition: transform 0.12s ease-out, filter 0.12s ease-out;
+        }
+        .hotbar-slot:hover .slot-combat-frame,
+        .hotbar-slot:hover .slot-utility-frame,
+        #potion-btn:hover .slot-heal-frame {
+            transform: scale(1.06);
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7));
+        }
+        .hotbar-slot:active .slot-combat-frame,
+        .hotbar-slot:active .slot-utility-frame,
+        #potion-btn:active .slot-heal-frame {
+            transform: scale(0.94);
+        }
+        #potion-btn .slot-heal-frame {
+            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 4px rgba(239, 68, 68, 0.4));
+        }
+        #potion-btn:hover .slot-heal-frame {
+            filter: drop-shadow(0 0 10px rgba(255, 90, 90, 0.85));
+        }
+
+        .icon-fist-img {
+            width: 100% !important;
+            height: 100% !important;
+            border-radius: 50% !important;
+            object-fit: cover !important;
+            filter: drop-shadow(0 0 8px rgba(255, 140, 20, 0.6));
+            animation: fist-pulse 3s infinite ease-in-out;
+        }
+        @keyframes fist-pulse {
+            0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 120, 20, 0.5)); }
+            50% { filter: drop-shadow(0 0 12px rgba(255, 170, 40, 0.85)); }
+        }
+        .icon-basic-attack {
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .icon-basic-attack .fist-svg {
+            width: 78%;
+            height: 78%;
+            display: block;
+            filter: drop-shadow(0 0 6px rgba(245, 206, 98, 0.45));
+            transition: transform 0.15s ease-out, filter 0.15s ease-out;
+        }
+        .hotbar-slot:hover .icon-basic-attack .fist-svg {
+            transform: scale(1.08);
+            filter: drop-shadow(0 0 12px rgba(255, 225, 120, 0.75));
+        }
+        .hotbar-slot:active .icon-basic-attack .fist-svg {
+            transform: scale(0.92);
+        }
         .hotbar-slot.pressed { animation: slot-press 0.22s ease-out; }
         .hotbar-slot.shake { animation: slot-shake 0.3s ease-in-out; }
         .hotbar-slot.reject { animation: slot-reject 0.55s ease-out; }
@@ -2466,9 +2639,11 @@
             #hud-top-left {
                 top: max(env(safe-area-inset-top, 0px), 8px);
                 left: max(env(safe-area-inset-left, 0px), 10px);
+                z-index: 105;
             }
             #hud-coords {
-                font-size: 0.75rem;
+                font-size: 0.72rem;
+                padding: 2px 6px;
             }
             #compass-btn {
                 top: max(env(safe-area-inset-top, 0px), 8px);
@@ -2574,8 +2749,8 @@
                 right: max(env(safe-area-inset-right, 0px), 8px) !important;
                 bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
                 transform: none !important;
-                width: 216px !important;
-                height: 198px !important;
+                width: 330px !important;
+                height: 146px !important;
                 display: block !important;
                 pointer-events: none !important;
                 padding: 0 !important;
@@ -2607,86 +2782,111 @@
                 height: 26px !important;
             }
 
-            /* Slot 0: Big Main Attack / Spell (Center of thumb reach) */
+            /* Slot 0: Big Main Attack / Weapon / Fist (Center of thumb reach) */
             .skill-bar .skill-slot[data-slot="0"] {
-                right: 20px !important;
-                bottom: 8px !important;
-                width: 64px !important;
-                height: 64px !important;
-                border: 2.5px solid #efcf7a !important;
-                background: radial-gradient(circle at 35% 35%, rgba(239, 207, 122, 0.25) 0%, rgba(14, 18, 20, 0.95) 75%) !important;
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 16px rgba(239, 207, 122, 0.45), inset 0 0 12px rgba(212, 175, 55, 0.3) !important;
+                right: 8px !important;
+                bottom: 4px !important;
+                width: 72px !important;
+                height: 72px !important;
+                border: none !important;
+                background: radial-gradient(circle at 50% 50%, rgba(32, 22, 12, 0.95) 0%, rgba(10, 8, 5, 0.98) 100%) !important;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.9), inset 0 0 12px rgba(0, 0, 0, 0.9) !important;
                 z-index: 105 !important;
+                overflow: visible !important;
+            }
+            .skill-bar .skill-slot[data-slot="0"] .slot0-medal-frame {
+                inset: -14px !important;
             }
             .skill-bar .skill-slot[data-slot="0"] .ui-icon {
-                width: 36px !important;
-                height: 36px !important;
+                width: 50px !important;
+                height: 50px !important;
+                border-radius: 50% !important;
             }
 
-            /* Arc Skills 1..4 (radial fan around Slot 0, radius ~76px, separated by 40 deg) */
+            /* Arc Combat Skills 1..4 (radial fan snugly fitted around Slot 0 with ~6px gap) */
             .skill-bar .skill-slot[data-slot="1"] {
-                right: 106px !important;
-                bottom: 8px !important;
+                right: 94px !important;
+                bottom: 6px !important;
                 width: 44px !important;
                 height: 44px !important;
-                border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(22, 26, 28, 0.92) 0%, rgba(10, 13, 14, 0.96) 100%) !important;
                 z-index: 104 !important;
+                overflow: visible !important;
             }
             .skill-bar .skill-slot[data-slot="2"] {
-                right: 98px !important;
-                bottom: 58px !important;
+                right: 80px !important;
+                bottom: 54px !important;
                 width: 44px !important;
                 height: 44px !important;
-                border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(22, 26, 28, 0.92) 0%, rgba(10, 13, 14, 0.96) 100%) !important;
                 z-index: 104 !important;
+                overflow: visible !important;
             }
             .skill-bar .skill-slot[data-slot="3"] {
-                right: 58px !important;
-                bottom: 94px !important;
+                right: 44px !important;
+                bottom: 86px !important;
                 width: 44px !important;
                 height: 44px !important;
-                border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(22, 26, 28, 0.92) 0%, rgba(10, 13, 14, 0.96) 100%) !important;
                 z-index: 104 !important;
+                overflow: visible !important;
             }
             .skill-bar .skill-slot[data-slot="4"] {
-                right: 8px !important;
-                bottom: 94px !important;
+                right: 0px !important;
+                bottom: 86px !important;
                 width: 44px !important;
                 height: 44px !important;
-                border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(22, 26, 28, 0.92) 0%, rgba(10, 13, 14, 0.96) 100%) !important;
                 z-index: 104 !important;
+                overflow: visible !important;
             }
 
-            /* Slot 5: Auxiliary / Dodge / Recall (Above Slot 4 along the right edge) */
-            .skill-bar .skill-slot[data-slot="5"] {
-                right: 8px !important;
-                bottom: 146px !important;
-                width: 44px !important;
-                height: 44px !important;
-                border: 1.5px solid rgba(212, 175, 55, 0.75) !important;
-                z-index: 104 !important;
-            }
-
-            /* Potion Slot: Flask to the left of the cluster */
+            /* Potion Slot: Auto-heal / Drink Flask to the left of combat cluster */
             .skill-bar #potion-btn {
                 position: absolute !important;
-                right: 158px !important;
-                bottom: 8px !important;
+                right: 152px !important;
+                bottom: 6px !important;
                 width: 44px !important;
                 height: 44px !important;
                 border-radius: 50% !important;
-                border: 1.5px solid rgba(239, 68, 68, 0.8) !important;
+                border: none !important;
                 background: radial-gradient(circle at 35% 35%, rgba(220, 38, 38, 0.28) 0%, rgba(14, 18, 20, 0.95) 75%) !important;
                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(239, 68, 68, 0.35) !important;
                 z-index: 104 !important;
+                overflow: visible !important;
             }
             .skill-bar #potion-btn .potion-slot-icon {
                 width: 72% !important;
                 height: 72% !important;
             }
 
-            /* Hide slots 6..9 on mobile screens */
-            .skill-bar .skill-slot[data-slot="6"],
+            /* Utility Non-Combat Slots 5 & 6 (Portal recall, buffs, etc.) to the left of potion button */
+            .skill-bar .skill-slot[data-slot="5"] {
+                right: 218px !important;
+                bottom: 6px !important;
+                width: 42px !important;
+                height: 42px !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(20, 24, 28, 0.92) 0%, rgba(8, 12, 14, 0.96) 100%) !important;
+                z-index: 104 !important;
+                overflow: visible !important;
+            }
+            .skill-bar .skill-slot[data-slot="6"] {
+                right: 278px !important;
+                bottom: 6px !important;
+                width: 42px !important;
+                height: 42px !important;
+                border: none !important;
+                background: radial-gradient(circle, rgba(20, 24, 28, 0.92) 0%, rgba(8, 12, 14, 0.96) 100%) !important;
+                z-index: 104 !important;
+                overflow: visible !important;
+            }
+
+            /* Hide desktop slots 7..9 on mobile screens */
             .skill-bar .skill-slot[data-slot="7"],
             .skill-bar .skill-slot[data-slot="8"],
             .skill-bar .skill-slot[data-slot="9"] {
@@ -2741,7 +2941,7 @@
             }
             #inventory-panel {
                 left: auto;
-                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 224px);
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 288px);
                 width: 290px;
                 max-width: calc(100% - 24px);
                 top: auto;
@@ -2752,7 +2952,7 @@
             }
             #skills-panel {
                 left: auto;
-                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 224px);
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 288px);
                 width: 270px;
                 max-width: calc(100% - 24px);
                 top: auto;
@@ -2763,13 +2963,13 @@
             }
             #skills-panel.beside-inventory {
                 left: auto;
-                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 520px);
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 588px);
                 top: auto;
                 bottom: max(env(safe-area-inset-bottom, 0px), 12px);
             }
             #chest-panel {
                 left: auto;
-                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 520px);
+                right: calc(max(env(safe-area-inset-right, 0px), 12px) + 588px);
                 width: 290px;
                 max-width: calc(100% - 24px);
                 top: auto;
@@ -2894,22 +3094,33 @@
             .icon-fallback { font-size: 0.8em; }
             /* Compact Mobile Quest Tracker */
             #quest-tracker {
-                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 98px) !important;
-                right: max(env(safe-area-inset-right, 0px), 10px) !important;
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 104px) !important;
+                right: max(env(safe-area-inset-right, 0px), 12px) !important;
                 min-width: 140px !important;
-                max-width: 190px !important;
-                max-height: 96px !important;
+                max-width: 200px !important;
+                max-height: 110px !important;
                 padding: 4px 7px !important;
                 font-size: 0.72rem !important;
+                box-sizing: border-box !important;
+                z-index: 120 !important;
             }
             #quest-tracker .qt-list {
                 max-height: 64px !important;
+            }
+            #quest-tracker .qt-toggle {
+                min-width: 34px !important;
+                height: 22px !important;
+                font-size: 1.25rem !important;
+            }
+            #quest-tracker.collapsed {
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 104px) !important;
+                right: max(env(safe-area-inset-right, 0px), 12px) !important;
             }
             /* Top-Left Character Vitals (Mobile standard: HP, Mana, XP under coordinates) */
             .hp-bar {
                 left: max(env(safe-area-inset-left, 0px), 10px) !important;
                 right: auto !important;
-                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 20px) !important;
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 24px) !important;
                 bottom: auto !important;
                 width: 116px !important;
                 height: 12px !important;
@@ -2919,7 +3130,7 @@
             .mana-bar {
                 left: max(env(safe-area-inset-left, 0px), 10px) !important;
                 right: auto !important;
-                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 34px) !important;
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 38px) !important;
                 bottom: auto !important;
                 width: 116px !important;
                 height: 12px !important;
@@ -2928,7 +3139,7 @@
             .xp-bar {
                 left: max(env(safe-area-inset-left, 0px), 10px) !important;
                 right: auto !important;
-                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 48px) !important;
+                top: calc(max(env(safe-area-inset-top, 0px), 8px) + 52px) !important;
                 bottom: auto !important;
                 width: 116px !important;
                 height: 9px !important;
@@ -3006,6 +3217,18 @@
             font-size: 1rem;
             letter-spacing: 0.06em;
         }
+        .map-coords {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #efcf7a;
+            background: rgba(18, 26, 20, 0.7);
+            border: 1px solid rgba(195, 160, 95, 0.35);
+            border-radius: 4px;
+            padding: 2px 8px;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
         #map-close-btn {
             background: none;
             border: 1px solid rgba(195,160,95,0.4);
@@ -3044,6 +3267,73 @@
         .map-leg-hostile { color: #ef4444; }
         .map-leg-neutral { color: #eab308; }
 
+        /* Forced Landscape Warning for Mobile Devices */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: radial-gradient(circle at center, #1a2226 0%, #070b0d 100%);
+            color: #f1e2c8;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 24px;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .orient-icon {
+            width: 72px;
+            height: 72px;
+            margin-bottom: 20px;
+            animation: orient-rotate 2.4s infinite ease-in-out;
+            filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.4));
+        }
+        @keyframes orient-rotate {
+            0%, 20% { transform: rotate(0deg); }
+            50%, 75% { transform: rotate(-90deg); }
+            100% { transform: rotate(-90deg); }
+        }
+        .orient-title {
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 1.45rem;
+            color: #efcf7a;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+        }
+        .orient-text {
+            font-size: 0.95rem;
+            color: #a4b3b2;
+            max-width: 320px;
+            line-height: 1.45;
+            margin-bottom: 24px;
+        }
+        .orient-btn {
+            background: linear-gradient(180deg, #2a3438 0%, #171f22 100%);
+            border: 1.5px solid rgba(212, 175, 55, 0.7);
+            border-radius: 6px;
+            color: #f1e2c8;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            padding: 10px 22px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .orient-btn:hover {
+            border-color: #ffd700;
+            color: #fff;
+            transform: scale(1.05);
+        }
+        @media screen and (orientation: portrait) and (max-width: 900px) {
+            #orientation-warning {
+                display: flex !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3213,6 +3503,7 @@
             <button type="button" id="skills-close" title="Закрыть (K)" aria-label="Закрыть навыки">×</button>
         </div>
         <div id="skills-list"></div>
+        <div class="skills-hint">Тапните навык для быстрой экипировки или перетащите в любую ячейку панели.</div>
     </div>
 
     <!-- Hero Profile Modal (C key) -->
@@ -3404,6 +3695,7 @@
         <div id="map-panel">
             <div id="map-header">
                 <span id="map-loc-name">—</span>
+                <span id="map-coords" class="map-coords">X: 0.0 | Z: 0.0</span>
                 <button type="button" id="map-close-btn" aria-label="Закрыть карту">✕</button>
             </div>
             <canvas id="map-canvas"></canvas>
@@ -3428,6 +3720,7 @@
                 <button type="button" class="pause-btn" id="pause-character-select">Выбор персонажа</button>
                 <button type="button" class="pause-btn" id="pause-settings-btn">Настройки</button>
                 <button type="button" class="pause-btn" id="pause-controls-btn">Управление</button>
+                <button type="button" class="pause-btn" id="pause-exit-btn" style="border-color: rgba(220, 90, 70, 0.6); color: #f28b7e; margin-top: 6px;">Выход из игры</button>
             </div>
         </div>
 
@@ -3524,12 +3817,25 @@
         </div>
     </div>
 
+    <!-- Portrait Orientation Warning -->
+    <div id="orientation-warning" aria-hidden="true">
+        <svg class="orient-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="18" y="10" width="28" height="44" rx="4" stroke="#d4af37" stroke-width="2.5" fill="rgba(212,175,55,0.12)"/>
+            <circle cx="32" cy="48" r="2" fill="#d4af37"/>
+            <path d="M 12 32 C 12 20 22 12 32 12" stroke="#70ff70" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="3 3"/>
+            <path d="M 28 8 L 34 12 L 28 16" fill="#70ff70"/>
+        </svg>
+        <div class="orient-title">Альбомный режим</div>
+        <div class="orient-text">Пожалуйста, поверните устройство горизонтально для игры в Avelora</div>
+        <button class="orient-btn" id="orient-lock-btn">Во весь экран</button>
+    </div>
+
     <!-- Engine Scripts (Serverless file:// Compatible) -->
     <script src="js/lib/three.min.js"></script>
     <script src="js/lib/GLTFLoader.js"></script>
     <script src="js/lib/Water.js"></script>
     <script src="js/lib/simplex-noise.js"></script>
-    <script src="js/assets_data.js?v=20261006_1"></script>
+    <script src="js/assets_data.js?v=20261006_2"></script>
     <script src="js/content_data.js?v=20261006_1"></script>
     <script src="js/world_data.js?v=20261006_1"></script>
     <script src="js/location_groups.js?v=20261005_6"></script>
@@ -3543,20 +3849,20 @@
     <script src="js/characters.js?v=20261003_1"></script>
     <script src="js/save.js?v=20261001_1"></script>
     <script src="js/items.js?v=20261005_4"></script>
-    <script src="js/game_state.js?v=20261002_9"></script>
+    <script src="js/game_state.js?v=20261006_1"></script>
     <script src="js/world_objects.js?v=20261006_1"></script>
     <script src="js/creatures.js?v=20261005_4"></script>
     <script src="js/harvest.js?v=20261005_5"></script>
-    <script src="js/combat.js?v=20261003_1"></script>
+    <script src="js/combat.js?v=20261006_2"></script>
     <script src="js/progression_config.js?v=20261002_9"></script>
     <script src="js/hero.js?v=20261002_9"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
-    <script src="js/dialog.js?v=20261006_1"></script>
+    <script src="js/dialog.js?v=20261006_4"></script>
     <script src="js/skills.js?v=20261003_1"></script>
-    <script src="js/ui_hotbar.js?v=20261002_10"></script>
+    <script src="js/ui_hotbar.js?v=20261006_5"></script>
     <script src="js/character.js?v=20261002_11"></script>
-    <script src="js/map.js?v=20261001_1"></script>
-    <script src="js/main.js?v=20261006_1"></script>
+    <script src="js/map.js?v=20261006_1"></script>
+    <script src="js/main.js?v=20261006_4"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

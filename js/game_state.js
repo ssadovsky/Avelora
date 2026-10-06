@@ -117,12 +117,24 @@
                 else if (e.type === 'item' && window.AveloraItems.canHotbar(e.id)) out[i] = { type: 'item', id: e.id };
             }
         }
-        // If hotbar has no skills, populate initial slots with learned skills
+        // If hotbar has no skills, populate slots with learned skills:
+        // Slot 0 is reserved for basic weapon/fist attack, so combat skills fill slots 1..4,
+        // and utility/universal skills (like home_recall) go to slot 5 (utility slot).
         const hasAnySkill = out.some(e => e && e.type === 'skill');
         if (!hasAnySkill && skills.length > 0) {
-            skills.forEach((skillId, idx) => {
-                if (idx < HOTBAR_SIZE && !out[idx]) {
-                    out[idx] = { type: 'skill', id: skillId };
+            skills.forEach(skillId => {
+                if (UNIVERSAL_SKILLS.includes(skillId)) {
+                    // Place universal/utility skills in slot 5 (or first free utility slot 5..9)
+                    if (!out[5]) {
+                        out[5] = { type: 'skill', id: skillId };
+                    } else {
+                        const freeIdx = [6, 7, 8, 9, 1, 2, 3, 4].find(i => !out[i]);
+                        if (freeIdx !== undefined) out[freeIdx] = { type: 'skill', id: skillId };
+                    }
+                } else {
+                    // Combat skills start at slot 1 so slot 0 stays free for basic attack
+                    const freeIdx = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(i => !out[i]);
+                    if (freeIdx !== undefined) out[freeIdx] = { type: 'skill', id: skillId };
                 }
             });
         }

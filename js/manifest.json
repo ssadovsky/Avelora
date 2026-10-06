@@ -6,7 +6,7 @@
   "scope": "../",
   "id": "../",
   "display": "fullscreen",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#0c1214",
   "theme_color": "#0c1214",
   "lang": "ru",

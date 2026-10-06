@@ -143,6 +143,28 @@
                 const key = document.createElement('span'); key.className = 'slot-key'; key.textContent = KEY_LABELS[i];
                 slot.append(icon, cd, count, key);
                 slot._icon = icon; slot._cd = cd; slot._count = count;
+                if (i === 0) {
+                    const frame = document.createElement('span');
+                    frame.className = 'slot0-medal-frame';
+                    const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.slot0Frame;
+                    if (frameTex) frame.style.backgroundImage = `url("${frameTex}")`;
+                    slot.appendChild(frame);
+                    slot._frame = frame;
+                } else if (i >= 1 && i <= 4) {
+                    const frame = document.createElement('span');
+                    frame.className = 'slot-combat-frame';
+                    const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.btnCombatFrame;
+                    if (frameTex) frame.style.backgroundImage = `url("${frameTex}")`;
+                    slot.appendChild(frame);
+                    slot._frame = frame;
+                } else if (i === 5 || i === 6) {
+                    const frame = document.createElement('span');
+                    frame.className = 'slot-utility-frame';
+                    const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.btnUtilityFrame;
+                    if (frameTex) frame.style.backgroundImage = `url("${frameTex}")`;
+                    slot.appendChild(frame);
+                    slot._frame = frame;
+                }
             });
         }
 
@@ -326,11 +348,42 @@
                 const e = hb[i] || null;
                 slot._icon.innerHTML = '';
                 slot._count.textContent = '';
-                slot.classList.remove('missing', 'is-skill', 'is-item', 'equipped');
+                slot.classList.remove('missing', 'is-skill', 'is-item', 'is-basic-attack', 'equipped');
                 slot.classList.toggle('empty', !e);
                 this.cdCache[i] = -1;
                 slot._cd.style.background = '';
-                if (!e) return;
+                if (!e) {
+                    // Slot 0 (central attack button): defaults to weapon in hand attack!
+                    if (i === 0) {
+                        slot.classList.remove('empty');
+                        slot.classList.add('is-basic-attack');
+                        if (slot._frame && !slot._frame.style.backgroundImage) {
+                            const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.slot0Frame;
+                            if (frameTex) slot._frame.style.backgroundImage = `url("${frameTex}")`;
+                        }
+                        const eqId = this.state && this.state.equipped && this.state.equipped.right;
+                        const def = eqId ? window.AveloraItems.get(eqId) : null;
+                        if (def) {
+                            slot._icon.appendChild(makeIcon(def));
+                        } else {
+                            const fistTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.fistIcon;
+                            if (fistTex) {
+                                const img = document.createElement('img');
+                                img.className = 'ui-icon icon-fist-img';
+                                img.src = fistTex;
+                                img.alt = 'Кулачный бой';
+                                img.draggable = false;
+                                slot._icon.appendChild(img);
+                            } else {
+                                const icon = document.createElement('span');
+                                icon.className = 'icon-basic-attack';
+                                icon.textContent = '👊';
+                                slot._icon.appendChild(icon);
+                            }
+                        }
+                    }
+                    return;
+                }
                 if (e.type === 'skill') {
                     slot.classList.add('is-skill');
                     slot._icon.appendChild(makeIcon(this.game.skills.get(e.id)));
@@ -781,6 +834,13 @@
 
         setupPotionSlot() {
             if (this.potionBtn) {
+                const frame = document.createElement('span');
+                frame.className = 'slot-heal-frame';
+                const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.btnHealFrame;
+                if (frameTex) frame.style.backgroundImage = `url("${frameTex}")`;
+                this.potionBtn.appendChild(frame);
+                this.potionBtn._frame = frame;
+
                 this.potionBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (this.inputAllowed()) {
@@ -1298,7 +1358,13 @@
             if (!this.inputAllowed()) return;
             const e = this.state.hotbar[i];
             const slot = this.slots[i];
-            if (!e) return;
+            if (!e) {
+                if (i === 0 && this.game.combat) {
+                    this.game.combat.performBasicAttack();
+                    this.flashSlot(slot, 'pressed');
+                }
+                return;
+            }
             if (e.type === 'skill') {
                 const res = this.game.skills.activate(e.id);
                 if (res === 'ok') this.flashSlot(slot, 'pressed');
@@ -2099,6 +2165,12 @@
                 if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD) return;
                 // Only real things can be dragged (an empty slot is just a click target)
                 if (d.src.kind === 'slot' && !d.src.entry) { this.drag = null; return; }
+                // On touch screens, lock dragging skills/items directly OFF the hotbar unless the skills panel is open
+                // (prevents accidentally throwing away bound skills during combat/running).
+                if (d.pointerType !== 'mouse' && d.src.kind === 'slot' && !this.skillsOpen) {
+                    this.drag = null;
+                    return;
+                }
                 d.active = true;
                 this.hideTooltip();
                 this.startGhost(d.src);

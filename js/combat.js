@@ -217,9 +217,41 @@
             return null;
         }
 
-        // -----------------------------------------------------------
-        // Engagement
-        // -----------------------------------------------------------
+        /**
+         * Triggers basic weapon attack (or bare hands) towards soft-lock target,
+         * auto-acquired target in front cone, or free directional swing.
+         */
+        performBasicAttack() {
+            if (this.isDead || !this.game.character) return;
+            const cr = this.game.creatures;
+            const c = this.game.character;
+
+            // 1. If target is already selected and alive, attack it
+            let target = this.selectedTarget;
+            if (target && cr && cr.isAlive(target)) {
+                this.attackCreature(target);
+                return;
+            }
+
+            // 2. Try to auto-acquire enemy in front
+            const acquired = this.autoAcquireTarget(16);
+            if (acquired) {
+                this.attackCreature(acquired);
+                return;
+            }
+
+            // 3. Free directional swing / shot if no enemy nearby
+            const now = this.game.gameTime;
+            const w = this.weapon();
+            if (now < this.nextSwingAt) return;
+            const sty = w.style;
+            const dur = sty === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85);
+            if (sty === 'bow') c.startSwing(dur, 'bow');
+            else if (c.playAttack) c.playAttack(dur, sty);
+            else c.startSwing(dur, sty);
+            this.nextSwingAt = now + w.cooldown;
+        }
+
         /** Attack a creature record (creatures.js). */
         attackCreature(rec) {
             const cr = this.game.creatures;
