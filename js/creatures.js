@@ -44,6 +44,8 @@
     const CORPSE_TIME = 8;          // s the corpse lies before sinking
     const SINK_TIME = 1.6;          // s to sink into the ground
     const RESPAWN_CHECK = 2;        // s between respawn checks (game time)
+    const CREATURE_DRAW_DIST = 1e6;  // м: дальше существо не рисуется. Сейчас без ограничения (появление волка на бегу раздражало); можно вернуть ~80–150 для слабых устройств
+    const CREATURE_SHADOW_DIST = 40; // м: тень существа только вблизи
     const HIT_FLASH = 0.22;         // s red emissive flash
     const HIT_CLIP_GAP = 0.7;       // s — don't restart the Hit clip more often than this
     const FADE = 0.2;               // s clip cross-fade
@@ -432,6 +434,23 @@
             for (let i = 0; i < this.list.length; i++) {
                 const rec = this.list[i];
                 if (!rec.group) continue;
+
+                // Дальность прорисовки: у существ отключён frustumCulled (skinned bounds), поэтому без этого все
+                // существа карты рисуются всегда (30–50k треугольников каждое, ещё раз в проходе теней).
+                // ИИ и анимация идут как обычно — прячется только отрисовка. Тень — только вблизи.
+                if (c && c.position) {
+                    const dx = rec.group.position.x - c.position.x, dz = rec.group.position.z - c.position.z;
+                    const d2 = dx * dx + dz * dz;
+                    const vis = d2 < CREATURE_DRAW_DIST * CREATURE_DRAW_DIST;
+                    if (rec.group.visible !== vis) rec.group.visible = vis;
+                    if (vis) {
+                        const sh = d2 < CREATURE_SHADOW_DIST * CREATURE_SHADOW_DIST;
+                        if (rec._shadowOn !== sh) {
+                            rec._shadowOn = sh;
+                            rec.group.traverse(o => { if (o.isMesh) o.castShadow = sh; });
+                        }
+                    }
+                }
 
                 if (rec.growT < SPAWN_GROW) {
                     rec.growT = Math.min(SPAWN_GROW, rec.growT + delta);

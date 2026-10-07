@@ -176,7 +176,13 @@ window.LOCATIONS = {
             // Луговая поляна в центре и тропа
             { id: 'glade',       type: 'meadow', x: 4.0,   z: 4.0,  radius: 26.0, count: 120, flowers: 20, seed: 51 },
             { id: 'path_meadow', type: 'meadow', x: -34.0, z: 14.0, radius: 10.0, count: 35,  flowers: 5,  seed: 52 },
-            { id: 'east_meadow', type: 'meadow', x: 80.0,  z: 6.0,  radius: 18.0, count: 60,  flowers: 10, seed: 53 }
+            { id: 'east_meadow', type: 'meadow', x: 80.0,  z: 6.0,  radius: 18.0, count: 60,  flowers: 10, seed: 53 },
+
+            // Живописные рощи и опушка леса вокруг стартовой зоны, водопада и лагеря Лираэль
+            // убрано (лезли на горы-ограждение): { id: 'start_ridge_forest',       type: 'forest', x: 138.0, z: 75.0, rx: 9.0,  rz: 20.0, count: 22, seed: 105, undergrowth: true },
+            // убрано (лезли на горы-ограждение): { id: 'start_south_forest',       type: 'forest', x: 126.0, z: 91.0, rx: 18.0, rz: 7.0,  count: 16, seed: 106, undergrowth: true },
+            // убрано (лезли на горы-ограждение): { id: 'waterfall_north_forest',   type: 'forest', x: 136.0, z: -12.0, rx: 11.0, rz: 20.0, count: 18, seed: 107, undergrowth: true },
+            { id: 'lirael_west_copse',         type: 'forest', x: 106.0, z: 18.0, radius: 8.5, count: 9, seed: 108, undergrowth: true }
         ],
 
         // Существа в долине:

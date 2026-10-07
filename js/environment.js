@@ -13,6 +13,10 @@
  *   released with `dispose()` on location change.
  */
 const ENV_CHUNK_SIZE = 20; // meters
+// V0.3: множители радиуса куллинга чанков (GFX.grassRadius * mul)
+const CULL_INNER_MUL = { dandelions_lod: 0.45 };
+const CULL_RADIUS_MUL = { grass: 1.0, dandelions: 0.45, dandelions_lod: 1.0, ferns: 1.3, reeds: 1.5, shrubs: 1.8 };
+const CULL_CHUNK_HALF_DIAG = ENV_CHUNK_SIZE * 0.7071; // расстояние от центра до угла чанка
 
 // Decoded GLB buffers are cached between locations (atob of multi-MB strings is slow)
 const GLB_BUFFER_CACHE = {};
@@ -76,6 +80,9 @@ class LakesideEnvironment {
         // never outlives the geometries' owning location / risks a stale
         // reference after teardownLocation() disposes them).
         this.hoverMeshes = [];
+        this.cullMeshes = [];      // V0.3: чанки мелкой растительности (GFX.grassRadius)
+        this.shadowMeshes = [];    // V4.5: тени деревьев по радиусу (GFX.treeShadowR)
+        this._cullT = 1;
         this._hoverProxyGeoCache = {};
 
         this.lists = window.expandLocationObjects
@@ -206,6 +213,8 @@ class LakesideEnvironment {
                 mesh.position.set(chunk.ox, 0, chunk.oz);
                 mesh.userData.kind = kind;
                 mesh.userData.instanceIds = [];
+                if (kind === 'trees' && mesh.castShadow) this.shadowMeshes.push({ mesh, x: chunk.ox, z: chunk.oz });
+                if (CULL_RADIUS_MUL[kind]) this.cullMeshes.push({ mesh, x: chunk.ox, z: chunk.oz, mul: CULL_RADIUS_MUL[kind], inner: CULL_INNER_MUL[kind] || 0 });
                 if (HOVER_KINDS.has(kind) && !PROXY_HOVER_KINDS.has(kind)) {
                     mesh.userData.hoverable = true;
                     this.hoverMeshes.push(mesh);
@@ -372,7 +381,7 @@ class LakesideEnvironment {
                 if (c.material) {
                     c.material.side = THREE.DoubleSide;
                     if (c.material.name.includes('Tree_1') || c.material.alphaMode === 'MASK') {
-                        c.material.alphaTest = 0.35;
+                        c.material.alphaTest = 0.35;
                         c.material.depthWrite = true;
                     }
                 }
@@ -713,8 +722,9 @@ class LakesideEnvironment {
         this.root.add(this.particles);
     }
 
-    update(delta) {
+    update(delta, playerPos) {
         this.windUniform.value += delta;
+        this.updateCulling(delta, playerPos);
 
         if (this.particles) {
             const pos = this.particles.geometry.attributes.position.array;
@@ -728,10 +738,42 @@ class LakesideEnvironment {
         }
     }
 
+    /** V0.3: видимость чанков мелкой растительности и тени деревьев по расстоянию (раз в 0.25 c). */
+    updateCulling(delta, playerPos) {
+        if (!playerPos || !(this.cullMeshes.length || this.shadowMeshes.length)) return;
+        this._cullT += delta;
+        if (this._cullT < 0.25) return;
+        this._cullT = 0;
+        // V4.5: деревья отбрасывают тень только в радиусе GFX.treeShadowR (чанк целиком дальше — без тени)
+        const SR = (window.GFX && window.GFX.treeShadowR) || 1e9;
+        for (const c of this.shadowMeshes) {
+            const dx = c.x - playerPos.x, dz = c.z - playerPos.z;
+            const lim = SR + CULL_CHUNK_HALF_DIAG;
+            const cast = SR >= 1e8 || (dx * dx + dz * dz) <= lim * lim;
+            if (c.mesh.castShadow !== cast) c.mesh.castShadow = cast;
+        }
+        const R = window.GFX ? window.GFX.grassRadius : 1e9;
+        const px = playerPos.x, pz = playerPos.z;
+        for (const c of this.cullMeshes) {
+            const lim = R * c.mul + CULL_CHUNK_HALF_DIAG;
+            const dx = c.x - px, dz = c.z - pz;
+            const d2 = dx * dx + dz * dz;
+            if (R >= 1e8) { c.mesh.visible = !c.inner; continue; }
+            let vis = d2 <= lim * lim;
+            if (vis && c.inner) {
+                const inLim = R * c.inner - CULL_CHUNK_HALF_DIAG;
+                vis = inLim <= 0 || d2 >= inLim * inLim;
+            }
+            c.mesh.visible = vis;
+        }
+    }
+
     dispose() {
         this.disposed = true;
         this.objects.clear();
         this.hoverMeshes.length = 0;
+        this.cullMeshes.length = 0;
+        this.shadowMeshes.length = 0;
     }
 }
 

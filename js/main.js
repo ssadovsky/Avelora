@@ -163,7 +163,7 @@ class AveloraGame {
         this.updateCameraPosition(true);
 
         // Renderer setup
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        this.renderer = new THREE.WebGLRenderer({ antialias: !(window.GFX && window.GFX.aa === false), powerPreference: 'high-performance' });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -171,9 +171,11 @@ class AveloraGame {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.container.appendChild(this.renderer.domElement);
+        this.createVignette();
 
         // Lighting
         this.setupLighting();
+        this.applyGraphicsProfile(true);
 
         // Water lives for the whole session (reconfigured per location)
         this.water = new LakesideWater(this.scene, this.sunLight, { terrain: { waterBody: { type: 'none' } } });
@@ -854,6 +856,41 @@ class AveloraGame {
         this.scene.add(this.sunLight);
     }
 
+    /**
+     * VISUAL_TODO V0.2: применяет профиль GFX (low/high) на лету, без пересоздания сцены.
+     * Вызывается на старте (force) и из handleResize (debounce) — срабатывает только при смене профиля.
+     */
+    applyGraphicsProfile(force = false) {
+        const G = window.GFX;
+        if (!G) return;
+        const changed = G.refresh();
+        if (!changed && !force) return;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, G.dpr));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const sun = this.sunLight;
+        if (sun) {
+            const shadowsChanged = this.renderer.shadowMap.enabled !== G.shadows;
+            this.renderer.shadowMap.enabled = G.shadows;
+            sun.castShadow = G.shadows;
+            if (sun.shadow.mapSize.width !== G.shadowMapSize) {
+                sun.shadow.mapSize.set(G.shadowMapSize, G.shadowMapSize);
+                if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+            }
+            if (shadowsChanged) {
+                this.scene.traverse(o => {
+                    const m = o.material;
+                    if (!m) return;
+                    (Array.isArray(m) ? m : [m]).forEach(mm => { mm.needsUpdate = true; });
+                });
+            }
+        }
+        if (this.scene.fog && this._fogBase !== undefined) this.scene.fog.density = this._fogBase * G.fogMul;
+        document.body.classList.toggle('gfx-low', G.tier === 'low');
+        document.body.classList.toggle('gfx-high', G.tier === 'high');
+        this.needsRender = true;
+    }
+
     setupEvents() {
         const handleResize = () => {
             const w = window.innerWidth;
@@ -862,6 +899,8 @@ class AveloraGame {
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(w, h);
             this.needsRender = true; // resize clears the canvas; redraw even if paused
+            clearTimeout(this._gfxTimer);
+            this._gfxTimer = setTimeout(() => this.applyGraphicsProfile(), 150);
         };
         window.addEventListener('resize', handleResize);
         window.addEventListener('orientationchange', () => {
@@ -2040,12 +2079,70 @@ class AveloraGame {
         this._fpsAccum = (this._fpsAccum || 0) + delta;
         if (this._fpsAccum >= 0.25) {
             this._fpsAccum = 0;
-            this.fpsEl.textContent = Math.round(this._fpsSmoothed) + ' FPS';
+            const inf = this.renderer && this.renderer.info;
+            const extra = inf ? ' | calls ' + inf.render.calls + ' | tri ' + Math.round(inf.render.triangles / 1000) + 'k' : '';
+            const G = window.GFX;
+            this.fpsEl.textContent = Math.round(this._fpsSmoothed) + ' FPS' + extra +
+                (G ? ' | ' + G.tier + ' dpr ' + this.renderer.getPixelRatio() + ' cap ' + G.fpsCap : '');
+        }
+    }
+
+    /**
+     * Виньетка рисуется внутри WebGL (один полноэкранный треугольник поверх кадра), а не HTML-слоем
+     * с mix-blend-mode: в Firefox композитинг HTML над WebGL-канвасом стоил ~13 пунктов GPU.
+     * Отключение: GFX.vignette = false (профиль low) или ?novig=1 (если раскомментирован блок в gfx_profile.js).
+     */
+    createVignette() {
+        this.vigScene = new THREE.Scene();
+        this.vigCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        const mat = new THREE.ShaderMaterial({
+            transparent: true, depthTest: false, depthWrite: false,
+            vertexShader: 'varying vec2 vUv; void main(){ vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+            fragmentShader: [
+                'varying vec2 vUv;',
+                'void main(){',
+                '  vec2 d = (vUv - 0.5) * vec2(1.0, 0.85);',
+                '  float r = length(d) * 1.45;',
+                '  float a = smoothstep(0.55, 1.15, r);',
+                '  vec3 col = mix(vec3(0.07, 0.055, 0.04), vec3(0.03, 0.024, 0.016), a);',
+                '  gl_FragColor = vec4(col, a * 0.55);',
+                '}'
+            ].join('\n')
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
+        this.vignetteMesh = new THREE.Mesh(geo, mat);
+        this.vignetteMesh.frustumCulled = false;
+        this.vigScene.add(this.vignetteMesh);
+    }
+
+    /** Кадр: сцена + (опционально) виньетка поверх. Единая точка для всех renderer.render в animate(). */
+    drawFrame() {
+        this.renderer.render(this.scene, this.camera);
+        const G = window.GFX;
+        if (this.vignetteMesh && G && G.vignette !== false && !G.noVig) {
+            const r = this.renderer;
+            const info = r.info.autoReset;
+            r.info.autoReset = false;            // без сброса счётчика: виньетка добавит +1 call/+1 tri
+            r.autoClear = false;
+            r.render(this.vigScene, this.vigCam);
+            r.autoClear = true;
+            r.info.autoReset = info;
         }
     }
 
     animate() {
         requestAnimationFrame(this.animate);
+
+        // Лимит кадров (GFX.fpsCap, 0 = без лимита): без него на мониторах 120+ Гц GPU рисует 100+ FPS и висит на 80-95%.
+        // Пропущенный кадр не трогает clock, поэтому delta копится и скорость симуляции не меняется.
+        if (!this.isPaused && window.GFX && window.GFX.fpsCap > 0) {
+            const nowMs = performance.now();
+            const minMs = 1000 / window.GFX.fpsCap;
+            const since = nowMs - (this._lastFrameMs || 0);
+            if (since < minMs - 4) return;               // допуск 4 мс под частоту обновления монитора
+            this._lastFrameMs = nowMs - Math.min(since % minMs, 4);
+        }
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
         this.updateFPS(delta);
@@ -2055,7 +2152,7 @@ class AveloraGame {
         // when the canvas was cleared (window resize).
         if (this.isPaused) {
             if (this.needsRender) {
-                this.renderer.render(this.scene, this.camera);
+                this.drawFrame();
                 this.needsRender = false;
             }
             return;
@@ -2064,14 +2161,14 @@ class AveloraGame {
 
         // LOADING A LOCATION: simulation frozen, just draw (the loading screen covers it)
         if (this.isTransitioning) {
-            this.renderer.render(this.scene, this.camera);
+            this.drawFrame();
             return;
         }
 
         this.simulate(delta);
 
         // Render scene
-        this.renderer.render(this.scene, this.camera);
+        this.drawFrame();
     }
 
     /**
@@ -2102,7 +2199,7 @@ class AveloraGame {
             this.waterfall.update(delta);
         }
         if (this.environment) {
-            this.environment.update(delta);
+            this.environment.update(delta, this.character ? this.character.position : null);
         }
         if (this.worldObjects) this.worldObjects.update(delta); // auto-pickup on arrival
         if (this.skills) this.skills.update(delta);             // casts, projectiles, VFX

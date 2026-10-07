@@ -135,7 +135,37 @@
         makeFallback(kind, id) {
             const mat = new THREE.MeshStandardMaterial({ color: 0x8a7f70, roughness: 0.9, metalness: 0.0 });
             let geo;
-            if (kind === 'held') {
+            if (kind === 'held' && id === 'staff') {
+                const staffGroup = new THREE.Group();
+                const shaftGeo = new THREE.CylinderGeometry(0.016, 0.024, 1.85, 8);
+                shaftGeo.translate(0, 0.35, 0);
+                const shaftMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f, roughness: 0.85, metalness: 0.05 });
+                const shaftMesh = new THREE.Mesh(shaftGeo, shaftMat);
+                staffGroup.add(shaftMesh);
+
+                // Золотое кольцо-оправа навершия
+                const ringGeo = new THREE.TorusGeometry(0.045, 0.012, 6, 12);
+                ringGeo.translate(0, 1.25, 0);
+                const ringMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.35, metalness: 0.85 });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                staffGroup.add(ringMesh);
+
+                // Ограненный кристалл маны с небесно-голубым свечением
+                const gemGeo = new THREE.OctahedronGeometry(0.065, 0);
+                gemGeo.translate(0, 1.29, 0);
+                const gemMat = new THREE.MeshStandardMaterial({
+                    color: 0x70d8ff,
+                    emissive: 0x1a8cff,
+                    emissiveIntensity: 0.9,
+                    roughness: 0.15,
+                    metalness: 0.1
+                });
+                const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+                staffGroup.add(gemMesh);
+
+                staffGroup.name = 'staff';
+                return staffGroup;
+            } else if (kind === 'held') {
                 geo = new THREE.CylinderGeometry(0.02, 0.025, 0.8, 8);
                 geo.translate(0, 0.3, 0);
             } else if (kind === 'prop' && String(id).indexOf('npc_') === 0) {

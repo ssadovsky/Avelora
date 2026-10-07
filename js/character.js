@@ -336,6 +336,45 @@ class MedievalCharacter {
         staffMesh.castShadow = true;
         staffMesh.rotation.x = Math.PI / 12;
 
+        // V6.2: Магическое навершие посоха с кристаллом и мягким ореолом
+        const tipGroup = new THREE.Group();
+        tipGroup.position.set(0, 1.42, 0);
+
+        const gemGeo = new THREE.OctahedronGeometry(0.065, 0);
+        const gemMat = new THREE.MeshStandardMaterial({
+            color: 0x64c8ff,
+            emissive: 0x1f75fe,
+            emissiveIntensity: 0.85,
+            roughness: 0.15,
+            metalness: 0.1
+        });
+        const gemMesh = new THREE.Mesh(gemGeo, gemMat);
+        tipGroup.add(gemMesh);
+
+        // Легкий светящийся спрайт ореола (мягкое свечение)
+        const glowCanvas = document.createElement('canvas');
+        glowCanvas.width = 64; glowCanvas.height = 64;
+        const gCtx = glowCanvas.getContext('2d');
+        const grad = gCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+        grad.addColorStop(0, 'rgba(160, 230, 255, 0.9)');
+        grad.addColorStop(0.35, 'rgba(64, 160, 255, 0.45)');
+        grad.addColorStop(1, 'rgba(0, 80, 255, 0)');
+        gCtx.fillStyle = grad; gCtx.fillRect(0, 0, 64, 64);
+        const glowTex = new THREE.CanvasTexture(glowCanvas);
+        const glowMat = new THREE.SpriteMaterial({
+            map: glowTex,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const glowSprite = new THREE.Sprite(glowMat);
+        glowSprite.scale.set(0.42, 0.42, 1.0);
+        tipGroup.add(glowSprite);
+
+        staffMesh.add(tipGroup);
+        this.staffTipGroup = tipGroup;
+        this.staffGlowSprite = glowSprite;
+
         if (rightHandBone) {
             rightHandBone.add(staffMesh);
             staffMesh.position.set(0.05, 0.0, 0.0);
@@ -798,7 +837,57 @@ class MedievalCharacter {
             this.handItem = null;
         }
         if (this.travelerStaff) this.travelerStaff.visible = !object;
+        this.heldStaffGlow = null;
+        this.heldStaffCrystalMesh = null;
         if (!object) return;
+
+        // Magic staff detection & aura attachment
+        const isStaff = (object.userData && object.userData.upright) || (object.name === 'staff');
+        let staffCrystal = null;
+        object.traverse(c => {
+            if (c.isMesh && c.material) {
+                const mats = Array.isArray(c.material) ? c.material : [c.material];
+                mats.forEach(m => {
+                    if (m.name === 'staff_crystal' || (m.emissive && (m.emissive.r > 0 || m.emissive.g > 0 || m.emissive.b > 0))) {
+                        staffCrystal = c;
+                    }
+                });
+            }
+        });
+        if (isStaff || staffCrystal) {
+            this.heldStaffCrystalMesh = staffCrystal;
+            if (staffCrystal && staffCrystal.material) {
+                const cm = Array.isArray(staffCrystal.material) ? staffCrystal.material[0] : staffCrystal.material;
+                cm.emissive = new THREE.Color(0x38bdf8);
+                cm.emissiveIntensity = 1.35;
+            }
+            if (typeof document !== 'undefined') {
+                const glowCanvas = document.createElement('canvas');
+                glowCanvas.width = 64; glowCanvas.height = 64;
+                const gCtx = glowCanvas.getContext('2d');
+                const grad = gCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+                grad.addColorStop(0, 'rgba(180, 235, 255, 0.95)');
+                grad.addColorStop(0.35, 'rgba(56, 189, 248, 0.5)');
+                grad.addColorStop(1, 'rgba(2, 132, 199, 0)');
+                gCtx.fillStyle = grad; gCtx.fillRect(0, 0, 64, 64);
+                const glowTex = new THREE.CanvasTexture(glowCanvas);
+                const glowMat = new THREE.SpriteMaterial({
+                    map: glowTex,
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                const glowSprite = new THREE.Sprite(glowMat);
+                glowSprite.scale.set(0.42, 0.42, 1.0);
+                if (staffCrystal) {
+                    staffCrystal.add(glowSprite);
+                } else {
+                    glowSprite.position.set(0, 1.35, 0);
+                    object.add(glowSprite);
+                }
+                this.heldStaffGlow = glowSprite;
+            }
+        }
 
         const bone = this.rightHandBone;
         const grip = this.config.handGrip || {};
@@ -1064,6 +1153,26 @@ class MedievalCharacter {
             this.capeTimeUniform.value += delta;
         }
 
+        // V6.2: Пульсация магического навершия посоха
+        if (this.staffGlowSprite) {
+            this._staffPulse = (this._staffPulse || 0) + delta * 3.5;
+            const pulse = 0.38 + 0.08 * Math.sin(this._staffPulse);
+            this.staffGlowSprite.scale.set(pulse, pulse, 1.0);
+            if (this.staffTipGroup && this.staffTipGroup.children[0]) {
+                this.staffTipGroup.children[0].rotation.y += delta * 1.8;
+                this.staffTipGroup.children[0].rotation.z += delta * 0.9;
+            }
+        }
+        if (this.heldStaffGlow) {
+            this._heldStaffPulse = (this._heldStaffPulse || 0) + delta * 3.2;
+            const pulse = 0.42 + 0.1 * Math.sin(this._heldStaffPulse);
+            this.heldStaffGlow.scale.set(pulse, pulse, 1.0);
+            if (this.heldStaffCrystalMesh && this.heldStaffCrystalMesh.material) {
+                const cm = Array.isArray(this.heldStaffCrystalMesh.material) ? this.heldStaffCrystalMesh.material[0] : this.heldStaffCrystalMesh.material;
+                cm.emissiveIntensity = 1.3 + 0.7 * Math.sin(this._heldStaffPulse);
+            }
+        }
+
         // Update cape movement speed
         if (this.capeSpeedUniform) {
             const targetSpeed = this.isMoving ? 1.0 : 0.0;
@@ -1075,6 +1184,8 @@ class MedievalCharacter {
     dispose() {
         if (this.handItemPending) { MedievalCharacter.disposeObject(this.handItemPending); this.handItemPending = null; }
         this.handItem = null; // lives under the bone -> disposed with the mesh below
+        this.heldStaffGlow = null;
+        this.heldStaffCrystalMesh = null;
         this.rightHandBone = null;
         if (this.mixer) {
             this.mixer.stopAllAction();
