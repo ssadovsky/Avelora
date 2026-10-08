@@ -837,6 +837,12 @@ window.GAME_CONTENT = {
    },
    "modelKey": "props/chest"
   },
+  "fallen_log": {
+   "id": "fallen_log",
+   "name": "Поваленное дерево",
+   "obstacle": 0,
+   "modelKey": "props/fallen_log"
+  },
   "npc_lirael": {
    "id": "npc_lirael",
    "name": "Лираэль",

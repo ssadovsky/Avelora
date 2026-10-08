@@ -1135,9 +1135,52 @@ class MedievalCharacter {
             }
         }
 
-        // Stick character to terrain surface
+        // Stick character to terrain surface + procedural step-up over fallen logs and stumps
         const groundHeight = this.terrain.getHeightAt(this.position.x, this.position.z);
-        this.position.y = groundHeight;
+        let stepUpTarget = 0;
+        const wo = window.game && window.game.worldObjects;
+        if (wo && wo.props) {
+            for (let i = 0; i < wo.props.length; i++) {
+                const p = wo.props[i];
+                const dx = this.position.x - p.x, dz = this.position.z - p.z;
+                const scale = p.s || 1.0;
+
+                if (p.prop === 'stump') {
+                    // Точные размеры модели пня: радиус среза 0.44м, высота 0.44м
+                    const rStump = 0.44 * scale;
+                    const hStump = 0.44 * scale;
+                    const dist = Math.hypot(dx, dz);
+                    if (dist <= rStump) {
+                        stepUpTarget = Math.max(stepUpTarget, hStump);
+                    } else if (dist < rStump + 0.12) {
+                        const factor = 1.0 - (dist - rStump) / 0.12;
+                        stepUpTarget = Math.max(stepUpTarget, hStump * factor);
+                    }
+                } else if (p.prop === 'fallen_log') {
+                    // Точные размеры модели бревна: длина ствола 1.32м (halfLen = 0.66 * scale), радиус ствола 0.16 * scale, высота 0.26 * scale
+                    const rotY = p.rotY || 0;
+                    const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
+                    const lx = Math.abs(dx * cosR - dz * sinR);
+                    const lz = Math.abs(dx * sinR + dz * cosR);
+                    const halfLen = 0.66 * scale;
+                    const radius = 0.16 * scale;
+                    const hLog = 0.26 * scale;
+
+                    // Бревно ориентировано как вытянутая капсула: along — вдоль ствола, cross — поперёк
+                    const along = Math.max(lx, lz);
+                    const cross = Math.min(lx, lz);
+
+                    if (along <= halfLen + 0.12 && cross <= radius) {
+                        const normCross = cross / radius;
+                        const arcH = hLog * Math.sqrt(Math.max(0, 1.0 - normCross * normCross));
+                        const endFactor = along <= halfLen ? 1.0 : Math.max(0, 1.0 - (along - halfLen) / 0.12);
+                        stepUpTarget = Math.max(stepUpTarget, arcH * endFactor);
+                    }
+                }
+            }
+        }
+        this._stepUpY = THREE.MathUtils.lerp(this._stepUpY || 0, stepUpTarget, Math.min(1.0, delta * 20));
+        this.position.y = groundHeight + this._stepUpY;
 
         if (this.mesh) {
             this.mesh.position.copy(this.position);

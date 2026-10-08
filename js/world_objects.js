@@ -293,7 +293,8 @@
                 this.root.add(obj);
                 const size = v.userData.size;
                 const rec = {
-                    id: p.id || p.prop, x: p.x, z: p.z,
+                    id: p.id || p.prop, prop: p.prop, x: p.x, z: p.z,
+                    s: s, rotY: p.r || 0,
                     r: obstacle || Math.max(size.x, size.z) * 0.5 * s,
                     h: size.y * s, object: obj,
                     // foliage (bush) never stops a projectile — it would read as a bug

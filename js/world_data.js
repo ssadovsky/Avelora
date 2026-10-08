@@ -141,7 +141,7 @@ window.LOCATIONS = {
             { id: 'toLake', x: -138.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' }
         ],
 
-        // Тропы и поляны (свободные от плотных деревьев)
+            // Тропы и поляны (свободные от плотных деревьев)
         clearings: [
             { x: -136.0, z: 8.0, radius: 8.0 },
             { x: -122.0, z: 8.0, radius: 8.0 },
@@ -150,18 +150,12 @@ window.LOCATIONS = {
             { x: -48.0,  z: 8.0, radius: 6.0 },
             { x: -38.0,  z: 7.0, radius: 5.0 },
             { x: -28.0,  z: 6.0, radius: 5.0 },
-            { x: 124.0,  z: 6.0, radius: 18.0 },  // водопад и чаша горного озера на востоке
+            { x: 124.0,  z: 6.0, radius: 18.0 },  // чаша горного озера у водопада
+            { x: 135.0,  z: 10.0, radius: 22.0 }, // скалы, чаша и каменные уступы водопада Stonewatch Falls
             // Просека вдоль грунтовой тропы от точки появления к Лираэль (лес не растёт на тропе)
-            { x: 127.0, z: 75.0, radius: 6.0 }, { x: 125.0, z: 66.0, radius: 5.0 }, { x: 126.0, z: 56.0, radius: 5.0 },
-            { x: 125.0, z: 46.0, radius: 5.0 }, { x: 126.0, z: 36.0, radius: 5.0 }, { x: 128.0, z: 26.0, radius: 6.0 },
+            { x: 127.0, z: 75.0, radius: 6.0 }, { x: 124.5, z: 66.0, radius: 5.0 }, { x: 126.5, z: 55.0, radius: 5.0 },
+            { x: 124.0, z: 44.0, radius: 5.0 }, { x: 127.0, z: 33.0, radius: 5.0 }, { x: 128.0, z: 25.0, radius: 6.0 },
             { x: 129.0, z: 19.5, radius: 6.0 },
-            // Просека вдоль каменной дороги от водопада к озеру
-            { x: 120.0, z: 4.0, radius: 6.0 },
-            { x: 98.0,  z: 5.0, radius: 5.5 },
-            { x: 75.0,  z: 7.5, radius: 5.5 },
-            { x: 52.0,  z: 5.0, radius: 5.5 },
-            { x: 30.0,  z: 1.0, radius: 5.5 },
-            { x: 15.0,  z: -2.0, radius: 5.5 },
             { x: 72.0, z: 55.0, radius: 12.0 },  // открытая поляна барсуков
             { x: 72.0, z: 72.0, radius: 11.0 }, { x: 55.0, z: 64.0, radius: 8.0 }, { x: 90.0, z: 64.0, radius: 8.0 },
             { x: 107.0, z: 67.5, radius: 6.5 }   // стартовый лагерь: пень с топором, брёвна, камни, посох
@@ -171,8 +165,8 @@ window.LOCATIONS = {
             // Горные леса у подножия хребта
             { id: 'north_rim_forest', type: 'forest', x: 0.0,    z: -78.0, rx: 110.0, rz: 14.0, count: 45, seed: 11 },
             { id: 'south_rim_forest', type: 'forest', x: 0.0,    z: 78.0,  rx: 110.0, rz: 14.0, count: 45, seed: 14 },
-            { id: 'east_rim_forest',  type: 'forest', x: 118.0,  z: -35.0, rx: 16.0,  rz: 40.0, count: 22, seed: 15 },
-            { id: 'east_south_forest',type: 'forest', x: 118.0,  z: 42.0,  rx: 16.0,  rz: 35.0, count: 20, seed: 16 },
+            // (восточный горный массив включён в единый северо-восточный бор ниже)
+            { id: 'east_south_forest',type: 'forest', x: 116.0,  z: 48.0,  rx: 14.0,  rz: 24.0, count: 18, spacing: 10.0, seed: 16 },
             { id: 'west_north_forest',type: 'forest', x: -117.0, z: -56.0, rx: 20.0,  rz: 26.0, count: 26, seed: 17, types: ['fir_a', 'fir_b', 'fir_c'] },
             { id: 'west_south_forest',type: 'forest', x: -125.0, z: 62.0,  rx: 16.0,  rz: 28.0, count: 20, seed: 18 },
 
@@ -202,11 +196,50 @@ window.LOCATIONS = {
             { id: 'path_meadow', type: 'meadow', x: -34.0, z: 14.0, radius: 10.0, count: 35,  flowers: 5,  seed: 52 },
             { id: 'east_meadow', type: 'meadow', x: 80.0,  z: 6.0,  radius: 18.0, count: 60,  flowers: 10, seed: 53 },
 
-            // Живописные рощи и опушка леса вокруг стартовой зоны, водопада и лагеря Лираэль
-            // убрано (лезли на горы-ограждение): { id: 'start_ridge_forest',       type: 'forest', x: 138.0, z: 75.0, rx: 9.0,  rz: 20.0, count: 22, seed: 105, undergrowth: true },
-            // убрано (лезли на горы-ограждение): { id: 'start_south_forest',       type: 'forest', x: 126.0, z: 91.0, rx: 18.0, rz: 7.0,  count: 16, seed: 106, undergrowth: true },
-            // убрано (лезли на горы-ограждение): { id: 'waterfall_north_forest',   type: 'forest', x: 136.0, z: -12.0, rx: 11.0, rz: 20.0, count: 18, seed: 107, undergrowth: true },
-            { id: 'lirael_west_copse',         type: 'forest', x: 106.0, z: 18.0, radius: 8.5, count: 9, seed: 108, undergrowth: true }
+            // === СЕВЕРО-ВОСТОЧНЫЙ ЛЕСНОЙ МАССИВ (просторное редколесье, шаг стволов ~10м) ===
+            // 1. Северная горная кайма (у подножия северных скал Z: -61..-90, закрывает угол X: 126, Z: -78.5)
+            { id: 'ne_mountain_rim_forest', type: 'forest', x: 105.0, z: -76.0, rx: 34.0, rz: 15.0, count: 18, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 301 },
+
+            // 2. Северо-западные скалистые склоны (стыкуется с центральным северным хребтом)
+            { id: 'ne_northwest_highlands', type: 'forest', x: 68.0, z: -74.0, rx: 18.0, rz: 14.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 302 },
+
+            // 3. Восточная горная стена (вдоль скалистого обрыва от водопада до севера, X: 114..140, Z: -33..-77)
+            { id: 'ne_east_mountain_wall', type: 'forest', x: 128.0, z: -55.0, rx: 14.0, rz: 22.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 303 },
+
+            // 4. Центрально-северная чаща (заделывает просеку между холмами, X: 77..127, Z: -32..-68)
+            { id: 'ne_north_mid_forest', type: 'forest', x: 102.0, z: -50.0, rx: 25.0, rz: 18.0, count: 15, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 304 },
+
+            // 5. Лиственный бор на холмах лисиц (X: 56..96, Z: -22..-58)
+            { id: 'ne_fox_hills_woods', type: 'forest', x: 76.0, z: -40.0, rx: 20.0, rz: 18.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 305 },
+
+            // 6. Центральная чаща буков (высокие кроны, свободный шаг между стволами 10м, X: 80..132, Z: -9..-41)
+            { id: 'ne_central_beech_woods', type: 'forest', x: 106.0, z: -25.0, rx: 26.0, rz: 16.0, count: 16, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 306 },
+
+            // 7. Лесистый гребень над водопадом (X: 114..138, Z: -12..-36)
+            { id: 'ne_waterfall_ridge', type: 'forest', x: 127.0, z: -24.0, rx: 13.0, rz: 15.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 5, seed: 307 },
+
+            // 8. Редколесье вдоль каменной дороги (деревья отступают минимум на 6м от края полотна дороги)
+            { id: 'ne_roadside_forest', type: 'forest', x: 85.0, z: -9.0, rx: 34.0, rz: 6.0, count: 12, spacing: 10.0, scaleMin: 0.9, scaleMax: 1.35, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 308 },
+
+            // 9. Разновысокие проходимые кусты подлеска (растут естественными лесными куртинами)
+            { id: 'ne_shrubs_central', type: 'shrubCluster', x: 104.0, z: -28.0, radius: 16.0, count: 10, seed: 310 },
+            { id: 'ne_shrubs_north', type: 'shrubCluster', x: 105.0, z: -62.0, radius: 18.0, count: 12, seed: 311 },
+            { id: 'ne_shrubs_fox', type: 'shrubCluster', x: 75.0, z: -35.0, radius: 14.0, count: 8, seed: 312 },
+            { id: 'ne_shrubs_slope', type: 'shrubCluster', x: 124.0, z: -36.0, radius: 12.0, count: 8, seed: 313 },
+
+            // 10. Декоративные замшелые камни (масштаб 0.10 .. 0.20)
+            { id: 'ne_ores_1', type: 'oreCluster', x: 112.0, z: -22.0, radius: 12.0, count: 6, seed: 314 },
+            { id: 'ne_ores_2', type: 'oreCluster', x: 82.0, z: -30.0, radius: 10.0, count: 5, seed: 315 },
+            { id: 'ne_ores_north', type: 'oreCluster', x: 110.0, z: -65.0, radius: 14.0, count: 7, seed: 316 },
+
+            // 11. Декоративные сухие ветки и сучья на лесной подстилке
+            { id: 'ne_forest_branches_1', type: 'branches', x: 98.0, z: -28.0, radius: 18.0, count: 16, seed: 317 },
+            { id: 'ne_forest_branches_2', type: 'branches', x: 108.0, z: -55.0, radius: 20.0, count: 18, seed: 318 },
+
+            // === Юго-восточный сектор (Z 5..35, лагерь Лираэль и крысы): аккуратные перелески ===
+            { id: 'lirael_east_woods', type: 'forest', x: 136.0, z: 34.0, rx: 5.0, rz: 6.0, count: 6, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, seed: 141 },
+            { id: 'lirael_west_copse', type: 'forest', x: 106.0, z: 20.0, radius: 8.0, count: 8, types: ['tree', 'small'], undergrowth: true, seed: 142 },
+            { id: 'waterfall_rocks', type: 'rocks', x: 128.0, z: 5.5, radius: 5.0, count: 4, seed: 161 }
         ],
 
         // Существа в долине:
@@ -290,13 +323,25 @@ window.LOCATIONS = {
         props: [
             { id: 'start_stump', prop: 'stump', x: 107.0, z: 68.0, r: 0.4, s: 1.0 },
             // Лираэль, Хранительница Каменного Дозора (NPC у водопада)
-            { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 }
+            { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 },
+
+            // Декоративные поваленные стволы в северном лесу (проходимые, персонаж переступает)
+            { id: 'ne_log_1', prop: 'fallen_log', x: 106.0, z: -18.0, r: 0.8, s: 2.8, noObstacle: true },
+            { id: 'ne_log_2', prop: 'fallen_log', x: 124.0, z: -26.0, r: -0.5, s: 2.6, noObstacle: true },
+            { id: 'ne_log_3', prop: 'fallen_log', x: 88.0, z: -32.0, r: 1.3, s: 2.5, noObstacle: true },
+            { id: 'ne_log_4', prop: 'fallen_log', x: 110.0, z: -56.0, r: 2.1, s: 2.7, noObstacle: true },
+            { id: 'ne_log_5', prop: 'fallen_log', x: 96.0, z: -72.0, r: 0.4, s: 2.6, noObstacle: true },
+
+            // Декоративные лесные пни в северном лесу (проходимые)
+            { id: 'ne_stump_1', prop: 'stump', x: 114.0, z: -12.0, r: 0.4, s: 1.2, noObstacle: true },
+            { id: 'ne_stump_2', prop: 'stump', x: 92.0, z: -22.0, r: 1.1, s: 1.3, noObstacle: true },
+            { id: 'ne_stump_3', prop: 'stump', x: 104.0, z: -64.0, r: 1.8, s: 1.2, noObstacle: true }
         ],
 
         decorations: {
             // Одинокое большое дерево на поляне (ставится вручную)
             trees: [
-                { x: 14.0, z: 2.0, s: 1.6, r: 0.3 },
+                { x: 14.0, z: 8.5, s: 1.6, r: 0.3 },
                 // Колчанное дерево (пальма) у портала
                 { x: -123.0, z: -8.0, s: 1.1, r: 0.8, treeType: 'quiver' }
             ],
@@ -319,7 +364,16 @@ window.LOCATIONS = {
                 { x: -140.0, z: 14.0, s: 1.8, r: 2.8 }
             ],
             shrubs: [
-                { x: 18.0, z: 6.5, s: 1.6, r: 1.1 }
+                // 4 отдельных кустика из shrub_01 (первые 2 и последние 2 по одному на опушке перед лесом)
+                { x: 108.0, z: -15.0, s: 1.0, r: 0.4, shrubType: 'shrub_a' }, // первый 1 (густой)
+                { x: 112.0, z: -16.0, s: 1.0, r: 1.8, shrubType: 'shrub_b' }, // первый 2 (густой)
+                { x: 116.0, z: -15.0, s: 1.0, r: 2.7, shrubType: 'shrub_c' }, // последний 1 (компактный)
+                { x: 120.0, z: -17.0, s: 1.0, r: 0.9, shrubType: 'shrub_d' }, // последний 2 (компактный)
+                // Отдельные кусты в глубине леса у поваленных брёвен
+                { x: 104.0, z: -20.0, s: 1.1, r: 1.2, shrubType: 'shrub_a' },
+                { x: 92.0,  z: -26.0, s: 1.0, r: 2.1, shrubType: 'shrub_b' },
+                { x: 122.0, z: -28.0, s: 1.1, r: 0.5, shrubType: 'shrub_c' },
+                { x: 125.0, z: -32.0, s: 1.0, r: 1.6, shrubType: 'shrub_d' }
             ],
             ferns: [
                 // Заметные кусты папоротника рядом с лагерем игрока для удобного сбора
@@ -330,7 +384,6 @@ window.LOCATIONS = {
                 { x: -4.0, z: 8.0,  s: 3.2, r: 1.7 },
                 { x: 20.0, z: 13.0, s: 3.0, r: 2.1 }
             ],
-            dandelions: [],
             reeds: [],
             grass: []
         }
@@ -467,16 +520,6 @@ window.LOCATIONS = {
                 { x: 28.0, z: 16.0, s: 3.30, r: 0.70 },
                 { x: -3.0, z: 22.0, s: 2.80, r: 1.60 },
                 { x: -12.0, z: 20.0, s: 3.00, r: 2.50 }
-            ],
-            dandelions: [
-                { x: 11.0, z: 6.0, s: 2.00, r: 0.50 },
-                { x: 13.0, z: 9.0, s: 1.80, r: 1.20 },
-                { x: 17.0, z: 4.0, s: 2.20, r: 2.10 },
-                { x: 19.0, z: 14.0, s: 1.90, r: 3.00 },
-                { x: 8.0, z: 12.0, s: 2.10, r: 0.80 },
-                { x: 21.0, z: -2.0, s: 1.70, r: 1.70 },
-                { x: 23.0, z: -6.0, s: 2.30, r: 2.60 },
-                { x: 16.0, z: -16.0, s: 2.00, r: 3.50 }
             ],
             reeds: [],
             grass: []

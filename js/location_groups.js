@@ -19,16 +19,16 @@
 (function () {
     'use strict';
 
-    const KINDS = ['trees', 'ores', 'boulders', 'shrubs', 'ferns', 'dandelions', 'reeds', 'grass'];
+    const KINDS = ['trees', 'ores', 'boulders', 'shrubs', 'branches', 'ferns', 'flowers', 'grass', 'reeds'];
     const SINGULAR = {
         trees: 'tree',
-        ores: 'ore', boulders: 'boulder', shrubs: 'shrub', ferns: 'fern',
-        dandelions: 'flower', reeds: 'reed', grass: 'grass'
+        ores: 'ore', boulders: 'boulder', shrubs: 'shrub', branches: 'branch', ferns: 'fern',
+        flowers: 'flower', grass: 'grass', reeds: 'reed'
     };
 
     // Поверхности по высоте рельефа (плоскость воды на Y = 0)
     const SURFACES = {
-        land: (h, slope) => h > 0.35 && slope < 0.45,
+        land: (h, slope) => h > 0.35 && slope < 0.78,
         shallow: (h) => h > -0.45 && h < 0.28,   // мелководье + мокрая кромка берега
         shore: (h) => h > 0.05 && h < 0.6,       // песок/влажный берег над водой
         any: (h) => h > -0.2
@@ -70,9 +70,38 @@
         Object.keys(spawns).forEach(k => reserved.push({ x: spawns[k].x, z: spawns[k].z, r: 3.0 }));
         if (location.playerSpawn) reserved.push({ x: location.playerSpawn.x, z: location.playerSpawn.z, r: 3.0 });
         (location.clearings || []).forEach(c => reserved.push({ x: c.x, z: c.z, r: c.radius || 4 }));
-        // Item piles and props (world_objects.js) keep grass/trees from growing through them
         (location.pickups || []).forEach(p => reserved.push({ x: p.x, z: p.z, r: 1.0 }));
         (location.props || []).forEach(p => reserved.push({ x: p.x, z: p.z, r: 1.3 * (p.s || 1) }));
+
+        // Расчёт точного расстояния от точки (x, z) до ближайшего края полотна дороги
+        const paths = (t.paths || location.paths || []);
+        function distToRoadEdge(x, z) {
+            let minD = 999;
+            for (let pi = 0; pi < paths.length; pi++) {
+                const p = paths[pi];
+                const pts = p.points || [];
+                const halfW = p.width ? p.width * 0.5 : 1.4;
+                for (let i = 0; i < pts.length - 1; i++) {
+                    const ax = pts[i][0], az = pts[i][1];
+                    const bx = pts[i + 1][0], bz = pts[i + 1][1];
+                    const dx = bx - ax, dz = bz - az;
+                    const len2 = dx * dx + dz * dz;
+                    const tVal = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+                    const cx = ax + tVal * dx, cz = az + tVal * dz;
+                    const d = Math.hypot(x - cx, z - cz) - halfW;
+                    if (d < minD) minD = d;
+                }
+            }
+            return minD;
+        }
+
+        // Защита водопадов: чаша озера, скалы и утесы (деревья не растут на скалах)
+        (location.waterfalls || []).forEach(wf => reserved.push({ x: wf.x, z: wf.z, r: 24.0 }));
+
+        // Защита ключевых зон существ
+        (location.creatures || []).forEach(cr => {
+            reserved.push({ x: cr.x, z: cr.z, r: (cr.id && cr.id.startsWith('rat')) ? 1.6 : 2.5 });
+        });
 
         const placed = {};
         KINDS.forEach(k => { placed[k] = []; });
@@ -80,9 +109,15 @@
         return {
             terrain,
             placed,
+            distToRoadEdge,
             isInsideMap(x, z) { return Math.abs(x) < halfX && Math.abs(z) < halfZ; },
-            isReserved(x, z) {
+            isReserved(x, z, kind) {
+                // Дороги: ВСЕ растения и декорации отступают минимум на 6м от края полотна дороги
+                const roadDist = distToRoadEdge(x, z);
+                if (roadDist < 6.0) return true;
+
                 for (const r of reserved) {
+                    if (r.forKind && r.forKind !== kind) continue;
                     const dx = x - r.x, dz = z - r.z;
                     if (dx * dx + dz * dz < r.r * r.r) return true;
                 }
@@ -158,7 +193,7 @@
             let tries = 0;
             while (centers.length < spec.clumps && tries++ < spec.clumps * 200) {
                 const p = randomInShape(g, rng);
-                if (ctx.isInsideMap(p.x, p.z) && ctx.surfaceOk(spec.surface, p.x, p.z) && !ctx.isReserved(p.x, p.z)) {
+                if (ctx.isInsideMap(p.x, p.z) && ctx.surfaceOk(spec.surface, p.x, p.z) && !ctx.isReserved(p.x, p.z, spec.kind)) {
                     centers.push(p);
                 }
             }
@@ -183,7 +218,8 @@
             }
 
             if (!ctx.isInsideMap(p.x, p.z)) continue;
-            if (ctx.isReserved(p.x, p.z)) continue;
+            if (ctx.isReserved(p.x, p.z, spec.kind)) continue;
+            if (spec.filter && !spec.filter(p.x, p.z)) continue;
             if (!ctx.surfaceOk(spec.surface, p.x, p.z)) continue;
             if (!ctx.isFree(spec.kind, p.x, p.z, spec.spacing)) continue;
 
@@ -199,12 +235,12 @@
     // Group presets
     // ---------------------------------------------------------------
     const PRESETS = {
-        // Лес / роща: деревья + подлесок (папоротники и трава у стволов)
+        // Лес / роща: деревья + подлесок (папоротники и трава у стволов, шаг 10м по умолчанию)
         forest(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 12;
             const trees = scatter(ctx, g, {
-                kind: 'trees', count, spacing: g.spacing || 3.4,
-                scale: [g.scaleMin || 0.85, g.scaleMax || 1.35], surface: 'land'
+                kind: 'trees', count, spacing: g.spacing !== undefined ? g.spacing : 10.0,
+                scale: [g.scaleMin || 0.95, g.scaleMax || 1.45], surface: 'land'
             }, rng);
             if (Array.isArray(g.types) && g.types.length > 0) {
                 trees.forEach(t => {
@@ -217,19 +253,36 @@
             }
             const res = { trees };
             if (g.undergrowth !== false && trees.length) {
+                // Папоротники у стволов деревьев (интерактивные собираемые)
                 res.ferns = scatter(ctx, g, {
-                    kind: 'ferns', count: Math.round(trees.length * (g.ferns !== undefined ? g.ferns : 0.7)),
-                    spacing: 1.3, scale: [2.3, 3.4], surface: 'land', centers: trees, clumpRadius: 3.2
+                    kind: 'ferns', count: Math.round(trees.length * (g.ferns !== undefined ? g.ferns : 0.75)),
+                    spacing: 1.6, scale: [2.2, 3.2], surface: 'land', centers: trees, clumpRadius: 3.5
                 }, rng);
+                // Мелкие лесные цветки у деревьев (щавель с розово-красными цветами и чистотел)
+                res.flowers = scatter(ctx, g, {
+                    kind: 'flowers', count: Math.round(trees.length * 1.2),
+                    spacing: 1.4, scale: [0.9, 1.3], surface: 'land', centers: trees, clumpRadius: 4.5
+                }, rng);
+                // Сочная зеленая лесная 3D-трава
                 res.grass = scatter(ctx, g, {
-                    kind: 'grass', count: Math.round(trees.length * (g.grass !== undefined ? g.grass : 1.6)),
-                    spacing: 0.7, scale: [0.9, 1.4], surface: 'land', centers: trees, clumpRadius: 3.6
+                    kind: 'grass', count: Math.round(trees.length * 1.5),
+                    spacing: 1.2, scale: [0.85, 1.25], surface: 'land', centers: trees, clumpRadius: 4.8
+                }, rng);
+                // Декоративные сухие ветки около деревьев на лесной подстилке
+                res.branches = scatter(ctx, g, {
+                    kind: 'branches', count: Math.round(trees.length * 0.75),
+                    spacing: 3.0, scale: [0.85, 1.25], surface: 'land', centers: trees, clumpRadius: 5.5
                 }, rng);
             }
             if (g.shrubs) {
-                res.shrubs = scatter(ctx, g, {
-                    kind: 'shrubs', count: g.shrubs, spacing: 3.0, scale: [1.4, 2.0], surface: 'land'
+                const SHRUB_TYPES = ['shrub_a', 'shrub_b', 'shrub_c', 'shrub_d'];
+                const shrubs = scatter(ctx, g, {
+                    kind: 'shrubs', count: g.shrubs, spacing: 3.0, scale: [1.8, 2.0], surface: 'land'
                 }, rng);
+                shrubs.forEach(s => {
+                    s.shrubType = SHRUB_TYPES[Math.floor(rng() * SHRUB_TYPES.length)];
+                });
+                res.shrubs = shrubs;
             }
             return res;
         },
@@ -246,7 +299,7 @@
             };
         },
 
-        // Каменистый участок: валуны + трава и папоротники у камней
+        // Каменистый участок: валуны + папоротники у камней
         rocks(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 4;
             const boulders = scatter(ctx, g, {
@@ -255,10 +308,6 @@
             }, rng);
             return {
                 boulders,
-                grass: scatter(ctx, g, {
-                    kind: 'grass', count: boulders.length * 3, spacing: 0.7, scale: [0.9, 1.3],
-                    surface: 'land', centers: boulders, clumpRadius: 2.6
-                }, rng),
                 ferns: scatter(ctx, g, {
                     kind: 'ferns', count: Math.round(boulders.length * 0.5), spacing: 1.4, scale: [2.2, 3.0],
                     surface: 'land', centers: boulders, clumpRadius: 2.4
@@ -267,8 +316,6 @@
         },
 
         // Папоротниковая заросль: плотное самостоятельное скопление папоротников
-        // (не привязанное к деревьям/камням, в отличие от подлеска в forest/rocks),
-        // с редкой травой между кустами для естественности.
         fernPatch(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 14;
             const res = {
@@ -281,9 +328,55 @@
             return res;
         },
 
-        // Луг: шестереночная трава и одуванчики удалены
+        // Луг (открытая поляна с сочной зеленой травой и цветками)
         meadow(ctx, g, rng) {
-            return {};
+            const count = g.count !== undefined ? g.count : 40;
+            return {
+                grass: scatter(ctx, g, {
+                    kind: 'grass', count: Math.round(count * 0.7), spacing: 1.2,
+                    scale: [0.85, 1.25], surface: 'land'
+                }, rng),
+                flowers: scatter(ctx, g, {
+                    kind: 'flowers', count: Math.round(count * 0.5), spacing: 1.5,
+                    scale: [0.9, 1.3], surface: 'land'
+                }, rng)
+            };
+        },
+
+        // Россыпь кустов (аккуратный естественный подлесок компактного размера)
+        shrubCluster(ctx, g, rng) {
+            const count = g.count !== undefined ? g.count : 6;
+            const SHRUB_TYPES = ['shrub_a', 'shrub_b', 'shrub_c', 'shrub_d'];
+            const shrubs = scatter(ctx, g, {
+                kind: 'shrubs', count, spacing: g.spacing || 4.5,
+                scale: [g.scaleMin || 1.8, g.scaleMax || 2.0], surface: 'land'
+            }, rng);
+            shrubs.forEach(s => {
+                s.shrubType = g.shrubType || SHRUB_TYPES[Math.floor(rng() * SHRUB_TYPES.length)];
+            });
+            return { shrubs };
+        },
+
+        // Россыпь замшелых камней (масштаб строго 0.10 .. 0.20)
+        oreCluster(ctx, g, rng) {
+            const count = g.count !== undefined ? g.count : 5;
+            return {
+                ores: scatter(ctx, g, {
+                    kind: 'ores', count, spacing: g.spacing || 1.8,
+                    scale: [g.scaleMin || 0.10, g.scaleMax || 0.20], surface: 'land'
+                }, rng)
+            };
+        },
+
+        // Россыпь сухих веток в лесу (декорация)
+        branches(ctx, g, rng) {
+            const count = g.count !== undefined ? g.count : 15;
+            return {
+                branches: scatter(ctx, g, {
+                    kind: 'branches', count, spacing: g.spacing || 2.8,
+                    scale: [g.scaleMin || 0.9, g.scaleMax || 1.3], surface: 'land'
+                }, rng)
+            };
         }
     };
 

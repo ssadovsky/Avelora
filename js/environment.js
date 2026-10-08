@@ -31,18 +31,9 @@ const KIND_LABELS = {
     ferns: 'Папоротник', dandelions: 'Одуванчик', grass: 'Трава',
     ores: 'Замшелый валун'
 };
-const HOVER_KINDS = new Set(['trees', 'boulders', 'shrubs', 'reeds', 'ferns', 'ores']);
-
-// Of the hoverable kinds, only 'trees' gets an invisible generous proxy
-// cylinder for hit-testing instead of its real mesh. Reason: a tree's real
-// geometry is mostly thin trunk + sparse alpha-cutout leaf quads, so the
-// actual hit area is tiny and sits low near the ground. Boulders/shrubs/reeds
-// have solid-ish real geometry that already gives a reasonable hover target,
-// and giving them oversized invisible proxies too made hover unreliable near
-// trees/rocks (a bigger tree/boulder proxy nearby would grab the raycast hit
-// before the smaller shrub/reed one, or the two would fight) — so they keep
-// raycasting their own visible InstancedMesh, same as before.
-const PROXY_HOVER_KINDS = new Set(['trees', 'ferns', 'ores']);
+// Кусты, камыш и декоративные камни являются фоновыми декорациями (без всплывающих подсказок и перехвата кликов)
+const HOVER_KINDS = new Set(['trees', 'boulders', 'ferns']);
+const PROXY_HOVER_KINDS = new Set(['trees', 'ferns']);
 
 // object.visible stays true so the raycaster tests it; material.visible=false
 // keeps it out of the render list. Sizes are in local/unscaled units — the
@@ -100,7 +91,8 @@ class LakesideEnvironment {
     // ---------------------------------------------------------------
     static getModelBuffer(key) {
         if (GLB_BUFFER_CACHE[key]) return GLB_BUFFER_CACHE[key];
-        const b64 = window.GAME_ASSETS && window.GAME_ASSETS.models[key];
+        const b64 = (window.GAME_ASSETS && window.GAME_ASSETS.models && window.GAME_ASSETS.models[key])
+            || (window.GAME_CONTENT && window.GAME_CONTENT.models && window.GAME_CONTENT.models[key]);
         if (!b64) return null;
         const binaryString = window.atob(b64);
         const len = binaryString.length;
@@ -360,9 +352,11 @@ class LakesideEnvironment {
         this.loadRealisticTrees();
         this.loadOres();
         this.loadShrubs();
+        this.loadBranches();
         this.loadFerns();
+        this.loadFlowers();
+        this.loadGrass();
         this.createAlphaCutoutReeds();
-        // Dandelions and star-quad grass fully disabled per user direction
     }
 
     loadRealisticTrees() {
@@ -396,12 +390,12 @@ class LakesideEnvironment {
         };
 
         const defaultScales = {
-            tree: 1.0,
+            tree: 3.0,      // буков 3
             fir: 0.9,
             fir_a: 0.9,
             fir_b: 0.9,
             fir_c: 0.9,
-            small: 1.0,
+            small: 2.0,    // молодых деревьев до 2
             quiver: 4.8
         };
 
@@ -439,9 +433,9 @@ class LakesideEnvironment {
                     d.scale.set(scale, scale, scale);
                 });
 
-                // Trunk obstacle centered strictly at (p.x, p.z)
+                // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
                 list.forEach(p => {
-                    const r = p.obstacle || (typeKey === 'quiver' ? 0.9 : (typeKey.startsWith('fir') ? 0.7 : 0.8));
+                    const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : 0.22));
                     this.pathfinder.addObstacle(p.x, p.z, r * (p.s || 1.0));
                 });
             });
@@ -480,7 +474,7 @@ class LakesideEnvironment {
                     });
             });
 
-            orePlacements.forEach(p => this.pathfinder.addObstacle(p.x, p.z, Math.max(0.65, (p.s || 0.25) * 2.2)));
+            // Декоративные замшелые камни (ores) не блокируют путь — персонаж свободно перешагивает через них
         });
     }
 
@@ -501,7 +495,12 @@ class LakesideEnvironment {
                     d.scale.set(scale, scale * 0.9, scale);
                 });
 
-            boulderPlacements.forEach(p => this.pathfinder.addObstacle(p.x, p.z, (p.s || 1.8) * 1.1));
+            // Препятствием являются только огромные скальные валуны (масштаб >= 2.0)
+            boulderPlacements.forEach(p => {
+                if ((p.s || 1.8) >= 2.0 && !p.noObstacle) {
+                    this.pathfinder.addObstacle(p.x, p.z, (p.s || 1.8) * 0.9);
+                }
+            });
         });
     }
 
@@ -509,25 +508,96 @@ class LakesideEnvironment {
         const shrubSpots = this.getDecorations('shrubs');
         if (shrubSpots.length === 0) return;
 
-        this.loadModel('shrub', (gltf) => {
-            let shrubMesh = null;
-            gltf.scene.traverse(c => { if (c.isMesh && !shrubMesh) shrubMesh = c; });
-            if (!shrubMesh) return;
+        // 4 одиночных естественных куста из shrub_01 (первые 2 густые, последние 2 легкие/компактные)
+        const shrubTypes = ['shrub_a', 'shrub_b', 'shrub_c', 'shrub_d'];
+        const shrubGroups = {
+            shrub_a: [],
+            shrub_b: [],
+            shrub_c: [],
+            shrub_d: []
+        };
 
-            const shrubMat = shrubMesh.material;
-            shrubMat.side = THREE.DoubleSide;
-            shrubMat.alphaTest = 0.45;
+        const defaultScales = {
+            shrub_a: 1.9,
+            shrub_b: 1.85,
+            shrub_c: 1.95,
+            shrub_d: 1.9
+        };
 
-            this.buildInstanced('shrubs', [{ geometry: shrubMesh.geometry, material: shrubMat }],
-                shrubSpots, (sp, idx, d) => {
+        shrubSpots.forEach((sp, idx) => {
+            let t = sp.shrubType || shrubTypes[idx % shrubTypes.length];
+            if (t === 'shrub' || !shrubGroups[t]) t = 'shrub_a';
+            shrubGroups[t].push(sp);
+        });
+
+        Object.keys(shrubGroups).forEach(typeKey => {
+            const list = shrubGroups[typeKey];
+            if (!list.length) return;
+            const baseScale = defaultScales[typeKey] || 1.9;
+
+            this.loadModel(typeKey, (gltf) => {
+                let shrubMesh = null;
+                gltf.scene.traverse(c => {
+                    if (c.isMesh && !shrubMesh) shrubMesh = c;
+                });
+                if (!shrubMesh) return;
+
+                if (shrubMesh.material) {
+                    shrubMesh.material.side = THREE.DoubleSide;
+                    shrubMesh.material.alphaTest = 0.38;
+                    shrubMesh.material.depthWrite = true;
+                }
+
+                this.buildInstanced(`shrubs_${typeKey}`, [{ geometry: shrubMesh.geometry, material: shrubMesh.material }],
+                    list, (sp, idx, d) => {
+                        const gy = this.terrain.getHeightAt(sp.x, sp.z);
+                        const scale = (sp.s && sp.s >= 1.5) ? sp.s : baseScale;
+                        d.position.set(sp.x, gy - 0.02, sp.z);
+                        const rotY = (sp.r !== undefined) ? sp.r : ((idx * 1.618) % (Math.PI * 2));
+                        d.rotation.set(0, rotY, 0);
+                        d.scale.set(scale, scale, scale);
+                    }, { castShadow: false, reflect: false });
+            });
+        });
+    }
+
+    loadBranches() {
+        const branchSpots = this.getDecorations('branches');
+        if (!branchSpots || branchSpots.length === 0) return;
+
+        this.loadModel('items/branch', (gltf) => {
+            const variants = [];
+            gltf.scene.traverse(c => {
+                if (c.isMesh) {
+                    if (c.material) {
+                        c.material.roughness = 0.92;
+                        c.material.metalness = 0.0;
+                    }
+                    const geo = c.geometry.clone();
+                    geo.computeBoundingBox();
+                    const bb = geo.boundingBox;
+                    const cx = (bb.min.x + bb.max.x) * 0.5;
+                    const cz = (bb.min.z + bb.max.z) * 0.5;
+                    const minY = bb.min.y;
+                    geo.translate(-cx, -minY, -cz);
+                    variants.push({ geometry: geo, material: c.material });
+                }
+            });
+            if (!variants.length) return;
+
+            variants.forEach((v, vIdx) => {
+                const subList = branchSpots.filter((_, idx) => (idx % variants.length) === vIdx);
+                if (!subList.length) return;
+
+                this.buildInstanced(`branches_v${vIdx}`, [v], subList, (sp, idx, d) => {
                     const gy = this.terrain.getHeightAt(sp.x, sp.z);
-                    const scale = sp.s || 1.8;
-                    d.position.set(sp.x, gy - 0.1, sp.z);
-                    d.rotation.set(0, (sp.r !== undefined) ? sp.r : 0, 0);
+                    const scale = (sp.s || 1.0) * 2.2;
+                    d.position.set(sp.x, gy + 0.03, sp.z);
+                    const rotY = (sp.r !== undefined) ? sp.r : (idx * 1.73);
+                    d.rotation.set(0, rotY, 0);
                     d.scale.set(scale, scale, scale);
-                }, { castShadow: false, reflect: false }); // alpha-cutout foliage — see grass/dandelions/reeds note below
-
-            shrubSpots.forEach(sp => this.pathfinder.addObstacle(sp.x, sp.z, (sp.s || 1.8) * 0.9));
+                }, { castShadow: true, reflect: false });
+            });
         });
     }
 
@@ -556,13 +626,87 @@ class LakesideEnvironment {
                     d.position.set(p.x, gy - 0.05, p.z);
                     d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
                     d.scale.set(scale, scale, scale);
-                }, { castShadow: false, reflect: false }); // alpha-cutout foliage — see grass/dandelions/reeds note below
+                }, { castShadow: false, reflect: false });
         });
     }
 
-    loadDandelions() {
-        return; // Dandelions removed per user direction
+    loadFlowers() {
+        const flowerPlacements = this.getDecorations('flowers');
+        if (!flowerPlacements || flowerPlacements.length === 0) return;
+
+        const redList = [];
+        const cloverList = [];
+        const yellowList = [];
+        flowerPlacements.forEach((p, idx) => {
+            if (p.flowerType === 'yellow') {
+                yellowList.push(p);
+            } else if (p.flowerType === 'clover') {
+                cloverList.push(p);
+            } else if (p.flowerType === 'red') {
+                redList.push(p);
+            } else {
+                const mod = idx % 3;
+                if (mod === 0) redList.push(p);
+                else if (mod === 1) cloverList.push(p);
+                else yellowList.push(p);
+            }
+        });
+
+        const loadFlowerType = (modelKey, list, baseScale) => {
+            if (!list.length) return;
+            this.loadModel(modelKey, (gltf) => {
+                let mesh = null;
+                gltf.scene.traverse(c => { if (c.isMesh && !mesh) mesh = c; });
+                if (!mesh) return;
+
+                if (mesh.material) {
+                    mesh.material.side = THREE.DoubleSide;
+                    mesh.material.alphaTest = 0.40;
+                    mesh.material.depthWrite = true;
+                }
+
+                this.buildInstanced(`flowers_${modelKey}`, [{ geometry: mesh.geometry, material: mesh.material }],
+                    list, (p, idx, d) => {
+                        const gy = this.terrain.getHeightAt(p.x, p.z);
+                        const scale = (p.s || 1.0) * baseScale;
+                        d.position.set(p.x, gy, p.z);
+                        d.rotation.set(0, (p.r !== undefined) ? p.r : ((idx * 1.618) % (Math.PI * 2)), 0);
+                        d.scale.set(scale, scale, scale);
+                    }, { castShadow: false, reflect: false });
+            });
+        };
+
+        loadFlowerType('flower_red', redList, 1.15);
+        loadFlowerType('flower_clover', cloverList, 1.15);
+        loadFlowerType('flower_yellow', yellowList, 1.15);
     }
+
+    loadGrass() {
+        const grassPlacements = this.getDecorations('grass');
+        if (!grassPlacements || grassPlacements.length === 0) return;
+
+        this.loadModel('grass_tuft', (gltf) => {
+            let mesh = null;
+            gltf.scene.traverse(c => { if (c.isMesh && !mesh) mesh = c; });
+            if (!mesh) return;
+
+            if (mesh.material) {
+                mesh.material.side = THREE.DoubleSide;
+                mesh.material.alphaTest = 0.42;
+                mesh.material.depthWrite = true;
+            }
+
+            this.buildInstanced('grass', [{ geometry: mesh.geometry, material: mesh.material }],
+                grassPlacements, (p, idx, d) => {
+                    const gy = this.terrain.getHeightAt(p.x, p.z);
+                    const scale = (p.s || 1.0) * 1.85;
+                    d.position.set(p.x, gy - 0.02, p.z);
+                    d.rotation.set(0, (p.r !== undefined) ? p.r : ((idx * 1.618) % (Math.PI * 2)), 0);
+                    d.scale.set(scale, scale, scale);
+                }, { castShadow: false, reflect: false });
+        });
+    }
+
 
     // Merge N copies of a vertical plane rotated around Y into one cross/star geometry
     static makeCrossQuad(width, height, planes) {
