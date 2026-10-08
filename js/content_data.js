@@ -1152,6 +1152,40 @@ window.GAME_CONTENT = {
    "level": 2,
    "modelKey": "creatures/fire_fox"
   },
+  "forest_doe": {
+   "id": "forest_doe",
+   "name": "Олениха-друид",
+   "hp": 260,
+   "damage": [
+    12,
+    18
+   ],
+   "attackRange": 2.0,
+   "attackCooldown": 2.0,
+   "walkSpeed": 1.1,
+   "runSpeed": 4.8,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 25,
+   "wanderRadius": 6,
+   "respawnMinutes": 8,
+   "hitRadius": 1.4,
+   "scale": 1.45,
+   "facingOffset": 3.14159,
+   "drops": [
+    {
+     "item": "meat",
+     "count": 4
+    }
+   ],
+   "xp": 160,
+   "level": 8,
+   "idlePause": [
+    4,
+    10
+   ],
+   "modelKey": "creatures/forest_doe"
+  },
   "minotaur": {
    "id": "minotaur",
    "name": "Железнокожий минотавр",

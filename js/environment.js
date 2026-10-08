@@ -361,43 +361,90 @@ class LakesideEnvironment {
         this.loadOres();
         this.loadShrubs();
         this.loadFerns();
-        this.loadDandelions();
         this.createAlphaCutoutReeds();
-        this.createAlphaCutoutGrass();
-        // Atmospheric square particles removed per user design direction
+        // Dandelions and star-quad grass fully disabled per user direction
     }
 
     loadRealisticTrees() {
         const treePositions = this.getDecorations('trees');
         if (treePositions.length === 0) return;
 
-        this.loadModel('tree', (gltf) => {
-            const treeScene = gltf.scene;
-            treeScene.updateMatrixWorld(true);
+        // Group placements by treeType: 'tree' (beech), 'fir'/'fir_a'/'fir_b'/'fir_c' (spruce/fir variants), 'small' (young tree), 'quiver' (palm)
+        const treeGroups = {
+            tree: [],
+            fir: [],
+            fir_a: [],
+            fir_b: [],
+            fir_c: [],
+            small: [],
+            quiver: []
+        };
+        treePositions.forEach(p => {
+            const t = p.treeType || 'tree';
+            if (treeGroups[t]) treeGroups[t].push(p);
+            else treeGroups.tree.push(p);
+        });
 
-            const parts = [];
-            treeScene.traverse(c => {
-                if (!c.isMesh) return;
-                if (c.material) {
-                    c.material.side = THREE.DoubleSide;
-                    if (c.material.name.includes('Tree_1') || c.material.alphaMode === 'MASK') {
-                        c.material.alphaTest = 0.35;
-                        c.material.depthWrite = true;
+        const typeModelMap = {
+            tree: 'tree',
+            fir: 'fir_tree',
+            fir_a: 'fir_tree_a',
+            fir_b: 'fir_tree_b',
+            fir_c: 'fir_tree_c',
+            small: 'tree_small',
+            quiver: 'quiver_tree'
+        };
+
+        const defaultScales = {
+            tree: 1.0,
+            fir: 0.9,
+            fir_a: 0.9,
+            fir_b: 0.9,
+            fir_c: 0.9,
+            small: 1.0,
+            quiver: 4.8
+        };
+
+        Object.keys(treeGroups).forEach(typeKey => {
+            const list = treeGroups[typeKey];
+            if (!list.length) return;
+            const modelKey = typeModelMap[typeKey] || 'tree';
+            const baseScale = defaultScales[typeKey] || 1.0;
+
+            this.loadModel(modelKey, (gltf) => {
+                const treeScene = gltf.scene;
+                treeScene.updateMatrixWorld(true);
+
+                const parts = [];
+                treeScene.traverse(c => {
+                    if (!c.isMesh) return;
+                    if (c.material) {
+                        c.material.side = THREE.DoubleSide;
+                        const mName = (c.material.name || '').toLowerCase();
+                        if (mName.includes('tree_1') || mName.includes('twig') || mName.includes('leaves') || mName.includes('needle')) {
+                            c.material.transparent = false;
+                            c.material.alphaTest = 0.22;
+                            c.material.alphaToCoverage = true;
+                            c.material.depthWrite = true;
+                        }
                     }
-                }
-                parts.push({ geometry: c.geometry, material: c.material, nodeMatrix: c.matrixWorld.clone() });
-            });
+                    parts.push({ geometry: c.geometry, material: c.material, nodeMatrix: c.matrixWorld.clone() });
+                });
 
-            this.buildInstanced('trees', parts, treePositions, (p, idx, d) => {
-                const gy = this.terrain.getHeightAt(p.x, p.z);
-                const scale = p.s || 1.0;
-                d.position.set(p.x, gy - 0.15, p.z);
-                d.rotation.y = (p.r !== undefined) ? p.r : 0;
-                d.scale.set(scale, scale, scale);
-            });
+                this.buildInstanced('trees', parts, list, (p, idx, d) => {
+                    const gy = this.terrain.getHeightAt(p.x, p.z);
+                    const scale = (p.s || 1.0) * baseScale;
+                    d.position.set(p.x, gy - 0.05, p.z);
+                    d.rotation.y = (p.r !== undefined) ? p.r : 0;
+                    d.scale.set(scale, scale, scale);
+                });
 
-            // Trunk obstacle (a single tree is walk-around-able, a dense forest acts as a wall)
-            treePositions.forEach(p => this.pathfinder.addObstacle(p.x, p.z, (p.obstacle || 0.8) * (p.s || 1.0)));
+                // Trunk obstacle centered strictly at (p.x, p.z)
+                list.forEach(p => {
+                    const r = p.obstacle || (typeKey === 'quiver' ? 0.9 : (typeKey.startsWith('fir') ? 0.7 : 0.8));
+                    this.pathfinder.addObstacle(p.x, p.z, r * (p.s || 1.0));
+                });
+            });
         });
     }
 
@@ -514,31 +561,7 @@ class LakesideEnvironment {
     }
 
     loadDandelions() {
-        const dandelionPlacements = this.getDecorations('dandelions');
-        if (dandelionPlacements.length === 0) return;
-
-        this.loadModel('dandelion', (gltf) => {
-            let flowerMesh = null;
-            gltf.scene.traverse(c => {
-                if (c.isMesh && (!flowerMesh || c.geometry.attributes.position.count > flowerMesh.geometry.attributes.position.count)) {
-                    flowerMesh = c;
-                }
-            });
-            if (!flowerMesh) return;
-
-            const flowerMat = flowerMesh.material;
-            flowerMat.side = THREE.DoubleSide;
-            flowerMat.alphaTest = 0.45;
-
-            this.buildInstanced('dandelions', [{ geometry: flowerMesh.geometry, material: flowerMat }],
-                dandelionPlacements, (p, idx, d) => {
-                    const gy = this.terrain.getHeightAt(p.x, p.z);
-                    const scale = p.s || 2.0;
-                    d.position.set(p.x, gy, p.z);
-                    d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
-                    d.scale.set(scale, scale, scale);
-                }, { castShadow: false, reflect: false });
-        });
+        return; // Dandelions removed per user direction
     }
 
     // Merge N copies of a vertical plane rotated around Y into one cross/star geometry
@@ -634,64 +657,7 @@ class LakesideEnvironment {
     }
 
     createAlphaCutoutGrass() {
-        const grassPlacements = this.getDecorations('grass');
-        if (grassPlacements.length === 0) return;
-
-        const locTerrain = (this.location && this.location.terrain) || {};
-        const isGoldshire = locTerrain.biome === 'goldshire';
-
-        // Настоящая 3D-модель травы из Poly Haven (grass.glb) используется для Goldshire (Локация 2)
-        if (isGoldshire && window.GAME_ASSETS && window.GAME_ASSETS.models && window.GAME_ASSETS.models.grass) {
-            this.loadModel('grass', (gltf) => {
-                let grassMesh = null;
-                gltf.scene.traverse(c => { if (c.isMesh && !grassMesh) grassMesh = c; });
-                if (!grassMesh) return;
-
-                const grassMat = grassMesh.material.clone();
-                grassMat.roughness = 0.75;
-                grassMat.metalness = 0.05;
-                this.addWindSway(grassMat, 2.6, 0.08, 0.25, 0.02);
-
-                this.buildInstanced('grass', [{ geometry: grassMesh.geometry, material: grassMat }], grassPlacements, (p, idx, d) => {
-                    const gy = this.terrain.getHeightAt(p.x, p.z);
-                    const scale = (p.s || 1.0) * 1.8;
-                    d.position.set(p.x, gy - 0.02, p.z);
-                    d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
-                    d.scale.set(scale, scale, scale);
-                }, { castShadow: false, reflect: false });
-            });
-            return;
-        }
-
-        const spriteKey = (isGoldshire && window.GAME_ASSETS && window.GAME_ASSETS.textures.goldshireGrassSprite)
-            ? 'goldshireGrassSprite'
-            : 'grassSprite';
-
-        if (!window.GAME_ASSETS || !window.GAME_ASSETS.textures || !window.GAME_ASSETS.textures[spriteKey]) return;
-
-        // Star-quad geometry: 3 vertical planes at 60 degree angles (*)
-        const gw = 0.85;
-        const gh = 0.55;
-        const grassGeo = LakesideEnvironment.makeCrossQuad(gw, gh, 3);
-        const grassTex = this.loadTexture(spriteKey);
-        grassTex.anisotropy = 4;
-
-        const grassMat = new THREE.MeshStandardMaterial({
-            map: grassTex,
-            alphaTest: 0.45,
-            side: THREE.DoubleSide,
-            roughness: 0.70,
-            metalness: 0.04
-        });
-        this.addWindSway(grassMat, 2.6, 0.12, gh, 0.05);
-
-        this.buildInstanced('grass', [{ geometry: grassGeo, material: grassMat }], grassPlacements, (p, idx, d) => {
-            const gy = this.terrain.getHeightAt(p.x, p.z);
-            const scale = (p.s || 1.0);
-            d.position.set(p.x, gy - 0.02, p.z);
-            d.rotation.set(0, (p.r !== undefined) ? p.r : 0, 0);
-            d.scale.set(scale, scale, scale);
-        }, { castShadow: false, reflect: false });
+        return; // Star-quad / cutout grass removed per user direction
     }
 
     createAtmosphericParticles() {

@@ -206,6 +206,15 @@
                 kind: 'trees', count, spacing: g.spacing || 3.4,
                 scale: [g.scaleMin || 0.85, g.scaleMax || 1.35], surface: 'land'
             }, rng);
+            if (Array.isArray(g.types) && g.types.length > 0) {
+                trees.forEach(t => {
+                    t.treeType = g.types[Math.floor(rng() * g.types.length)];
+                });
+            } else if (g.treeType) {
+                trees.forEach(t => {
+                    t.treeType = g.treeType;
+                });
+            }
             const res = { trees };
             if (g.undergrowth !== false && trees.length) {
                 res.ferns = scatter(ctx, g, {
@@ -269,30 +278,12 @@
                     clumps: g.clumps || Math.max(1, Math.round(count / 8)), clumpRadius: g.clumpRadius || 2.4
                 }, rng)
             };
-            if (g.grass !== false && res.ferns.length) {
-                res.grass = scatter(ctx, g, {
-                    kind: 'grass', count: g.grassCount !== undefined ? g.grassCount : Math.round(count * 1.2),
-                    spacing: 0.7, scale: [0.9, 1.4], surface: g.surface || 'land',
-                    centers: res.ferns, clumpRadius: 2.0
-                }, rng);
-            }
             return res;
         },
 
-        // Луг: пятна травы и одуванчиков
+        // Луг: шестереночная трава и одуванчики удалены
         meadow(ctx, g, rng) {
-            const count = g.count !== undefined ? g.count : 50;
-            return {
-                grass: scatter(ctx, g, {
-                    kind: 'grass', count, spacing: g.spacing || 0.55, scale: [0.9, 1.45], surface: 'land',
-                    clumps: Math.max(2, Math.round(count / 9)), clumpRadius: g.clumpRadius || 2.6
-                }, rng),
-                dandelions: scatter(ctx, g, {
-                    kind: 'dandelions', count: g.flowers !== undefined ? g.flowers : Math.round(count * 0.2),
-                    spacing: 0.7, scale: [1.6, 2.4], surface: 'land',
-                    clumps: Math.max(1, Math.round(count / 25)), clumpRadius: 2.2
-                }, rng)
-            };
+            return {};
         }
     };
 
