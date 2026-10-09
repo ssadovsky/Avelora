@@ -207,6 +207,16 @@ class LakesideTerrain {
             height = THREE.MathUtils.lerp(0.1, height, smoothT);
         }
 
+        // Мягкий «пол» суши (locTerrain.landFloor): вдали от берега низины не опускаются к уровню воды (Y = 0) —
+        // иначе в понижениях рельефа появляются «лужи». Плавное включение за пределами пляжа.
+        if (this.locTerrain.landFloor !== undefined && distFromShore >= beachWidth) {
+            const fl = this.locTerrain.landFloor, k = 0.35;
+            const w = Math.min(1.0, (distFromShore - beachWidth) / 8.0);
+            const sw = w * w * (3.0 - 2.0 * w);
+            const soft = 0.5 * (height + fl + Math.sqrt((height - fl) * (height - fl) + k * k));
+            height += (soft - height) * sw;
+        }
+
         // Natural mountain barrier rim along the perimeter
         if (this.locTerrain.mountains !== false) {
             const rimWidth = (this.locTerrain.mountainRim && this.locTerrain.mountainRim.width) || 16.0;
