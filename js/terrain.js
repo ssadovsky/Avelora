@@ -188,8 +188,11 @@ class LakesideTerrain {
             const angle = Math.atan2(dz, dx);
             // Shoreline wobble scales with lake size (small ponds stay pond-shaped)
             const wobble = Math.min(1.0, baseRadius / 24.0);
+            // shoreSmooth: берег без зубцов — вторая гармоника в ~2 раза реже (крупные плавные заливы вместо «пилы»)
+            const sm = !!this.waterConfig.shoreSmooth;
             const lakeRadius = baseRadius + (this.noise.noise2D(Math.cos(angle) * 1.3, Math.sin(angle) * 1.3) * 6.0
-                                          + this.noise.noise2D(Math.cos(angle * 3) * 2.2, Math.sin(angle * 3) * 2.2) * 2.5) * wobble;
+                                          + (sm ? this.noise.noise2D(Math.cos(angle * 2) * 1.1, Math.sin(angle * 2) * 1.1) * 3.0
+                                                : this.noise.noise2D(Math.cos(angle * 3) * 2.2, Math.sin(angle * 3) * 2.2) * 2.5)) * wobble;
             distFromShore = distCenter - lakeRadius;
             bedSlope = Math.min(20.0, baseRadius * 0.85); // small ponds get deep quickly
         }
@@ -199,12 +202,13 @@ class LakesideTerrain {
             // Under water (seabed or lakebed)
             const t = Math.min(1.0, -distFromShore / bedSlope);
             const smoothT = t * t * (3.0 - 2.0 * t);
-            height = THREE.MathUtils.lerp(0.1, waterDepth, smoothT);
+            height = THREE.MathUtils.lerp(0.0, waterDepth, smoothT);
         } else if (distFromShore < beachWidth) {
-            // Gentle sandy beach slope from waterline (0.1m) to meadow
+            // Gentle sandy beach slope from waterline (0.0m) to meadow
             const t = distFromShore / beachWidth;
-            const smoothT = t * t * (3.0 - 2.0 * t);
-            height = THREE.MathUtils.lerp(0.1, height, smoothT);
+            let smoothT = t * t * (3.0 - 2.0 * t);
+            if (this.waterConfig && this.waterConfig.type === 'lake') smoothT = 0.5 * smoothT + 0.5 * t;
+            height = THREE.MathUtils.lerp(0.0, height, smoothT);
         }
 
         // Мягкий «пол» суши (locTerrain.landFloor): вдали от берега низины не опускаются к уровню воды (Y = 0) —
@@ -341,7 +345,10 @@ class LakesideTerrain {
             trailDiff = texLoader.load(assets.gravelDiff || assets.beachDiff);
             rockDiff = texLoader.load(assets.rockDiff);
             rockNor = texLoader.load(assets.rockNor || assets.beachNor);
-            beachDiff = texLoader.load(assets.beachDiff);
+            const wType = this.waterConfig.type || 'lake';
+            const isLake = (wType === 'lake');
+            const shoreTex = (isLake && (assets.gravelDiff || assets.dirtTrailDiff)) ? (assets.gravelDiff || assets.dirtTrailDiff) : assets.beachDiff;
+            beachDiff = texLoader.load(shoreTex);
         }
 
         const stoneTrailDiff = texLoader.load(assets.stoneTrailDiff || assets.gravelDiff || assets.beachDiff);
@@ -361,7 +368,9 @@ class LakesideTerrain {
         grassDiff.repeat.set(20, 20);
         trailDiff.repeat.set(18, 18);
         stoneTrailDiff.repeat.set(24, 24);
-        beachDiff.repeat.set(14, 14);
+        const curWType = this.waterConfig.type || 'lake';
+        const isLakeWater = (curWType === 'lake');
+        beachDiff.repeat.set(isLakeWater ? 24 : 14, isLakeWater ? 24 : 14);
         rockDiff.repeat.set(16, 16);
         // Normal map uses mesh UVs: keep ~6 m tiles regardless of map size
         grassNor.repeat.set(20 * meshSizeX / 120, 20 * meshSizeZ / 120);
@@ -377,9 +386,10 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v15_moss2_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v18_natural_shore_moss2_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
+        const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
 
         this.material.onBeforeCompile = (shader) => {
             shader.uniforms.uGrassDiff = { value: grassDiff };
@@ -389,6 +399,7 @@ class LakesideTerrain {
             shader.uniforms.uRockNor = { value: rockNor };
             shader.uniforms.uBeachDiff = { value: beachDiff };
             shader.uniforms.uBiome = { value: biomeId };
+            shader.uniforms.uWaterType = { value: waterTypeId };
             shader.uniforms.uGrass2Diff = { value: grass2Diff };
             shader.uniforms.uGroundMix = { value: mixGround ? groundMode : 0.0 };
             shader.uniforms.uAO = { value: this.contactAO || [] };
@@ -449,6 +460,7 @@ class LakesideTerrain {
                 uniform sampler2D uRockNor;
                 uniform sampler2D uBeachDiff;
                 uniform float uBiome;
+                uniform float uWaterType;
                 uniform vec4 uDirtSeg[16];
                 uniform int uDirtCount;
                 uniform float uDirtWidth;
@@ -494,8 +506,17 @@ class LakesideTerrain {
                 vec4 colRock2      = texture2D(uRockDiff, uvRockMicro);
                 vec3 rockTex       = mix(colRock1.rgb, colRock2.rgb * 1.15, 0.50);
 
-                // Shore weight: highest near water level Y in [-0.5, 0.8]
-                float shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
+                // Shore weight:
+                // Для открытого моря (uWaterType > 0.5): широкий песчаный пляж Y in [0.12, 0.85]
+                // Для лесного озера (uWaterType < 0.5): трава и мох подходят почти до самой воды (до Y ~0.26м),
+                // открытая влажная речная галька/песок занимает узкую полосу 1-2 метра у уреза воды.
+                float shoreWeight;
+                if (uWaterType < 0.5) {
+                    float shoreEdgeN = avNoise(vWorldPosition.xz * 0.45) * 0.06;
+                    shoreWeight = 1.0 - smoothstep(0.04, 0.26 + shoreEdgeN, vWorldPosition.y);
+                } else {
+                    shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
+                }
 
                 // Rocky outcrop weight: moderate slope (normal.y < 0.90)
                 float cliffWeight = 1.0 - smoothstep(0.70, 0.90, vWorldNormal.y);
@@ -618,10 +639,9 @@ class LakesideTerrain {
                     terrainColor = pow(terrainColor, vec3(1.05));
                 }
 
-                // Shoreline moisture darkening right at water boundary
-                if (vWorldPosition.y < 0.25 && vWorldPosition.y > -0.4) {
-                    terrainColor *= 0.85;
-                }
+                // Намокание берега у самой кромки воды (влажная темная речная галька и песок)
+                float wetBand = 1.0 - smoothstep(0.0, 0.22, abs(vWorldPosition.y - 0.02));
+                terrainColor *= mix(1.0, 0.60, wetBand * 0.85);
 
                 // Компенсация яркого освещения сцены (sun 1.45 + hemi 0.85 = 2.30x)
                 // Предотвращает выгорание и белёсый засвет земли

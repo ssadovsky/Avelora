@@ -142,10 +142,10 @@ class DiabloPathfinder {
         const height = this.terrain.getHeightAt(wx, wz);
         const slope = this.terrain.getSlopeAt(wx, wz);
 
-        // Water level is at Y = 0.0; shallow wading allowed down to -0.25m
-        const isWater = height < -0.25;
-        // Cliffs too steep to walk (slope > 0.18 = angle > ~28 deg, or mountain altitude > 3.6m)
-        const isCliff = slope > 0.18 || height > 3.6;
+        // Water level is at Y = 0.0; shallow wading allowed down to -0.42m (walk through shore and reeds)
+        const isWater = height < -0.42;
+        // Cliffs too steep to walk (slope > 0.36 = angle > ~35 deg, or mountain barrier > 4.2m)
+        const isCliff = slope > 0.36 || height > 4.2;
 
         // Keep a safe non-walkable rim along the map edge (player cannot reach the world edge)
         const edgeMargin = 4.0;

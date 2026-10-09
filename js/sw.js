@@ -8,7 +8,7 @@
 //    nothing here: just reference it in Avelora.html with a ?v=.
 //  * Avelora.html itself (and navigations) is network-first so a new release is picked up on the next
 //    start; offline it falls back to the cached copy.
-const CACHE_NAME = 'avelora-v72';          // shell cache
+const CACHE_NAME = 'avelora-v79';          // shell cache
 const RUNTIME_CACHE = 'avelora-runtime-v7'; // scripts / assets, keyed by exact url
 const ASSETS_TO_CACHE = [
   './',

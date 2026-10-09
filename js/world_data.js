@@ -88,7 +88,8 @@ window.LOCATIONS = {
                 z: -18.0,
                 radius: 20.0,
                 depth: -1.2,
-                beachWidth: 5.0
+                beachWidth: 18.0,
+                shoreSmooth: true
             },
             hills: { amplitude: 1.6, inclineX: 0.2, inclineZ: -0.15 },
             // Дороги локации:
@@ -179,8 +180,12 @@ window.LOCATIONS = {
             { id: 'birch_copse', type: 'forest', x: -12.0, z: 32.0,  radius: 8.0,  count: 8,  seed: 22, undergrowth: true },
             { id: 'west_grove',  type: 'forest', x: -65.0, z: -25.0, radius: 10.0, count: 9,  seed: 23 },
 
-            // Лесной пруд: заросли камыша
-            { id: 'pond_reeds', type: 'reeds', x: -20.0, z: -18.0, radius: 12.0, count: 60, seed: 31 },
+            // Лесной пруд: двойные заросли на берегу перед игроком + куртины по периметру озера (все строго на кромке воды)
+            { id: 'pond_reeds_1', type: 'reeds', x: -8.8, z: -6.8, radius: 3.2, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 31 },
+            { id: 'pond_reeds_2', type: 'reeds', x: -27.9, z: -2.6, radius: 3.2, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 48 },
+            { id: 'pond_reeds_3', type: 'reeds', x: -41.6, z: -21.4, radius: 3.2, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 65 },
+            { id: 'pond_reeds_4', type: 'reeds', x: -23.5, z: -40.0, radius: 3.2, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 82 },
+            { id: 'pond_reeds_5', type: 'reeds', x: -3.3, z: -26.5, radius: 3.2, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 99 },
 
             // Каменистые холмы и валуны
             { id: 'stone_hill',     type: 'rocks', x: 30.0,  z: 22.0,  radius: 7.0, count: 4, seed: 41 },

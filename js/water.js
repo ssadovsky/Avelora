@@ -6,6 +6,14 @@
  * the plane geometry, position and shore foam. For `waterBody.type === 'none'`
  * the water is hidden, so its expensive reflection pass is skipped entirely.
  */
+// Профили ряби по типам водоёма (озеро / море / река). Водопад — отдельная геометрия со своими шейдерами (waterfall.js),
+// эти профили на него не влияют. Профиль применяется в setLocation, поэтому типы не влияют друг на друга.
+const WATER_RIPPLE = {
+    lake:  { normalScale: 0.55, size: 0.45, distortionScale: 1.4, timeSpeed: 0.12 },   // спокойное лесное озеро: крупная медленная рябь
+    sea:   { normalScale: 1.5,  size: 1.0,  distortionScale: 3.2, timeSpeed: 0.35 },   // море/острова: прежняя волна
+    river: { normalScale: 1.5,  size: 1.0,  distortionScale: 3.2, timeSpeed: 0.35 }
+};
+
 class LakesideWater {
     constructor(scene, sunLight, location = null) {
         this.scene = scene;
@@ -13,6 +21,7 @@ class LakesideWater {
         this.water = null;
         this.foamMesh = null;
         this.elapsed = 0;
+        this.timeSpeed = 0.35;
 
         this.createWater();
         this.setLocation(location || window.CURRENT_LOCATION || {});
@@ -62,6 +71,12 @@ class LakesideWater {
         }
 
         const wType = waterConfig.type || 'lake';
+        const ripple = WATER_RIPPLE[wType === 'lake' ? 'lake' : (wType === 'river' ? 'river' : 'sea')];
+        const U = this.water.material.uniforms;
+        U['normalScale'].value = ripple.normalScale;
+        U['size'].value = ripple.size;
+        U['distortionScale'].value = ripple.distortionScale;
+        this.timeSpeed = ripple.timeSpeed;
         if (wType === 'none') {
             this.water.visible = false;
             return;
@@ -132,8 +147,8 @@ class LakesideWater {
             } else {
                 this.foamMesh.position.set(0, 0.02, shoreLine);
             }
-        } else {
-            // Lake / island shoreline ring
+        } else if (wType === 'island') {
+            // Island shoreline ring (для озера и реки кольцо пены отключено — давало видимый круг на воде)
             const foamRadius = (waterConfig.radius || 24.0);
             const foamGeo = new THREE.RingGeometry(Math.max(0.5, foamRadius - 2.0), foamRadius + 4.0, 48);
             foamGeo.rotateX(-Math.PI / 2);
@@ -146,7 +161,7 @@ class LakesideWater {
     update(delta) {
         this.elapsed += delta; // game time (stops on pause)
         if (this.water && this.water.material && this.water.material.uniforms['time']) {
-            this.water.material.uniforms['time'].value += delta * 0.35;
+            this.water.material.uniforms['time'].value += delta * this.timeSpeed;
         }
         if (this.foamMesh) {
             this.foamMat.opacity = 0.18 + Math.sin(this.elapsed * 2.0) * 0.06;

@@ -26,6 +26,8 @@
 			const distortionScale = options.distortionScale !== undefined ? options.distortionScale : 20.0;
 			const side = options.side !== undefined ? options.side : THREE.FrontSide;
 			const fog = options.fog !== undefined ? options.fog : false; //
+			const waveSize = options.size !== undefined ? options.size : 1.0;
+			const normalScale = options.normalScale !== undefined ? options.normalScale : 1.5;
 
 			const mirrorPlane = new THREE.Plane();
 			const normal = new THREE.Vector3();
@@ -65,6 +67,9 @@
 					},
 					'time': {
 						value: 0.0
+					},
+					'normalScale': {
+						value: 1.5
 					},
 					'size': {
 						value: 1.0
@@ -122,6 +127,7 @@
 				uniform float alpha;
 				uniform float time;
 				uniform float size;
+				uniform float normalScale;
 				uniform float distortionScale;
 				uniform sampler2D normalSampler;
 				uniform vec3 sunColor;
@@ -164,7 +170,7 @@
 
 					#include <logdepthbuf_fragment>
 					vec4 noise = getNoise( worldPosition.xz * size );
-					vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );
+					vec3 surfaceNormal = normalize( noise.xzy * vec3( normalScale, 1.0, normalScale ) );
 
 					vec3 diffuseLight = vec3(0.0);
 					vec3 specularLight = vec3(0.0);
@@ -201,6 +207,8 @@
 			material.uniforms[ 'mirrorSampler' ].value = renderTarget.texture;
 			material.uniforms[ 'textureMatrix' ].value = textureMatrix;
 			material.uniforms[ 'alpha' ].value = alpha;
+			material.uniforms[ 'size' ].value = waveSize;
+			material.uniforms[ 'normalScale' ].value = normalScale;
 			material.uniforms[ 'time' ].value = time;
 			material.uniforms[ 'normalSampler' ].value = normalSampler;
 			material.uniforms[ 'sunColor' ].value = sunColor;
