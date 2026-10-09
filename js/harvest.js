@@ -678,7 +678,7 @@
             if (this.autoSwap) {
                 // give the previous hand item back ~1.2 s after the last tree/ore engagement ended
                 const e = this.game.combat && this.game.combat.engagement;
-                if (e && (e.kind === 'tree' || e.kind === 'ores')) this.toolIdle = 0;
+                if (e && (e.kind === 'trees' || e.kind === 'ores')) this.toolIdle = 0;
                 else if ((this.toolIdle = (this.toolIdle || 0) + delta) > 1.2) this.restoreTool();
             }
             this.checkTimer -= delta;

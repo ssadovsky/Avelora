@@ -263,11 +263,19 @@
                     kind: 'flowers', count: Math.round(trees.length * 1.2),
                     spacing: 1.4, scale: [0.9, 1.3], surface: 'land', centers: trees, clumpRadius: 4.5
                 }, rng);
-                // Сочная зеленая лесная 3D-трава
-                res.grass = scatter(ctx, g, {
+                // Сочная зеленая лесная 3D-трава.
+                // grass: false — группа без «кучи» grass_tuft (траву даёт отдельная группа grassland). Генерация всё равно
+                // выполняется и результат отбрасывается: так не сдвигается последовательность rng, и ветки/кусты этой
+                // группы остаются на прежних местах.
+                const tufts = scatter(ctx, g, {
                     kind: 'grass', count: Math.round(trees.length * 1.5),
                     spacing: 1.2, scale: [0.85, 1.25], surface: 'land', centers: trees, clumpRadius: 4.8
                 }, rng);
+                if (g.grass === false) {
+                    ctx.placed.grass = ctx.placed.grass.filter(o => tufts.indexOf(o) < 0);
+                } else {
+                    res.grass = tufts;
+                }
                 // Декоративные сухие ветки около деревьев на лесной подстилке
                 res.branches = scatter(ctx, g, {
                     kind: 'branches', count: Math.round(trees.length * 0.75),
@@ -343,6 +351,38 @@
             };
         },
 
+        // Лесная трава отдельным слоем: редкие одиночные кустики четырёх видов (grass_set: a/b/c/d), БЕЗ куч.
+        // Ровная рассадка: минимум g.spacing м между кустиками (по умолчанию 3.2), кусты не ближе 1.3 м к стволам/кустарникам.
+        // density — кустиков на 100 м² площади группы (эллипс rx × rz); weights — доли видов {a, b, c, d}.
+        grassland(ctx, g, rng) {
+            const rx = g.rx || g.radius || 8, rz = g.rz || g.radius || 8;
+            const area = Math.PI * rx * rz;
+            const count = g.count !== undefined ? g.count : Math.round(area / 100 * (g.density !== undefined ? g.density : 4));
+            const near = (list, x, z, d) => {
+                const d2 = d * d;
+                for (let i = 0; i < list.length; i++) {
+                    const dx = x - list[i].x, dz = z - list[i].z;
+                    if (dx * dx + dz * dz < d2) return true;
+                }
+                return false;
+            };
+            const grass = scatter(ctx, g, {
+                kind: 'grass', count, spacing: g.spacing !== undefined ? g.spacing : 3.2,
+                scale: [g.scaleMin || 0.85, g.scaleMax || 1.25], surface: 'land', edgeFalloff: 0.7,
+                filter: (x, z) => !near(ctx.placed.trees, x, z, 1.3) && !near(ctx.placed.shrubs, x, z, 1.2) &&
+                    (!ctx.terrain.getSlopeAt || ctx.terrain.getSlopeAt(x, z) < (g.maxSlope !== undefined ? g.maxSlope : 0.30))
+            }, rng);
+            const w = Object.assign({ a: 0.48, b: 0.06, c: 0.31, d: 0.15 }, g.weights || {});
+            const keys = Object.keys(w);
+            const total = keys.reduce((sum, k) => sum + w[k], 0) || 1;
+            grass.forEach(o => {
+                let k = rng() * total, pick = keys[0];
+                for (let i = 0; i < keys.length; i++) { if (k < w[keys[i]]) { pick = keys[i]; break; } k -= w[keys[i]]; }
+                o.grassType = pick;
+            });
+            return { grass };
+        },
+
         // Россыпь кустов (аккуратный естественный подлесок компактного размера)
         shrubCluster(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 6;
@@ -361,10 +401,11 @@
         oreCluster(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 5;
             return {
+                // decor: true — декоративные камни, без добычи и подсказки (рудные валуны заданы явно вдоль тропы)
                 ores: scatter(ctx, g, {
                     kind: 'ores', count, spacing: g.spacing || 1.8,
                     scale: [g.scaleMin || 0.10, g.scaleMax || 0.20], surface: 'land'
-                }, rng)
+                }, rng).map(o => { o.decor = true; return o; })
             };
         },
 

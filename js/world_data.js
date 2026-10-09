@@ -198,28 +198,28 @@ window.LOCATIONS = {
 
             // === СЕВЕРО-ВОСТОЧНЫЙ ЛЕСНОЙ МАССИВ (просторное редколесье, шаг стволов ~10м) ===
             // 1. Северная горная кайма (у подножия северных скал Z: -61..-90, закрывает угол X: 126, Z: -78.5)
-            { id: 'ne_mountain_rim_forest', type: 'forest', x: 105.0, z: -76.0, rx: 34.0, rz: 15.0, count: 18, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 301 },
+            { id: 'ne_mountain_rim_forest', type: 'forest', grass: false, x: 105.0, z: -76.0, rx: 34.0, rz: 15.0, count: 18, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 301 },
 
             // 2. Северо-западные скалистые склоны (стыкуется с центральным северным хребтом)
-            { id: 'ne_northwest_highlands', type: 'forest', x: 68.0, z: -74.0, rx: 18.0, rz: 14.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 302 },
+            { id: 'ne_northwest_highlands', type: 'forest', grass: false, x: 68.0, z: -74.0, rx: 18.0, rz: 14.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 302 },
 
             // 3. Восточная горная стена (вдоль скалистого обрыва от водопада до севера, X: 114..140, Z: -33..-77)
-            { id: 'ne_east_mountain_wall', type: 'forest', x: 128.0, z: -55.0, rx: 14.0, rz: 22.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 303 },
+            { id: 'ne_east_mountain_wall', type: 'forest', grass: false, x: 128.0, z: -55.0, rx: 14.0, rz: 22.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 303 },
 
             // 4. Центрально-северная чаща (заделывает просеку между холмами, X: 77..127, Z: -32..-68)
-            { id: 'ne_north_mid_forest', type: 'forest', x: 102.0, z: -50.0, rx: 25.0, rz: 18.0, count: 15, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 304 },
+            { id: 'ne_north_mid_forest', type: 'forest', grass: false, x: 102.0, z: -50.0, rx: 25.0, rz: 18.0, count: 15, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 304 },
 
             // 5. Лиственный бор на холмах лисиц (X: 56..96, Z: -22..-58)
-            { id: 'ne_fox_hills_woods', type: 'forest', x: 76.0, z: -40.0, rx: 20.0, rz: 18.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 305 },
+            { id: 'ne_fox_hills_woods', type: 'forest', grass: false, x: 76.0, z: -40.0, rx: 20.0, rz: 18.0, count: 12, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 305 },
 
             // 6. Центральная чаща буков (высокие кроны, свободный шаг между стволами 10м, X: 80..132, Z: -9..-41)
-            { id: 'ne_central_beech_woods', type: 'forest', x: 106.0, z: -25.0, rx: 26.0, rz: 16.0, count: 16, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 306 },
+            { id: 'ne_central_beech_woods', type: 'forest', grass: false, x: 106.0, z: -25.0, rx: 26.0, rz: 16.0, count: 16, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 8, seed: 306 },
 
             // 7. Лесистый гребень над водопадом (X: 114..138, Z: -12..-36)
-            { id: 'ne_waterfall_ridge', type: 'forest', x: 127.0, z: -24.0, rx: 13.0, rz: 15.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 5, seed: 307 },
+            { id: 'ne_waterfall_ridge', type: 'forest', grass: false, x: 127.0, z: -24.0, rx: 13.0, rz: 15.0, count: 10, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, shrubs: 5, seed: 307 },
 
             // 8. Редколесье вдоль каменной дороги (деревья отступают минимум на 6м от края полотна дороги)
-            { id: 'ne_roadside_forest', type: 'forest', x: 85.0, z: -9.0, rx: 34.0, rz: 6.0, count: 12, spacing: 10.0, scaleMin: 0.9, scaleMax: 1.35, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 308 },
+            { id: 'ne_roadside_forest', type: 'forest', grass: false, x: 85.0, z: -9.0, rx: 34.0, rz: 6.0, count: 12, spacing: 10.0, scaleMin: 0.9, scaleMax: 1.35, types: ['tree', 'small'], undergrowth: true, shrubs: 6, seed: 308 },
 
             // 9. Разновысокие проходимые кусты подлеска (растут естественными лесными куртинами)
             { id: 'ne_shrubs_central', type: 'shrubCluster', x: 104.0, z: -28.0, radius: 16.0, count: 10, seed: 310 },
@@ -239,7 +239,19 @@ window.LOCATIONS = {
             // === Юго-восточный сектор (Z 5..35, лагерь Лираэль и крысы): аккуратные перелески ===
             { id: 'lirael_east_woods', type: 'forest', x: 136.0, z: 34.0, rx: 5.0, rz: 6.0, count: 6, spacing: 10.0, types: ['tree', 'small'], undergrowth: true, seed: 141 },
             { id: 'lirael_west_copse', type: 'forest', x: 106.0, z: 20.0, radius: 8.0, count: 8, types: ['tree', 'small'], undergrowth: true, seed: 142 },
-            { id: 'waterfall_rocks', type: 'rocks', x: 128.0, z: 5.5, radius: 5.0, count: 4, seed: 161 }
+            { id: 'waterfall_rocks', type: 'rocks', x: 128.0, z: 5.5, radius: 5.0, count: 4, seed: 161 },
+
+            // === ТРАВА СЕВЕРО-ВОСТОЧНОГО ЛЕСА: отдельный слой, одиночные кустики 4 видов (grass_set), БЕЗ куч ===
+            // Те же эллипсы, что у лесных групп выше; rng у всех свой. Плотность — кустиков на 100 м² (density), минимум 2.6 м между кустиками.
+            // Группы стоят после всех ne_* лесов и кустов, чтобы кустики обходили стволы (≥1.3 м) и кустарник (≥1.2 м). Остальные леса и луга не тронуты.
+            { id: 'mountain_rim_forest_grass', type: 'grassland', x: 105.0, z: -76.0, rx: 34.0, rz: 15.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 401 },
+            { id: 'northwest_highlands_grass', type: 'grassland', x: 68.0, z: -74.0, rx: 18.0, rz: 14.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 402 },
+            { id: 'east_mountain_wall_grass', type: 'grassland', x: 128.0, z: -55.0, rx: 14.0, rz: 22.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 403 },
+            { id: 'north_mid_forest_grass', type: 'grassland', x: 102.0, z: -50.0, rx: 25.0, rz: 18.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 404 },
+            { id: 'fox_hills_woods_grass', type: 'grassland', x: 76.0, z: -40.0, rx: 20.0, rz: 18.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 405 },
+            { id: 'central_beech_woods_grass', type: 'grassland', x: 106.0, z: -25.0, rx: 26.0, rz: 16.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 406 },
+            { id: 'waterfall_ridge_grass', type: 'grassland', x: 127.0, z: -24.0, rx: 13.0, rz: 15.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 407 },
+            { id: 'roadside_forest_grass', type: 'grassland', x: 85.0, z: -9.0, rx: 34.0, rz: 6.0, density: 6, spacing: 2.6, scaleMin: 1.0, scaleMax: 1.5, seed: 408 }
         ],
 
         // Существа в долине:
@@ -537,7 +549,8 @@ window.LOCATIONS = {
         terrain: {
             size: 160,
             seed: 7311,
-            biome: 'forest',      // та же трава, что в первой локации
+            biome: 'forest',
+            groundSet: 'meadow',  // прежнее ровное зелёное покрытие (лесная подстилка — только в первой локации)
             segments: 240,
             baseHeight: 1.1,        // суша заметно выше воды: без луж вне русла
             groundNoise: 0.0,       // ровная земля под будущую застройку (горы по краю и русло остаются)

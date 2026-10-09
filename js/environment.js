@@ -32,8 +32,8 @@ const KIND_LABELS = {
     ores: 'Замшелый валун'
 };
 // Кусты, камыш и декоративные камни являются фоновыми декорациями (без всплывающих подсказок и перехвата кликов)
-const HOVER_KINDS = new Set(['trees', 'boulders', 'ferns']);
-const PROXY_HOVER_KINDS = new Set(['trees', 'ferns']);
+const HOVER_KINDS = new Set(['trees', 'boulders', 'ferns', 'ores']);
+const PROXY_HOVER_KINDS = new Set(['trees', 'ferns', 'ores']);
 
 // object.visible stays true so the raycaster tests it; material.visible=false
 // keeps it out of the render list. Sizes are in local/unscaled units — the
@@ -41,7 +41,7 @@ const PROXY_HOVER_KINDS = new Set(['trees', 'ferns']);
 const HOVER_PROXY_SIZE = {
     trees: { radiusBottom: 0.7, radiusTop: 1.35, height: 3.4 },
     ferns: { radiusBottom: 0.45, radiusTop: 0.4, height: 0.55 },
-    ores:  { radiusBottom: 0.75, radiusTop: 0.65, height: 0.75 }
+    ores:  { radiusBottom: 1.6, radiusTop: 1.3, height: 1.6 } // модель rock_moss ~2.4 x 1.5, на тропе масштаб ~0.27
 };
 
 class LakesideEnvironment {
@@ -207,7 +207,7 @@ class LakesideEnvironment {
                 mesh.userData.instanceIds = [];
                 if (kind === 'trees' && mesh.castShadow) this.shadowMeshes.push({ mesh, x: chunk.ox, z: chunk.oz });
                 if (CULL_RADIUS_MUL[kind]) this.cullMeshes.push({ mesh, x: chunk.ox, z: chunk.oz, mul: CULL_RADIUS_MUL[kind], inner: CULL_INNER_MUL[kind] || 0 });
-                if (HOVER_KINDS.has(kind) && !PROXY_HOVER_KINDS.has(kind)) {
+                if (HOVER_KINDS.has(kind) && !PROXY_HOVER_KINDS.has(kind) && !opts.noHover) {
                     mesh.userData.hoverable = true;
                     this.hoverMeshes.push(mesh);
                 }
@@ -241,7 +241,7 @@ class LakesideEnvironment {
 
             // Invisible generous hit-proxy for the hover tooltip (main.js) — see
             // HOVER_PROXY_SIZE above for why this doesn't reuse the visible mesh.
-            if (PROXY_HOVER_KINDS.has(kind)) {
+            if (PROXY_HOVER_KINDS.has(kind) && !opts.noHover) {
                 const proxyGeo = this.getHoverProxyGeometry(kind);
                 const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
                 const proxyMesh = new THREE.InstancedMesh(proxyGeo, proxyMat, chunk.list.length);
@@ -425,6 +425,26 @@ class LakesideEnvironment {
                     parts.push({ geometry: c.geometry, material: c.material, nodeMatrix: c.matrixWorld.clone() });
                 });
 
+                // Некоторые GLB (fir_tree, fir_tree_b, fir_tree_c) имеют ствол не в начале координат (смещение 5–10 ед.):
+                // дерево стояло в стороне от точки размещения (и хитбокса/препятствия) и «левитировало» на другой высоте рельефа.
+                // Центрируем ствол по XZ: берём самую низкую по высоте часть (основание ствола).
+                {
+                    let base = null, baseTop = Infinity;
+                    const bb = new THREE.Box3();
+                    parts.forEach(pt => {
+                        if (!pt.geometry.boundingBox) pt.geometry.computeBoundingBox();
+                        bb.copy(pt.geometry.boundingBox).applyMatrix4(pt.nodeMatrix);
+                        if (bb.max.y < baseTop) { baseTop = bb.max.y; base = bb.clone(); }
+                    });
+                    if (base) {
+                        const cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2;
+                        if (Math.abs(cx) > 0.3 || Math.abs(cz) > 0.3) {
+                            const shift = new THREE.Matrix4().makeTranslation(-cx, 0, -cz);
+                            parts.forEach(pt => { pt.nodeMatrix = shift.clone().multiply(pt.nodeMatrix); });
+                        }
+                    }
+                }
+
                 this.buildInstanced('trees', parts, list, (p, idx, d) => {
                     const gy = this.terrain.getHeightAt(p.x, p.z);
                     const scale = (p.s || 1.0) * baseScale;
@@ -462,16 +482,20 @@ class LakesideEnvironment {
                 groups.get(mIdx).push(p);
             });
 
-            groups.forEach((list, mIdx) => {
+            // Два вида камней: рудные (вдоль тропы, крупнее, добываются киркой) и декоративные (p.decor — мельче, без взаимодействия).
+            groups.forEach((all, mIdx) => {
                 const sourceMesh = meshes[mIdx] || meshes[0];
-                this.buildInstanced('ores', [{ geometry: sourceMesh.geometry, material: sourceMesh.material }],
-                    list, (p, idx, d) => {
-                        const groundY = this.terrain.getHeightAt(p.x, p.z);
-                        const scale = p.s || 1.0;
-                        d.position.set(p.x, groundY, p.z);
-                        d.rotation.set(0, p.r !== undefined ? p.r : 0, 0);
-                        d.scale.set(scale, scale, scale);
-                    });
+                const place = (p, idx, d) => {
+                    const groundY = this.terrain.getHeightAt(p.x, p.z);
+                    const scale = p.s || 1.0;
+                    d.position.set(p.x, groundY, p.z);
+                    d.rotation.set(0, p.r !== undefined ? p.r : 0, 0);
+                    d.scale.set(scale, scale, scale);
+                };
+                const part = [{ geometry: sourceMesh.geometry, material: sourceMesh.material }];
+                const mineable = all.filter(p => !p.decor), decor = all.filter(p => p.decor);
+                if (mineable.length) this.buildInstanced('ores', part, mineable, place);
+                if (decor.length) this.buildInstanced('ores', part, decor, place, { noHover: true });
             });
 
             // Декоративные замшелые камни (ores) не блокируют путь — персонаж свободно перешагивает через них
@@ -685,6 +709,14 @@ class LakesideEnvironment {
         const grassPlacements = this.getDecorations('grass');
         if (!grassPlacements || grassPlacements.length === 0) return;
 
+        // Новая трава (grassType a/b/c/d из группы 'grassland') — отдельный слой из модели grass_set;
+        // прежние пучки без grassType продолжают рисоваться моделью grass_tuft.
+        const setPlacements = grassPlacements.filter(p => p.grassType);
+        const tuftPlacements = grassPlacements.filter(p => !p.grassType);
+        if (setPlacements.length) this.loadGrassSet(setPlacements);
+        // Старые пучки grass_tuft (чёрные цветы сверху) убраны везде по просьбе: рисуем их только если включено явно.
+        if (!window.AVELORA_LEGACY_TUFT || !tuftPlacements.length) return;
+
         this.loadModel('grass_tuft', (gltf) => {
             let mesh = null;
             gltf.scene.traverse(c => { if (c.isMesh && !mesh) mesh = c; });
@@ -697,13 +729,69 @@ class LakesideEnvironment {
             }
 
             this.buildInstanced('grass', [{ geometry: mesh.geometry, material: mesh.material }],
-                grassPlacements, (p, idx, d) => {
+                tuftPlacements, (p, idx, d) => {
                     const gy = this.terrain.getHeightAt(p.x, p.z);
                     const scale = (p.s || 1.0) * 1.85;
                     d.position.set(p.x, gy - 0.02, p.z);
                     d.rotation.set(0, (p.r !== undefined) ? p.r : ((idx * 1.618) % (Math.PI * 2)), 0);
                     d.scale.set(scale, scale, scale);
                 }, { castShadow: false, reflect: false });
+        });
+    }
+
+    /**
+     * Лесная трава отдельным слоем (models/environment/grass_set.glb, сборка: temp_work/grass_build/bake_grass_set.py).
+     * Четыре вида кустиков: a, b (жёлтые цветки), c, d (синие цветки). Один общий материал на атласе с альфой;
+     * лёгкое покачивание на ветру, мягкое освещение (нормаль не переворачивается у задней стороны лезвий).
+     */
+    loadGrassSet(placements) {
+        const NODE = { a: 'grass_a', b: 'grass_b', c: 'grass_c', d: 'grass_d' };
+        const GRASS_TINT = 0xb9cf9a;   // оттенок травы (множитель цвета атласа): темнее и спокойнее, чем «неоновый» исходник
+        this.loadModel('grass_set', (gltf) => {
+            const meshes = {};
+            gltf.scene.traverse(c => { if (c.isMesh) meshes[c.name] = c; });
+            const first = meshes[NODE.a] || Object.values(meshes)[0];
+            if (!first) return;
+
+            const mat = first.material;
+            mat.side = THREE.DoubleSide;
+            mat.alphaTest = 0.5;
+            mat.transparent = false;
+            mat.depthWrite = true;
+            mat.roughness = 1.0;
+            mat.metalness = 0.0;
+            mat.color.setHex(GRASS_TINT);
+            const windUniform = this.windUniform;
+            mat.onBeforeCompile = (shader) => {
+                shader.uniforms.uWindTime = windUniform;
+                shader.vertexShader = 'uniform float uWindTime;\n' + shader.vertexShader.replace('#include <begin_vertex>', `
+                    #include <begin_vertex>
+                    {
+                        float hN = clamp(position.y / 0.55, 0.0, 1.0);
+                        vec3 ip = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+                        float ph = ip.x * 0.7 + ip.z * 0.9;
+                        float sw = sin(uWindTime * 1.7 + ph) * 0.045 * hN * hN;
+                        transformed.x += sw;
+                        transformed.z += sw * 0.6;
+                    }`);
+                // нормаль берём как есть и для задней стороны (в геометрии она «почти вверх») — без тёмных/светлых полос
+                shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
+                    '#include <normal_fragment_begin>\n    normal = normalize(vNormal);');
+            };
+            mat.customProgramCacheKey = () => 'avelora_grass_set_v1';
+
+            Object.keys(NODE).forEach((type) => {
+                const list = placements.filter(p => p.grassType === type);
+                const src = meshes[NODE[type]];
+                if (!list.length || !src) return;
+                this.buildInstanced('grass', [{ geometry: src.geometry, material: mat }], list, (p, idx, d) => {
+                    const gy = this.terrain.getHeightAt(p.x, p.z);
+                    const scale = p.s || 1.0;
+                    d.position.set(p.x, gy - 0.01, p.z);
+                    d.rotation.set(0, (p.r !== undefined) ? p.r : ((idx * 1.618) % (Math.PI * 2)), 0);
+                    d.scale.set(scale, scale, scale);
+                }, { castShadow: false, reflect: false });
+            });
         });
     }
 

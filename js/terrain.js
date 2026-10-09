@@ -30,6 +30,7 @@ class LakesideTerrain {
 
         this.border = (locTerrain.border !== undefined) ? locTerrain.border : 0;
         this.biome = locTerrain.biome || 'forest';
+        this.groundSet = locTerrain.groundSet || 'moss';   // 'moss' — лесная подстилка (по умолчанию), 'meadow' — ровное зелёное покрытие
 
         // Water body configuration (lake, coast, island)
         this.waterConfig = locTerrain.waterBody || locTerrain.lake || {
@@ -323,9 +324,10 @@ class LakesideTerrain {
             rockNor = texLoader.load(assets.rockNor || assets.beachNor);
             beachDiff = texLoader.load(assets.beachDiff);
         } else {
-            // forest / default
-            grassDiff = texLoader.load(assets.meadowDiff);
-            grassNor = texLoader.load(assets.meadowNor);
+            // forest / default; groundSet 'meadow' — прежнее ровное зелёное покрытие (домашний лагерь)
+            const useMeadow = this.groundSet === 'meadow' && assets.meadowGrassDiff;
+            grassDiff = texLoader.load(useMeadow ? assets.meadowGrassDiff : assets.meadowDiff);
+            grassNor = texLoader.load(useMeadow ? (assets.meadowGrassNor || assets.meadowNor) : assets.meadowNor);
             trailDiff = texLoader.load(assets.gravelDiff || assets.beachDiff);
             rockDiff = texLoader.load(assets.rockDiff);
             rockNor = texLoader.load(assets.rockNor || assets.beachNor);
