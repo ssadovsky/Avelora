@@ -73,7 +73,7 @@ window.LOCATIONS = {
             segmentsZ: 200,
             border: 0,          // без лишнего внешнего бордюра, горы доходят ровно до границы карты
             baseHeight: 1.7,
-            landFloor: 0.85,    // суша не опускается ниже ~0.85 м вдали от озера: без луж в низинах (напр. у X -50, Z -75)
+            landFloor: 0.85, groundSet: 'moss2',    // суша не опускается ниже ~0.85 м вдали от озера: без луж в низинах (напр. у X -50, Z -75)
 
             // Естественный горный барьер по периметру (высота 6м, пики до 9м)
             mountainRim: { width: 16.0, height: 6.0 },
@@ -263,6 +263,8 @@ window.LOCATIONS = {
             { id: 'wolf_1', type: 'wolf', x: 55.0, z: -60.0, r: 0 },
             // Яша (Sailback Fury): сильнее медведя; пока не агрессивный (behavior: 'retaliate' в content/creatures/yasha)
             { id: 'yasha_1', type: 'yasha', x: 0.0, z: 60.0, r: -2.89 },
+            // Громовой Коготь (Thunderclaw): гигантский теропод-босс, мирный пока не ударишь (content/creatures/thunderclaw); в ~31 м от Яши
+            { id: 'thunderclaw_1', type: 'thunderclaw', x: -27.0, z: 45.0, r: 0.6 },
             // 5 огненных лисиц на холмах к северу от водопада (квест Лираэль)
             { id: 'fox_1', type: 'fire_fox', x: 88.0, z: -24.0, r: 1.0 },
             { id: 'fox_2', type: 'fire_fox', x: 104.0, z: -28.0, r: 3.0 },

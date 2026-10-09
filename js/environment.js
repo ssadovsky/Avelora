@@ -44,6 +44,7 @@ const HOVER_PROXY_SIZE = {
     ores:  { radiusBottom: 1.6, radiusTop: 1.3, height: 1.6 } // модель rock_moss ~2.4 x 1.5, на тропе масштаб ~0.27
 };
 
+
 class LakesideEnvironment {
     constructor(root, terrain, pathfinder, location) {
         this.root = root;
@@ -746,7 +747,7 @@ class LakesideEnvironment {
      */
     loadGrassSet(placements) {
         const NODE = { a: 'grass_a', b: 'grass_b', c: 'grass_c', d: 'grass_d' };
-        const GRASS_TINT = 0xb9cf9a;   // оттенок травы (множитель цвета атласа): темнее и спокойнее, чем «неоновый» исходник
+        const GRASS_TINT = 0xa6b886;   // оттенок травы (множитель цвета атласа): приглушённый, не «неоновый»
         this.loadModel('grass_set', (gltf) => {
             const meshes = {};
             gltf.scene.traverse(c => { if (c.isMesh) meshes[c.name] = c; });
@@ -778,21 +779,111 @@ class LakesideEnvironment {
                 shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
                     '#include <normal_fragment_begin>\n    normal = normalize(vNormal);');
             };
-            mat.customProgramCacheKey = () => 'avelora_grass_set_v1';
+            mat.customProgramCacheKey = () => 'avelora_grass_set_v2';
+            // V3: сухая трава (солома): тот же атлас/ветер, но цвет смещён в жёлто-бежевый
+            const matDry = mat.clone();
+            matDry.color.setHex(0xe2cf8c);
+            matDry.side = THREE.DoubleSide; matDry.alphaTest = 0.5; matDry.transparent = false; matDry.depthWrite = true;
+            matDry.roughness = 1.0; matDry.metalness = 0.0;
+            const baseCompile = mat.onBeforeCompile;
+            matDry.onBeforeCompile = (shader) => {
+                baseCompile(shader);
+                shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>',
+                    '#include <map_fragment>\n    { float gl = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(gl * 1.55, gl * 1.30, gl * 0.62), 0.85); }');
+            };
+            matDry.customProgramCacheKey = () => 'avelora_grass_set_dry_v1';
 
+            const shaped = this.shapeUndergrowth(placements);
             Object.keys(NODE).forEach((type) => {
-                const list = placements.filter(p => p.grassType === type);
                 const src = meshes[NODE[type]];
-                if (!list.length || !src) return;
-                this.buildInstanced('grass', [{ geometry: src.geometry, material: mat }], list, (p, idx, d) => {
+                if (!src) return;
+                [[false, mat], [true, matDry]].forEach(([dry, material]) => {
+                const list = shaped.filter(p => p.grassType === type && !!p.dry === dry);
+                if (!list.length) return;
+                this.buildInstanced('grass', [{ geometry: src.geometry, material }], list, (p, idx, d) => {
                     const gy = this.terrain.getHeightAt(p.x, p.z);
                     const scale = p.s || 1.0;
                     d.position.set(p.x, gy - 0.01, p.z);
                     d.rotation.set(0, (p.r !== undefined) ? p.r : ((idx * 1.618) % (Math.PI * 2)), 0);
                     d.scale.set(scale, scale, scale);
                 }, { castShadow: false, reflect: false });
+                });
             });
         });
+    }
+
+    /**
+     * V3: подлесок. Траву из группы стягиваем островками к деревьям, камням, рудам и валежнику,
+     * в открытых местах разрежаем (остаются просветы земли), часть кустиков делаем сухими (соломенными).
+     * Детерминировано (хэш от id/координат) — при каждом заходе в локацию картина одна и та же.
+     */
+    shapeUndergrowth(placements) {
+        const hash = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
+        const anchors = [];
+        (this.getDecorations('trees') || []).forEach(p => { const sc = p.s || 1; anchors.push({ x: p.x, z: p.z, r0: 0.45 + 0.3 * sc, r1: 1.6 + 0.9 * sc }); });
+        (this.getDecorations('boulders') || []).forEach(p => { const sc = p.s || 1.8; anchors.push({ x: p.x, z: p.z, r0: 0.35 * sc + 0.4, r1: 1.1 * sc + 1.2 }); });
+        (this.getDecorations('ores') || []).forEach(p => { const sc = p.s || 1; anchors.push({ x: p.x, z: p.z, r0: 0.6, r1: 0.9 + sc * 3 }); });
+        (this.getDecorations('branches') || []).forEach(p => anchors.push({ x: p.x, z: p.z, r0: 0.3, r1: 1.2 }));
+        if (!anchors.length) return placements;
+
+        const CELL = 6;
+        const grid = new Map();
+        anchors.forEach(a => {
+            const key = Math.floor(a.x / CELL) + ':' + Math.floor(a.z / CELL);
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(a);
+        });
+        const nearest = (x, z) => {
+            let best = null, bd = 1e9;
+            const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+            for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+                const arr = grid.get((cx + i) + ':' + (cz + j));
+                if (!arr) continue;
+                for (const a of arr) { const d = Math.hypot(a.x - x, a.z - z); if (d < bd) { bd = d; best = a; } }
+            }
+            return best ? { a: best, d: bd } : null;
+        };
+
+        const out = [];
+        placements.forEach((p, i) => {
+            const h1 = hash(p.x, p.z), h2 = hash(p.z + 3.7, p.x - 1.3), h3 = hash(p.x * 1.7 + i, p.z * 0.9);
+            const near = nearest(p.x, p.z);
+            const q = Object.assign({}, p);
+            if (near && near.d < 6) {
+                if (h1 < 0.55) {
+                    // стянуть к якорю: кольцо r0..r1 вокруг него
+                    const ang = h2 * Math.PI * 2;
+                    const rad = near.a.r0 + (near.a.r1 - near.a.r0) * Math.pow(h3, 1.4);
+                    const nx = near.a.x + Math.cos(ang) * rad, nz = near.a.z + Math.sin(ang) * rad;
+                    if (this.terrain.getHeightAt(nx, nz) > 0.35) { q.x = nx; q.z = nz; }
+                    q.s = (p.s || 1) * (0.85 + h3 * 0.45);
+                }
+            } else if (h1 < 0.20) {
+                return;   // открытое место: убираем часть травы, остаётся голая подстилка
+            }
+            q.dry = h3 > 0.80;
+            out.push(q);
+        });
+        // дополнительные островки подлеска у основания деревьев, камней и валежника
+        const types = ['a', 'b', 'c', 'd'];
+        let extra = 0;
+        anchors.forEach((a, ai) => {
+            if (extra > 3000) return;
+            const g = hash(a.x * 0.37 + 5.1, a.z * 0.61 - 2.2);
+            if (g < 0.30) return;
+            const n = 2 + Math.floor(hash(a.z + 9.3, a.x) * 3);
+            for (let k = 0; k < n; k++) {
+                const ang = hash(a.x + k * 7.1, a.z + k * 3.3) * Math.PI * 2;
+                const rad = a.r0 + (a.r1 - a.r0) * Math.pow(hash(a.z - k * 2.9, a.x + k), 1.3);
+                const nx = a.x + Math.cos(ang) * rad, nz = a.z + Math.sin(ang) * rad;
+                if (this.terrain.getHeightAt(nx, nz) <= 0.35) continue;
+                const hh = hash(nx, nz);
+                out.push({ id: `ug:${ai}:${k}`, x: nx, z: nz, s: 0.8 + hh * 0.7, r: hh * 6.28,
+                           grassType: types[Math.floor(hash(nz, nx + 1.1) * 4) % 4], dry: hash(nx * 2.3, nz) > 0.78 });
+                extra++;
+            }
+        });
+        return out;
     }
 
 
@@ -923,6 +1014,7 @@ class LakesideEnvironment {
     update(delta, playerPos) {
         this.windUniform.value += delta;
         this.updateCulling(delta, playerPos);
+        this.updateContactAO(delta, playerPos);
 
         if (this.particles) {
             const pos = this.particles.geometry.attributes.position.array;
@@ -933,6 +1025,38 @@ class LakesideEnvironment {
                 if (pos[i + 1] < 0.2) pos[i + 1] = 4.8;
             }
             this.particles.geometry.attributes.position.needsUpdate = true;
+        }
+    }
+
+    /**
+     * V2: мягкое затемнение земли у оснований деревьев, камней и руды рисуется шейдером земли (следует рельефу, без резких краёв).
+     * Берём 48 ближайших к игроку якорей раз в 0.3 c и отдаём в terrain.contactAO.
+     */
+    updateContactAO(delta, playerPos) {
+        const T = this.terrain;
+        if (!playerPos || !T || !T.contactAO) return;
+        this._aoT = (this._aoT || 0) + delta;
+        if (this._aoT < 0.3) return;
+        this._aoT = 0;
+        if (!this._aoAnchors) {
+            const list = [];
+            (this.getDecorations('trees') || []).forEach(p => { const sc = p.s || 1; list.push([p.x, p.z, 0.9 + 0.55 * sc, 0.70]); });
+            (this.getDecorations('boulders') || []).forEach(p => { const sc = p.s || 1.8; list.push([p.x, p.z, 0.8 * sc + 0.4, 0.60]); });
+            (this.getDecorations('ores') || []).forEach(p => { const sc = p.s || 1; list.push([p.x, p.z, 0.7 + sc * 2.2, 0.55]); });
+            this._aoAnchors = list;
+        }
+        const px = playerPos.x, pz = playerPos.z;
+        const cand = [];
+        for (const a of this._aoAnchors) {
+            const dx = a[0] - px, dz = a[1] - pz;
+            const d2 = dx * dx + dz * dz;
+            if (d2 < 2500) cand.push([d2, a]);
+        }
+        cand.sort((u, v) => u[0] - v[0]);
+        const arr = T.contactAO;
+        for (let i = 0; i < arr.length; i++) {
+            if (i < cand.length) { const a = cand[i][1]; arr[i].set(a[0], a[1], a[2], a[3]); }
+            else arr[i].set(0, 0, 0, 0);
         }
     }
 

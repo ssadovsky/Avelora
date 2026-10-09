@@ -345,7 +345,13 @@ class LakesideTerrain {
         }
 
         const stoneTrailDiff = texLoader.load(assets.stoneTrailDiff || assets.gravelDiff || assets.beachDiff);
-        this.textures = [grassDiff, grassNor, trailDiff, stoneTrailDiff, rockDiff, rockNor, beachDiff];
+        // V1: groundSet 'moss2' — оригинальная лесная подстилка + мягкие зоны текстурной травы и тёмный подлесок (опыт, первая локация)
+        // groundSet: 'moss2' — подстилка + пятна текстурной травы; 'grass2' — сплошное тёмное травяное покрытие (отдельный вариант для других локаций)
+        const groundMode = (this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0);
+        const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
+        if (mixGround) { this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); }
+        const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
+        this.textures = [grassDiff, grassNor, trailDiff, stoneTrailDiff, rockDiff, rockNor, beachDiff, grass2Diff];
         this.textures.forEach(tex => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
@@ -371,7 +377,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v12_forest_moss`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v15_moss2_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
 
@@ -383,6 +389,9 @@ class LakesideTerrain {
             shader.uniforms.uRockNor = { value: rockNor };
             shader.uniforms.uBeachDiff = { value: beachDiff };
             shader.uniforms.uBiome = { value: biomeId };
+            shader.uniforms.uGrass2Diff = { value: grass2Diff };
+            shader.uniforms.uGroundMix = { value: mixGround ? groundMode : 0.0 };
+            shader.uniforms.uAO = { value: this.contactAO || [] };
 
             const dirtSegs = [];
             const stoneSegs = [];
@@ -431,6 +440,9 @@ class LakesideTerrain {
 
             shader.fragmentShader = `
                 uniform sampler2D uGrassDiff;
+                uniform sampler2D uGrass2Diff;
+                uniform float uGroundMix;
+                uniform vec4 uAO[48];
                 uniform sampler2D uTrailDiff;
                 uniform sampler2D uStoneTrailDiff;
                 uniform sampler2D uRockDiff;
@@ -555,8 +567,37 @@ class LakesideTerrain {
                     // Центр — старинная каменная мостовая Poly Haven (без шахматных узоров)
                     vec3 centerPath = colStoneTrail.rgb;
 
+                    // V1 (moss2): оригинальная подстилка не трогается; поверх — мягкие зоны текстурной травы
+                    // (с её собственными тенями и деталями, приглушённой в тон) и широкие тёмные пятна подлеска (AO-эффект).
+                    vec3 groundCol = colGrass.rgb;
+                    if (uGroundMix > 0.5) {
+                        vec2 gxz = vWorldPosition.xz;
+                        float zoneN = avNoise(gxz * 0.030) * 0.65 + avNoise(gxz * 0.083 + 17.0) * 0.35;
+                        float grassZone = (uGroundMix > 1.5) ? 0.92 : smoothstep(0.56, 0.82, zoneN) * 0.75;
+                        if (grassZone > 0.003) {
+                            vec3 gB = texture2D(uGrass2Diff, gxz * 0.16 + vec2(0.13, 0.57)).rgb;
+                            gB *= vec3(0.40, 0.48, 0.28);           // тёмная оливковая трава, детали текстуры сохранены
+                            groundCol = mix(groundCol, gB, grassZone);
+                        }
+                        float under = avNoise(gxz * 0.055 + 41.0) * 0.65 + avNoise(gxz * 0.21) * 0.35;
+                        float underM = smoothstep(0.44, 0.80, under);
+                        groundCol *= mix(1.0, 0.62, underM);        // глубокие тени подлеска, детали остаются
+                        float cv = avNoise(gxz * 0.017 + 3.0) - 0.5;
+                        groundCol *= vec3(1.0 + cv * 0.12, 1.0, 1.0 - cv * 0.10);
+                        // мягкое затемнение у оснований деревьев/камней (по рельефу, без резких краёв)
+                        float aoMul = 1.0;
+                        for (int ai = 0; ai < 48; ai++) {
+                            vec4 an = uAO[ai];
+                            if (an.z > 0.0) {
+                                float ad = length(gxz - an.xy) / an.z;
+                                aoMul *= 1.0 - an.w * 0.45 * (1.0 - smoothstep(0.15, 1.0, ad));
+                            }
+                        }
+                        groundCol *= max(aoMul, 0.55);
+                    }
+
                     // Сборка слоя каменной тропы: лесная подстилка -> земляная обочина -> чистая мостовая
-                    vec3 pathBlended = mix(colGrass.rgb, colDirtTrail.rgb, shoulderMask * 0.78);
+                    vec3 pathBlended = mix(groundCol, colDirtTrail.rgb, shoulderMask * 0.78);
                     pathBlended = mix(pathBlended, centerPath, stoneMask * 0.96);
 
                     // Смешивание с грунтовыми тропами (от спавна до лагеря и западной к перевалу)

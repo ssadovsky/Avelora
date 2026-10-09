@@ -1,0 +1,41 @@
+{
+ "id": "thunderclaw",
+ "name": "Громовой Коготь",
+ "hp": 1500,
+ "damage": [
+  60,
+  90
+ ],
+ "attackRange": 1.8,
+ "attackCooldown": 3.0,
+ "walkSpeed": 1.8,
+ "runSpeed": 5.5,
+ "behavior": "retaliate",
+ "aggroRadius": 0,
+ "leashRadius": 35,
+ "wanderRadius": 10,
+ "respawnMinutes": 30,
+ "hitRadius": 3.8,
+ "scale": 1.0,
+ "drops": [
+  {
+   "item": "meat",
+   "count": 15
+  },
+  {
+   "item": "bear_hide",
+   "count": 4
+  }
+ ],
+ "xp": 1500,
+ "level": 25,
+ "tiltSpan": [
+  -0.7,
+  1.0,
+  0.85
+ ],
+ "idlePause": [
+  8,
+  16
+ ]
+}
