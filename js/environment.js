@@ -452,7 +452,7 @@ class LakesideEnvironment {
                     d.position.set(p.x, gy - 0.05, p.z);
                     d.rotation.y = (p.r !== undefined) ? p.r : 0;
                     d.scale.set(scale, scale, scale);
-                });
+                }, (window.AVELORA_WOPT && window.AVELORA_WOPT.trees === 'none') ? { reflect: false } : {});
 
                 // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
                 list.forEach(p => {

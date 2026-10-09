@@ -1,3 +1,6 @@
+// Water mirror tuning (debug ?wopt= query parsing disabled). Reflection is refreshed every 2nd frame.
+(function(){ if (window.AVELORA_WOPT) return; window.AVELORA_WOPT = { shadow: false, throttle: 2, buf: 0, trees: 'all' }; })();
+// debug (disabled): ?wopt=shadow,throttleN,bufN,trees:none
 ( function () {
 
 	/**
@@ -13,8 +16,8 @@
 
 			super( geometry );
 			const scope = this;
-			const textureWidth = options.textureWidth !== undefined ? options.textureWidth : 512;
-			const textureHeight = options.textureHeight !== undefined ? options.textureHeight : 512;
+			const textureWidth = window.AVELORA_WOPT.buf || (options.textureWidth !== undefined ? options.textureWidth : 512);
+			const textureHeight = window.AVELORA_WOPT.buf || (options.textureHeight !== undefined ? options.textureHeight : 512);
 			const clipBias = options.clipBias !== undefined ? options.clipBias : 0.0;
 			const alpha = options.alpha !== undefined ? options.alpha : 1.0;
 			const time = options.time !== undefined ? options.time : 0.0;
@@ -218,7 +221,10 @@
 			material.uniforms[ 'eye' ].value = eye;
 			scope.material = material;
 
+			let _wFrame = 0;
 			scope.onBeforeRender = function ( renderer, scene, camera ) {
+
+				if ( window.AVELORA_WOPT.throttle > 1 && ( _wFrame++ % window.AVELORA_WOPT.throttle ) !== 0 ) return;
 
 				mirrorWorldPosition.setFromMatrixPosition( scope.matrixWorld );
 				cameraWorldPosition.setFromMatrixPosition( camera.matrixWorld );
@@ -276,6 +282,8 @@
 				renderer.xr.enabled = false; // Avoid camera modification and recursion
 
 				renderer.shadowMap.autoUpdate = false; // Avoid re-computing shadows
+				const _wShadow = renderer.shadowMap.enabled;
+				if ( window.AVELORA_WOPT.shadow ) renderer.shadowMap.enabled = false;
 
 				renderer.setRenderTarget( renderTarget );
 				renderer.state.buffers.depth.setMask( true ); // make sure the depth buffer is writable so it can be properly cleared, see #18897
@@ -285,6 +293,7 @@
 				scope.visible = true;
 				renderer.xr.enabled = currentXrEnabled;
 				renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
+				renderer.shadowMap.enabled = _wShadow;
 				renderer.setRenderTarget( currentRenderTarget ); // Restore viewport
 
 				const viewport = camera.viewport;
