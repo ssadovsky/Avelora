@@ -204,12 +204,30 @@
                     }
                 };
 
-                // Click on header / close button collapses tracker into the round button under camera
+                // Click on header / toggle button collapses tracker
                 const title = this.tracker.querySelector('.qt-title');
                 if (title) {
                     title.onclick = (e) => {
                         e.stopPropagation();
                         this.tracker.classList.add('collapsed');
+                    };
+                }
+
+                // Click on quest list opens full quests log
+                const list = this.tracker.querySelector('.qt-list');
+                if (list) {
+                    list.onclick = (e) => {
+                        e.stopPropagation();
+                        const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                        if (ui && ui.toggleQuests) {
+                            ui.toggleQuests();
+                        } else {
+                            const qp = document.getElementById('quests-panel');
+                            if (qp) {
+                                qp.classList.toggle('open');
+                                if (ui && ui.updateQuestsProgress) ui.updateQuestsProgress();
+                            }
+                        }
                     };
                 }
             } else {

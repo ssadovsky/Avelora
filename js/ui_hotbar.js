@@ -59,6 +59,7 @@
     class AveloraHotbarUI {
         constructor(game) {
             this.game = game;
+            window.AveloraHotbar = this;
             this.state = null;
             this.floats = [];
             this.drag = null;          // active press/drag
