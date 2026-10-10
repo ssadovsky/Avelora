@@ -298,6 +298,7 @@
             const has = this.characterSkills().length > 0;
             if (this.skillsBtn) this.skillsBtn.style.display = has ? '' : 'none';
             if (!has) this.setSkillsOpen(false);
+            this.updatePlayerPortrait();
             this.renderAll();
         }
 
@@ -1151,6 +1152,23 @@
                 this.heroPanel.addEventListener('click', (e) => {
                     e.stopPropagation();
                 });
+            }
+            const portraitBtn = document.getElementById('player-portrait-btn');
+            if (portraitBtn) {
+                portraitBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleHero();
+                });
+            }
+            this.updatePlayerPortrait();
+        }
+
+        updatePlayerPortrait() {
+            const portraitImg = document.getElementById('player-portrait-img');
+            if (!portraitImg) return;
+            const tex = (window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.heroPortrait) || '';
+            if (tex) {
+                portraitImg.style.backgroundImage = `url("${tex}")`;
             }
         }
 

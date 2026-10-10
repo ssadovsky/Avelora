@@ -260,6 +260,10 @@
                 if (this.xpText) this.xpText.textContent = label;
                 if (this.xpBar) this.xpBar.title = `Опыт: ${label}`;
             }
+            const lvlBadge = document.getElementById('player-level-badge');
+            if (lvlBadge && lvlBadge.textContent !== String(this.level)) {
+                lvlBadge.textContent = this.level;
+            }
         }
     }
 

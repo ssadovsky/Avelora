@@ -356,7 +356,7 @@ class LakesideTerrain {
         // groundSet: 'moss2' — подстилка + пятна текстурной травы; 'grass2' — сплошное тёмное травяное покрытие (отдельный вариант для других локаций)
         const groundMode = (this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0);
         const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
-        if (mixGround) { this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); }
+        this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[48] is declared in every variant: always give it 48 entries (empty array crashes the uniform upload)
         const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
         this.textures = [grassDiff, grassNor, trailDiff, stoneTrailDiff, rockDiff, rockNor, beachDiff, grass2Diff];
         this.textures.forEach(tex => {
