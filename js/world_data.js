@@ -558,21 +558,21 @@ window.LOCATIONS = {
             size: 160,
             seed: 7311,
             biome: 'forest',
-            groundSet: 'meadow',  // прежнее ровное зелёное покрытие (лесная подстилка — только в первой локации)
+            groundSet: 'camp',    // зелёная трава на полянке (где нет леса) + лесная подстилка в лесу
             segments: 240,
-            baseHeight: 1.1,        // суша заметно выше воды: без луж вне русла
-            groundNoise: 0.0,       // ровная земля под будущую застройку (горы по краю и русло остаются)
+            baseHeight: 0.85,       // комфортная высота суши над водой
+            groundNoise: 0.15,      // ровная удобная плоскость для строительства с естественной фактурой
             // РЕЧКА: русло вдоль сглаженной линии points [x, z]; вода (Y = 0) закрывает карту целиком,
             // но видна только там, где рельеф ниже нуля. Перейти вброд нельзя (глубина): через речку — мост.
             waterBody: {
                 type: 'river',
                 width: 5.5,
                 depth: -0.9,
-                beachWidth: 3.2,
+                beachWidth: 5.0,   // плавный берег с гравием (как у озера), без выхода камыша на сушу
                 points: [[-84, -18], [-56, -26], [-30, -21], [-8, -25], [0, -25], [8, -25], [32, -30], [58, -23], [84, -28]]
             },
-            // Мост через речку в центре карты (палуба = проходимая высота, см. terrain.getHeightAt)
-            bridges: [{ x: 0.0, z: -25.0, length: 12.0, width: 3.0, deckY: 1.25 }],
+            // deckY подобран под высоту суши у торцов моста в зоне береговой зоны (beachWidth 5.0, baseHeight 0.85)
+            bridges: [{ x: 0.0, z: -25.0, length: 12.0, width: 3.0, deckY: 0.65 }],
             hills: { amplitude: 0.0, inclineX: 0.0, inclineZ: 0.0 }
         },
 
@@ -595,7 +595,26 @@ window.LOCATIONS = {
         ],
 
         groups: [
-            // Южный берег (лагерь): чистая земля под застройку — никакой травы-кустиков, камней и деревьев
+            // Южный берег: лес вдоль горного хребта
+            { id: 'forest_s_w',   type: 'forest', x: -45.0, z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 401, types: ['fir_a', 'fir_b', 'tree', 'tree_small'] },
+            { id: 'forest_s_mid', type: 'forest', x: 0.0,   z: 56.0, rx: 26.0, rz: 10.0, count: 16, spacing: 8.0, shrubs: 6, seed: 402, types: ['tree', 'fir_a', 'fir_c', 'tree_small'] },
+            { id: 'forest_s_e',   type: 'forest', x: 45.0,  z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 403, types: ['fir_b', 'tree', 'fir_a', 'tree_small'] },
+
+            // Западный фланг: лес от южных гор ДО САМОЙ РЕКИ
+            { id: 'forest_sw_mid',   type: 'forest', x: -56.0, z: 32.0, rx: 14.0, rz: 16.0, count: 12, spacing: 8.0, shrubs: 4, seed: 404 },
+            { id: 'forest_sw_river', type: 'forest', x: -54.0, z: -2.0, rx: 14.0, rz: 16.0, count: 12, spacing: 8.0, shrubs: 4, seed: 406 },
+
+            // Восточный фланг: лес от южных гор ДО САМОЙ РЕКИ
+            { id: 'forest_se_mid',   type: 'forest', x: 56.0,  z: 32.0, rx: 14.0, rz: 16.0, count: 12, spacing: 8.0, shrubs: 4, seed: 405 },
+            { id: 'forest_se_river', type: 'forest', x: 54.0,  z: -2.0, rx: 14.0, rz: 16.0, count: 12, spacing: 8.0, shrubs: 4, seed: 407 },
+
+            // Подлесок: скальные валуны и папоротники
+            { id: 'rocks_s1',   type: 'rocks',  x: -36.0, z: 58.0, radius: 6.0, count: 4, seed: 411 },
+            { id: 'rocks_s2',   type: 'rocks',  x: 36.0,  z: 58.0, radius: 6.0, count: 4, seed: 412 },
+            { id: 'ferns_s1',   type: 'fernPatch', x: -22.0, z: 46.0, radius: 6.0, count: 10, seed: 421 },
+            { id: 'ferns_s2',   type: 'fernPatch', x: 22.0,  z: 46.0, radius: 6.0, count: 10, seed: 422 },
+            { id: 'ferns_sw',   type: 'fernPatch', x: -48.0, z: 14.0, radius: 6.0, count: 8, seed: 423 },
+            { id: 'ferns_se',   type: 'fernPatch', x: 48.0,  z: 14.0, radius: 6.0, count: 8, seed: 424 },
 
             // Северный берег: луг, камни и лес
             { id: 'meadow_n1',  type: 'meadow', x: -28.0, z: -38.0, radius: 9.0, count: 35, flowers: 5, seed: 304 },

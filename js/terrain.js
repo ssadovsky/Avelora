@@ -338,23 +338,26 @@ class LakesideTerrain {
             rockNor = texLoader.load(assets.rockNor || assets.beachNor);
             beachDiff = texLoader.load(assets.beachDiff);
         } else {
-            // forest / default; groundSet 'meadow' — прежнее ровное зелёное покрытие (домашний лагерь)
-            const useMeadow = this.groundSet === 'meadow' && assets.meadowGrassDiff;
+            // forest / default / camp: base is photorealistic forest litter (meadowDiff)
+            const useMeadow = (this.groundSet === 'meadow') && assets.meadowGrassDiff;
             grassDiff = texLoader.load(useMeadow ? assets.meadowGrassDiff : assets.meadowDiff);
             grassNor = texLoader.load(useMeadow ? (assets.meadowGrassNor || assets.meadowNor) : assets.meadowNor);
             trailDiff = texLoader.load(assets.gravelDiff || assets.beachDiff);
             rockDiff = texLoader.load(assets.rockDiff);
             rockNor = texLoader.load(assets.rockNor || assets.beachNor);
             const wType = this.waterConfig.type || 'lake';
-            const isLake = (wType === 'lake');
-            const shoreTex = (isLake && (assets.gravelDiff || assets.dirtTrailDiff)) ? (assets.gravelDiff || assets.dirtTrailDiff) : assets.beachDiff;
+            const isLakeOrRiver = (wType === 'lake' || wType === 'river');
+            const shoreTex = (isLakeOrRiver && (assets.gravelDiff || assets.dirtTrailDiff)) ? (assets.gravelDiff || assets.dirtTrailDiff) : assets.beachDiff;
             beachDiff = texLoader.load(shoreTex);
         }
 
         const stoneTrailDiff = texLoader.load(assets.stoneTrailDiff || assets.gravelDiff || assets.beachDiff);
-        // V1: groundSet 'moss2' — оригинальная лесная подстилка + мягкие зоны текстурной травы и тёмный подлесок (опыт, первая локация)
-        // groundSet: 'moss2' — подстилка + пятна текстурной травы; 'grass2' — сплошное тёмное травяное покрытие (отдельный вариант для других локаций)
-        const groundMode = (this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0);
+        // groundMode:
+        // 0: default single texture
+        // 1: 'moss2' (forestEdge: подстилка + пятна травы и темный подлесок)
+        // 2: 'grass2' (сплошное тёмное травяное покрытие)
+        // 3: 'camp' (homeCamp: сочная зелёная трава на полянке без леса + лесная подстилка в лесу)
+        const groundMode = (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
         const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
         this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[48] is declared in every variant: always give it 48 entries (empty array crashes the uniform upload)
         const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
@@ -369,8 +372,8 @@ class LakesideTerrain {
         trailDiff.repeat.set(18, 18);
         stoneTrailDiff.repeat.set(24, 24);
         const curWType = this.waterConfig.type || 'lake';
-        const isLakeWater = (curWType === 'lake');
-        beachDiff.repeat.set(isLakeWater ? 24 : 14, isLakeWater ? 24 : 14);
+        const isLakeOrRiverWater = (curWType === 'lake' || curWType === 'river');
+        beachDiff.repeat.set(isLakeOrRiverWater ? 24 : 14, isLakeOrRiverWater ? 24 : 14);
         rockDiff.repeat.set(16, 16);
         // Normal map uses mesh UVs: keep ~6 m tiles regardless of map size
         grassNor.repeat.set(20 * meshSizeX / 120, 20 * meshSizeZ / 120);
@@ -386,7 +389,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v18_natural_shore_moss2_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v21_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
@@ -507,15 +510,15 @@ class LakesideTerrain {
                 vec3 rockTex       = mix(colRock1.rgb, colRock2.rgb * 1.15, 0.50);
 
                 // Shore weight:
-                // Для открытого моря (uWaterType > 0.5): широкий песчаный пляж Y in [0.12, 0.85]
-                // Для лесного озера (uWaterType < 0.5): трава и мох подходят почти до самой воды (до Y ~0.26м),
-                // открытая влажная речная галька/песок занимает узкую полосу 1-2 метра у уреза воды.
+                // Для открытого моря (uWaterType ~ 1.0): широкий песчаный пляж Y in [0.12, 0.85]
+                // Для озера и реки (uWaterType == 0 или 2): трава/подстилка подходят почти до самой воды,
+                // открытая влажная галька/песок занимает только узкую полоску у уреза воды
                 float shoreWeight;
-                if (uWaterType < 0.5) {
-                    float shoreEdgeN = avNoise(vWorldPosition.xz * 0.45) * 0.06;
-                    shoreWeight = 1.0 - smoothstep(0.04, 0.26 + shoreEdgeN, vWorldPosition.y);
-                } else {
+                if (uWaterType > 0.5 && uWaterType < 1.5) {
                     shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
+                } else {
+                    float shoreEdgeN = avNoise(vWorldPosition.xz * 0.45) * 0.05;
+                    shoreWeight = 1.0 - smoothstep(0.02, 0.20 + shoreEdgeN, vWorldPosition.y);
                 }
 
                 // Rocky outcrop weight: moderate slope (normal.y < 0.90)
@@ -549,8 +552,8 @@ class LakesideTerrain {
                     float passTrailZ = 8.0 + sin(vWorldPosition.x * 0.055) * 2.2;
                     float passTrailDist = abs(vWorldPosition.z - passTrailZ);
                     float passTrailMask = 1.0 - smoothstep(1.8, 3.8, passTrailDist);
-                    passTrailMask *= smoothstep(6.0, -12.0, vWorldPosition.x);
-                    passTrailMask *= 1.0 - smoothstep(-148.0, -140.0, vWorldPosition.x);
+                    passTrailMask *= (1.0 - smoothstep(-12.0, 6.0, vWorldPosition.x));
+                    passTrailMask *= (1.0 - smoothstep(-148.0, -140.0, vWorldPosition.x));
 
                     // 2) Грунтовая дорожка от точки спавна к Лираэль и водопаду (uDirtSeg)
                     float dirtPathD = 1e5;
@@ -588,10 +591,49 @@ class LakesideTerrain {
                     // Центр — старинная каменная мостовая Poly Haven (без шахматных узоров)
                     vec3 centerPath = colStoneTrail.rgb;
 
-                    // V1 (moss2): оригинальная подстилка не трогается; поверх — мягкие зоны текстурной травы
-                    // (с её собственными тенями и деталями, приглушённой в тон) и широкие тёмные пятна подлеска (AO-эффект).
+                    // Смешивание слоев покрытия:
+                    // 1) Для 'camp' (uGroundMix > 2.5): сочная зелёная трава на полянке (где нет леса) + лесная подстилка в лесу
+                    // 2) Для 'moss2' (uGroundMix > 0.5): оригинальная лесная подстилка + пятна травы и подлесок
                     vec3 groundCol = colGrass.rgb;
-                    if (uGroundMix > 0.5) {
+                    if (uGroundMix > 2.5) {
+                        // === BIOME/GROUND: CAMP (Green grass on clearing where NO forest + forest litter in the woods) ===
+                        vec2 gxz = vWorldPosition.xz;
+                        // Границы лесного массива на карте лагеря:
+                        // Южный лес: Z > 22..44
+                        float southF = smoothstep(22.0, 44.0, gxz.y);
+                        // Северный берег за рекой: Z < -30..-48
+                        float northF = 1.0 - smoothstep(-48.0, -30.0, gxz.y);
+                        // Западный лес: X < -24..-46
+                        float westF  = 1.0 - smoothstep(-46.0, -24.0, gxz.x);
+                        // Восточный лес: X > 24..46
+                        float eastF  = smoothstep(24.0, 46.0, gxz.x);
+                        float forestFactor = max(max(southF, northF), max(westF, eastF));
+
+                        // Органичный процедурный шум для границы леса и поляны
+                        float edgeN = (avNoise(gxz * 0.055) - 0.5) * 0.26 + (avNoise(gxz * 0.16 + 11.0) - 0.5) * 0.12;
+                        forestFactor = clamp(forestFactor + edgeN, 0.0, 1.0);
+                        float clearingFactor = 1.0 - forestFactor; // 1.0 на полянке без леса, 0.0 в лесу
+
+                        // Слой сочной оливково-зелёной текстурной травы из комбинированного покрытия
+                        vec3 gB = texture2D(uGrass2Diff, gxz * 0.16 + vec2(0.13, 0.57)).rgb;
+                        gB *= vec3(0.40, 0.48, 0.28); // глубокий природный тон зелёной травы
+
+                        // На полянке без леса — доминирующий красивый травяной покров
+                        float grassAmount = clearingFactor * 0.88 + (avNoise(gxz * 0.08 + 3.0) - 0.5) * 0.08 * clearingFactor;
+                        grassAmount = clamp(grassAmount, 0.0, 0.90);
+
+                        // Смешивание лесной подстилки с зелёной травой на полянке
+                        groundCol = mix(groundCol, gB, grassAmount);
+
+                        // Тени подлеска в глубине леса
+                        float under = avNoise(gxz * 0.055 + 41.0) * 0.65 + avNoise(gxz * 0.21) * 0.35;
+                        float underM = smoothstep(0.40, 0.82, under) * forestFactor;
+                        groundCol *= mix(1.0, 0.65, underM);
+
+                        // Естественная вариация оттенков рельефа
+                        float cv = avNoise(gxz * 0.017 + 3.0) - 0.5;
+                        groundCol *= vec3(1.0 + cv * 0.08, 1.0, 1.0 - cv * 0.06);
+                    } else if (uGroundMix > 0.5) {
                         vec2 gxz = vWorldPosition.xz;
                         float zoneN = avNoise(gxz * 0.030) * 0.65 + avNoise(gxz * 0.083 + 17.0) * 0.35;
                         float grassZone = (uGroundMix > 1.5) ? 0.92 : smoothstep(0.56, 0.82, zoneN) * 0.75;
