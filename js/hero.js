@@ -259,6 +259,12 @@
                 const label = p.max ? `Ур. ${this.level} · макс.` : `Ур. ${this.level} · ${p.have} / ${p.need}`;
                 if (this.xpText) this.xpText.textContent = label;
                 if (this.xpBar) this.xpBar.title = `Опыт: ${label}`;
+                const portraitWrap = document.getElementById('player-portrait-btn');
+                if (portraitWrap) {
+                    const deg = Math.max(0, Math.min(360, p.frac * 360)).toFixed(1);
+                    portraitWrap.style.setProperty('--xp-deg', `${deg}deg`);
+                    portraitWrap.title = `Персонаж (C)\n${label}`;
+                }
             }
             const lvlBadge = document.getElementById('player-level-badge');
             if (lvlBadge && lvlBadge.textContent !== String(this.level)) {
