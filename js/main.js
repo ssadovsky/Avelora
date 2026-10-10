@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay';
+const UI_SELECTOR = '#player-frame, #player-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -1285,6 +1285,7 @@ class AveloraGame {
         // Mobile Touch Gestures (1-finger: Tap to Move, 2-finger: Pinch Zoom & Rotate)
         this.touchStartPos = { x: 0, y: 0 };
         this.touchMoved = false;
+        this.touchStartedOnUI = false;
         this.touchStartDist = 0;
         this.touchStartAngle = 0;
         this.touchInitialCamDist = this.cameraDistance;
@@ -1296,9 +1297,10 @@ class AveloraGame {
             document.body.classList.add('touch-ui');
             if (this.viewMode !== 'first') this.lastPointer.type = 'touch'; // skills fire straight ahead after touch input
             // Touch screens: a finger on the right half of the screen rotates the camera (both 1st and 3rd person)
-            if (!this.isPaused) {
+            const onUI = !!(e.target && e.target.closest && e.target.closest(UI_SELECTOR));
+            if (!this.isPaused && !onUI) {
                 for (const t of e.changedTouches) {
-                    if (this.lookTouchId === null && !(t.target && t.target.closest && t.target.closest(UI_SELECTOR)) && t.clientX > window.innerWidth * 0.42) {
+                    if (this.lookTouchId === null && t.clientX > window.innerWidth * 0.42) {
                         this.lookTouchId = t.identifier;
                         this.touchLast = { x: t.clientX, y: t.clientY };
                         this.lookStart = { x: t.clientX, y: t.clientY, t: performance.now() };
@@ -1306,7 +1308,7 @@ class AveloraGame {
                 }
             }
             if (this.viewMode === 'first') {
-                if (this.isPaused) return;
+                if (this.isPaused || onUI) return;
                 if (e.touches.length === 2 && !this.joy.active) {   // two free fingers: pinch out = back to third person
                     this.touchStartDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                     this.pinchSwitched = false;
@@ -1314,7 +1316,11 @@ class AveloraGame {
                 }
                 return;
             }
-            if (this.isPaused || e.target.closest(UI_SELECTOR)) return;
+            if (this.isPaused || onUI) {
+                this.touchStartedOnUI = true;
+                return;
+            }
+            this.touchStartedOnUI = false;
             if (e.touches.length === 1) {
                 this.touchStartPos.x = e.touches[0].clientX;
                 this.touchStartPos.y = e.touches[0].clientY;
@@ -1408,7 +1414,9 @@ class AveloraGame {
         window.addEventListener('touchcancel', fpTouchEnd);
         window.addEventListener('touchend', (e) => {
             fpTouchEnd(e);
-            if (this.isPaused || e.target.closest(UI_SELECTOR)) return;
+            const onUI = this.touchStartedOnUI || !!(e.target && e.target.closest && e.target.closest(UI_SELECTOR));
+            if (e.touches.length === 0) this.touchStartedOnUI = false;
+            if (this.isPaused || onUI) return;
             if (e.touches.length === 0 && !this.touchMoved && this.viewMode !== 'first') {
                 // Clean single tap: move character
                 this.handleGroundClick({

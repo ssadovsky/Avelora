@@ -1160,6 +1160,15 @@
                     e.stopPropagation();
                     this.toggleHero();
                 });
+                portraitBtn.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                });
+                portraitBtn.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                }, { passive: true });
+                portraitBtn.addEventListener('touchend', (e) => {
+                    e.stopPropagation();
+                }, { passive: true });
             }
             this.updatePlayerPortrait();
         }
