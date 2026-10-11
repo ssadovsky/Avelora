@@ -52,9 +52,47 @@ class LakesideTerrain {
         this.mesh = null;
         this.material = null;
 
+        // Маска плотности леса для groundSet 'baseForest' (R-канал, 0 = поляна, 1 = лес). Заполняется setForestMask().
+        this.forestN = 128;
+        this.forestExt = this.size + 2 * this.border + 8;
+        this.forestData = new Uint8Array(this.forestN * this.forestN * 4);
+        this.forestTex = new THREE.DataTexture(this.forestData, this.forestN, this.forestN, THREE.RGBAFormat);
+        this.forestTex.magFilter = THREE.LinearFilter;
+        this.forestTex.minFilter = THREE.LinearFilter;
+        this.forestTex.wrapS = this.forestTex.wrapT = THREE.ClampToEdgeWrapping;
+        this.forestTex.needsUpdate = true;
+        this.forestUniform = { value: this.forestTex };
+        this.forestRectUniform = { value: new THREE.Vector4(-this.forestExt / 2, -this.forestExt / 2, 1 / this.forestExt, 0) };
+
         if (this.waterConfig.type === 'river') this.buildRiver();
 
         this.init();
+    }
+
+    /**
+     * Маска «лес / поляна» по реальным деревьям (groundSet 'baseForest').
+     * Каждое дерево даёт широкое мягкое пятно (R = 22 м, линейное затухание); порог выше вклада одного дерева: одиночное дерево остаётся на траве, группа деревьев даёт сплошной лес с плавной опушкой.
+     * Вызывать после определения списка деревьев локации (environment.loadRealisticTrees).
+     */
+    setForestMask(trees) {
+        const N = this.forestN, ext = this.forestExt, cell = ext / N, R = 22.0;
+        const acc = new Float32Array(N * N);
+        const x0 = -ext / 2, z0 = -ext / 2;
+        (trees || []).forEach(t => {
+            const w0 = 0.7 + 0.3 * Math.min(2.0, (t.s || 1));
+            const i0 = Math.max(0, Math.floor((t.x - R - x0) / cell)), i1 = Math.min(N - 1, Math.ceil((t.x + R - x0) / cell));
+            const j0 = Math.max(0, Math.floor((t.z - R - z0) / cell)), j1 = Math.min(N - 1, Math.ceil((t.z + R - z0) / cell));
+            for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+                const d = Math.hypot(x0 + (i + 0.5) * cell - t.x, z0 + (j + 0.5) * cell - t.z);
+                if (d < R) { const f = 1 - d / R; acc[j * N + i] += f * w0; }
+            }
+        });
+        const ss = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+        for (let k = 0; k < N * N; k++) {
+            const v = Math.round(ss(1.4, 2.6, acc[k]) * 255);
+            this.forestData[k * 4] = v; this.forestData[k * 4 + 1] = v; this.forestData[k * 4 + 2] = v; this.forestData[k * 4 + 3] = 255;
+        }
+        this.forestTex.needsUpdate = true;
     }
 
     /** River: smooth the control points into a dense polyline (flat arrays: fast distance queries). */
@@ -356,8 +394,9 @@ class LakesideTerrain {
         // 0: default single texture
         // 1: 'moss2' (forestEdge: подстилка + пятна травы и темный подлесок)
         // 2: 'grass2' (сплошное тёмное травяное покрытие)
+        // 4: 'baseForest' (moss2 как база + лес/трава по реальным деревьям: маска плотности леса uForestMap)
         // 3: 'camp' (homeCamp: сочная зелёная трава на полянке без леса + лесная подстилка в лесу)
-        const groundMode = (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
+        const groundMode = (this.groundSet === 'baseForest') ? 4 : (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
         const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
         this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[48] is declared in every variant: always give it 48 entries (empty array crashes the uniform upload)
         const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
@@ -389,7 +428,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v21_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v22_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
@@ -406,6 +445,8 @@ class LakesideTerrain {
             shader.uniforms.uGrass2Diff = { value: grass2Diff };
             shader.uniforms.uGroundMix = { value: mixGround ? groundMode : 0.0 };
             shader.uniforms.uAO = { value: this.contactAO || [] };
+            shader.uniforms.uForestMap = this.forestUniform;
+            shader.uniforms.uForestRect = this.forestRectUniform;
 
             const dirtSegs = [];
             const stoneSegs = [];
@@ -457,6 +498,8 @@ class LakesideTerrain {
                 uniform sampler2D uGrass2Diff;
                 uniform float uGroundMix;
                 uniform vec4 uAO[48];
+                uniform sampler2D uForestMap;
+                uniform vec4 uForestRect;
                 uniform sampler2D uTrailDiff;
                 uniform sampler2D uStoneTrailDiff;
                 uniform sampler2D uRockDiff;
@@ -595,7 +638,7 @@ class LakesideTerrain {
                     // 1) Для 'camp' (uGroundMix > 2.5): сочная зелёная трава на полянке (где нет леса) + лесная подстилка в лесу
                     // 2) Для 'moss2' (uGroundMix > 0.5): оригинальная лесная подстилка + пятна травы и подлесок
                     vec3 groundCol = colGrass.rgb;
-                    if (uGroundMix > 2.5) {
+                    if (uGroundMix > 2.5 && uGroundMix < 3.5) {
                         // === BIOME/GROUND: CAMP (Green grass on clearing where NO forest + forest litter in the woods) ===
                         vec2 gxz = vWorldPosition.xz;
                         // Границы лесного массива на карте лагеря:
@@ -637,6 +680,14 @@ class LakesideTerrain {
                         vec2 gxz = vWorldPosition.xz;
                         float zoneN = avNoise(gxz * 0.030) * 0.65 + avNoise(gxz * 0.083 + 17.0) * 0.35;
                         float grassZone = (uGroundMix > 1.5) ? 0.92 : smoothstep(0.56, 0.82, zoneN) * 0.75;
+                        // baseForest (uGroundMix > 3.5): лес/трава по реальным деревьям (маска плотности леса), остальное как у moss2
+                        float forestF = 0.0;
+                        if (uGroundMix > 3.5) {
+                            float fm = texture2D(uForestMap, (gxz - uForestRect.xy) * uForestRect.z).r;
+                            forestF = clamp(fm + (avNoise(gxz * 0.16 + 11.0) - 0.5) * 0.22 + (avNoise(gxz * 0.055) - 0.5) * 0.10, 0.0, 1.0);
+                            float clearing = 1.0 - forestF;
+                            grassZone = clearing * (0.80 + 0.12 * zoneN) + forestF * smoothstep(0.66, 0.86, zoneN) * 0.15;
+                        }
                         if (grassZone > 0.003) {
                             vec3 gB = texture2D(uGrass2Diff, gxz * 0.16 + vec2(0.13, 0.57)).rgb;
                             gB *= vec3(0.40, 0.48, 0.28);           // тёмная оливковая трава, детали текстуры сохранены
@@ -644,6 +695,7 @@ class LakesideTerrain {
                         }
                         float under = avNoise(gxz * 0.055 + 41.0) * 0.65 + avNoise(gxz * 0.21) * 0.35;
                         float underM = smoothstep(0.44, 0.80, under);
+                        if (uGroundMix > 3.5) underM *= (0.22 + 0.78 * forestF); // подлесок темнее всего там, где лес
                         groundCol *= mix(1.0, 0.62, underM);        // глубокие тени подлеска, детали остаются
                         float cv = avNoise(gxz * 0.017 + 3.0) - 0.5;
                         groundCol *= vec3(1.0 + cv * 0.12, 1.0, 1.0 - cv * 0.10);

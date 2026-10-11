@@ -362,6 +362,7 @@ class LakesideEnvironment {
 
     loadRealisticTrees() {
         const treePositions = this.getDecorations('trees');
+        if (this.terrain && this.terrain.setForestMask) this.terrain.setForestMask(treePositions); // маска леса для groundSet 'baseForest'
         if (treePositions.length === 0) return;
 
         // Group placements by treeType: 'tree' (beech), 'fir'/'fir_a'/'fir_b'/'fir_c' (spruce/fir variants), 'small' (young tree), 'quiver' (palm)
