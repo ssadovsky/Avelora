@@ -1176,7 +1176,11 @@
         updatePlayerPortrait() {
             const portraitImg = document.getElementById('player-portrait-img');
             if (!portraitImg) return;
-            const tex = (window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.heroPortrait) || '';
+            const cfg = (this.game && this.game.currentCharacterConfig) ||
+                        (window.AveloraSave && window.AveloraSave.getLastActiveCharacterConfig && window.AveloraSave.getLastActiveCharacterConfig()) || null;
+            const textures = (window.GAME_ASSETS && window.GAME_ASSETS.textures) || {};
+            const key = (cfg && (cfg.portrait || `heroPortrait_${cfg.id}`)) || 'heroPortrait';
+            const tex = textures[key] || (cfg && textures[`heroPortrait_${cfg.id}`]) || textures.heroPortrait || '';
             if (tex) {
                 portraitImg.style.backgroundImage = `url("${tex}")`;
             }

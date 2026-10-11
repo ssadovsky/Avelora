@@ -54,6 +54,7 @@ window.CHARACTER_CATALOG = [
         name: 'Воин',
         className: 'Странствующий страж',
         icon: '⚔️',
+        portrait: 'heroPortrait_warrior',
         modelKey: 'soldier',
         animMap: { idle: 'Idle', run: 'Run' },
         idleFallback: 'run',
@@ -68,6 +69,7 @@ window.CHARACTER_CATALOG = [
         name: 'Лучница',
         className: 'Арисса',
         icon: '🏹',
+        portrait: 'heroPortrait_archer',
         modelKey: 'arissa',
         // 'Idle' will exist once we add it (see lib/3d/README.md); until then
         // idleFallback freezes on the first frame of 'Fast Run'.
@@ -85,6 +87,7 @@ window.CHARACTER_CATALOG = [
         name: 'Маг',
         className: 'Азур Аркмаг',
         icon: '🔮',
+        portrait: 'heroPortrait_mage',
         modelKey: 'azureArchmage',
         // Rebuilt from lib/mage/'s fresh Idle/Running/Walking/Sitting/Salute
         // exports (merged, root-motion-stripped on Running/Walking, decimated
