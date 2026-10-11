@@ -365,20 +365,12 @@ class LakesideEnvironment {
         if (this.terrain && this.terrain.setForestMask) this.terrain.setForestMask(treePositions); // маска леса для groundSet 'baseForest'
         if (treePositions.length === 0) return;
 
-        // Group placements by treeType: 'tree' (beech), 'fir'/'fir_a'/'fir_b'/'fir_c' (spruce/fir variants), 'small' (young tree), 'quiver' (palm)
-        const treeGroups = {
-            tree: [],
-            fir: [],
-            fir_a: [],
-            fir_b: [],
-            fir_c: [],
-            small: [],
-            quiver: []
-        };
+        // Group placements by treeType: 'tree', 'fir'..., 'birch', 'willow', 'sentinel', etc.
+        const treeGroups = {};
         treePositions.forEach(p => {
             const t = p.treeType || 'tree';
-            if (treeGroups[t]) treeGroups[t].push(p);
-            else treeGroups.tree.push(p);
+            if (!treeGroups[t]) treeGroups[t] = [];
+            treeGroups[t].push(p);
         });
 
         const typeModelMap = {
@@ -388,7 +380,18 @@ class LakesideEnvironment {
             fir_b: 'fir_tree_b',
             fir_c: 'fir_tree_c',
             small: 'tree_small',
-            quiver: 'quiver_tree'
+            quiver: 'quiver_tree',
+            birch: 'tree_birch',
+            sentinel: 'tree_sentinel',
+            silent: 'tree_silent',
+            twisted: 'tree_twisted',
+            willow: 'tree_willow',
+            winter_a: 'tree_winter_a',
+            winter_b: 'tree_winter_b',
+            winter_solitude: 'tree_winter_solitude',
+            oak_wide: 'tree_oak_wide',
+            oak_tall: 'tree_oak_tall',
+            elm: 'tree_elm'
         };
 
         const defaultScales = {
@@ -398,7 +401,18 @@ class LakesideEnvironment {
             fir_b: 0.9,
             fir_c: 0.9,
             small: 2.0,    // молодых деревьев до 2
-            quiver: 4.8
+            quiver: 4.8,
+            birch: 1.0,
+            sentinel: 1.0,
+            silent: 1.0,
+            twisted: 1.0,
+            willow: 1.0,
+            winter_a: 1.0,
+            winter_b: 1.0,
+            winter_solitude: 1.0,
+            oak_wide: 1.0,
+            oak_tall: 1.0,
+            elm: 1.0
         };
 
         Object.keys(treeGroups).forEach(typeKey => {
@@ -427,10 +441,11 @@ class LakesideEnvironment {
                     parts.push({ geometry: c.geometry, material: c.material, nodeMatrix: c.matrixWorld.clone() });
                 });
 
-                // Некоторые GLB (fir_tree, fir_tree_b, fir_tree_c) имеют ствол не в начале координат (смещение 5–10 ед.):
-                // дерево стояло в стороне от точки размещения (и хитбокса/препятствия) и «левитировало» на другой высоте рельефа.
-                // Центрируем ствол по XZ: берём самую низкую по высоте часть (основание ствола).
-                {
+                // Некоторые старые GLB (fir_tree, fir_tree_b, fir_tree_c) имели ствол не в начале координат (смещение 5–10 ед.).
+                // ВАЖНО: применяем автосдвиг ТОЛЬКО для старых елей (fir*), у которых ствол — отдельный меш (parts.length > 1).
+                // Для всех новых деревьев (дубы, вяз, зимние) ствол уже точно отцентрирован в (0, 0) в Blender,
+                // а попытка центрировать одномешевую модель по bbox сдвигает ствол на 2–3 метра из-за асимметричной кроны!
+                if (typeKey.startsWith('fir') && parts.length > 1) {
                     let base = null, baseTop = Infinity;
                     const bb = new THREE.Box3();
                     parts.forEach(pt => {
@@ -457,7 +472,7 @@ class LakesideEnvironment {
 
                 // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
                 list.forEach(p => {
-                    const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : 0.22));
+                    const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : (typeKey === 'tree' ? 0.22 : 0.35)));
                     this.pathfinder.addObstacle(p.x, p.z, r * (p.s || 1.0));
                 });
             });

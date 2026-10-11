@@ -149,6 +149,7 @@ window.LOCATIONS = {
             { x: -122.0, z: 8.0, radius: 8.0 },
             { x: -108.0, z: 8.0, radius: 7.0 },
             { x: -80.0,  z: 8.0, radius: 7.0 },
+            { x: -65.0,  z: 20.0, radius: 16.0 }, // поляна выставки новых деревьев около озера
             { x: -48.0,  z: 8.0, radius: 6.0 },
             { x: -38.0,  z: 7.0, radius: 5.0 },
             { x: -28.0,  z: 6.0, radius: 5.0 },
@@ -363,7 +364,25 @@ window.LOCATIONS = {
             trees: [
                 { x: 14.0, z: 8.5, s: 1.6, r: 0.3 },
                 // Колчанное дерево (пальма) у портала
-                { x: -123.0, z: -8.0, s: 1.1, r: 0.8, treeType: 'quiver' }
+                { x: -123.0, z: -8.0, s: 1.1, r: 0.8, treeType: 'quiver' },
+
+                // === ВЫСТАВКА ДЕРЕВЬЕВ У ОЗЕРА (~ -65, 20) ===
+                // Центральное эталонное дерево с пышными листьями
+                { id: 'tree_showcase_leaves', x: -65.0, z: 20.0, s: 1.0, r: 0.0, treeType: 'tree' },
+                // Новые деревья без листьев
+                { id: 'tree_showcase_birch', x: -58.0, z: 20.0, s: 1.0, r: 0.8, treeType: 'birch' },
+                { id: 'tree_showcase_willow', x: -72.0, z: 20.0, s: 1.0, r: 1.5, treeType: 'willow' },
+                { id: 'tree_showcase_sentinel', x: -58.0, z: 12.0, s: 1.0, r: 2.1, treeType: 'sentinel' },
+                { id: 'tree_showcase_twisted', x: -72.0, z: 12.0, s: 1.0, r: 0.5, treeType: 'twisted' },
+                { id: 'tree_showcase_silent', x: -65.0, z: 12.0, s: 1.0, r: 3.0, treeType: 'silent' },
+                { id: 'tree_showcase_winter_a', x: -58.0, z: 28.0, s: 1.0, r: 1.1, treeType: 'winter_a' },
+                { id: 'tree_showcase_winter_b', x: -72.0, z: 28.0, s: 1.0, r: 2.6, treeType: 'winter_b' },
+                { id: 'tree_showcase_winter_solitude', x: -65.0, z: 28.0, s: 1.0, r: 0.4, treeType: 'winter_solitude' },
+
+                // === НОВЫЕ ДЕРЕВЬЯ С ПЫШНЫМИ РОДНЫМИ ЛИСТЬЯМИ (Poly Haven) ===
+                { id: 'tree_showcase_oak_wide', x: -65.0, z: 4.0, s: 1.0, r: 0.5, treeType: 'oak_wide' },
+                { id: 'tree_showcase_oak_tall', x: -58.0, z: 4.0, s: 1.0, r: 1.2, treeType: 'oak_tall' },
+                { id: 'tree_showcase_elm',      x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' }
             ],
             // 6 замшелых валунов для добычи камня и железа вдоль тропы под восточными горами к водопаду
             ores: [
