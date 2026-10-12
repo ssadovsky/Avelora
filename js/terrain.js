@@ -52,6 +52,10 @@ class LakesideTerrain {
         this.mesh = null;
         this.material = null;
 
+        // Скальная «подкраска» склона вокруг грота (vec4: x, z, радиус, сила): гора темнеет и сереет к цвету камней модели
+        const _cv = (locTerrain.caves && locTerrain.caves[0]) || null;
+        this.caveRockUniform = { value: _cv ? new THREE.Vector4(_cv.x, _cv.z, _cv.tintRadius || 26.0, _cv.tintStrength !== undefined ? _cv.tintStrength : 0.85) : new THREE.Vector4(0, 0, 1, 0) };
+
         // Маска плотности леса для groundSet 'baseForest' (R-канал, 0 = поляна, 1 = лес). Заполняется setForestMask().
         this.forestN = 128;
         this.forestExt = this.size + 2 * this.border + 8;
@@ -304,7 +308,36 @@ class LakesideTerrain {
                     }
                 }
 
+                // Cave alcoves in the mountain rim (e.g. eastern cave at x≈139, z≈-18)
+                const caves = this.locTerrain.caves || [];
+                for (let ci = 0; ci < caves.length; ci++) {
+                    const c = caves[ci];
+                    const dz = Math.abs(z - c.z);
+                    const rz = c.radiusZ || 3.5;
+                    if (dz >= rz) continue;
+                    const minCX = c.minX !== undefined ? c.minX : (c.x - 5.5);
+                    const maxCX = c.maxX !== undefined ? c.maxX : (c.x + 4.0);
+                    if (x < minCX || x > maxCX) continue;
+                    const factorZ = Math.cos((dz / rz) * (Math.PI / 2));
+                    const backLen = c.backLen !== undefined ? c.backLen : 1.0;
+                    const taperX = (x > (maxCX - backLen)) ? Math.max(0.0, (maxCX - x) / backLen) : 1.0;
+                    const cut = Math.pow(factorZ * taperX, 1.8);
+                    mHeight *= (1.0 - cut);
+                }
+
                 height += mHeight;
+
+                // Level floor inside cave interior so the 3D model's stone floor sits proud of grass
+                for (let ci = 0; ci < caves.length; ci++) {
+                    const c = caves[ci];
+                    const dz = Math.abs(z - c.z);
+                    const rz = (c.radiusZ || 3.5) * 0.85;
+                    if (dz < rz && x >= (c.x - 3.5) && x <= (c.x + 2.5)) {
+                        const f = Math.cos((dz / rz) * (Math.PI / 2));
+                        const targetH = 1.40;   // на 0.1 м ниже каменного пола модели грота (grotto y=3.44 -> пол 1.50)
+                        height = height * (1.0 - f) + targetH * f;
+                    }
+                }
             }
         }
 
@@ -446,6 +479,7 @@ class LakesideTerrain {
             shader.uniforms.uGroundMix = { value: mixGround ? groundMode : 0.0 };
             shader.uniforms.uAO = { value: this.contactAO || [] };
             shader.uniforms.uForestMap = this.forestUniform;
+            shader.uniforms.uCaveRock = this.caveRockUniform;
             shader.uniforms.uForestRect = this.forestRectUniform;
 
             const dirtSegs = [];
@@ -499,6 +533,7 @@ class LakesideTerrain {
                 uniform float uGroundMix;
                 uniform vec4 uAO[48];
                 uniform sampler2D uForestMap;
+                uniform vec4 uCaveRock;
                 uniform vec4 uForestRect;
                 uniform sampler2D uTrailDiff;
                 uniform sampler2D uStoneTrailDiff;
@@ -731,6 +766,21 @@ class LakesideTerrain {
                     vec3 baseCol = mix(meadowBase, colBeach.rgb, shoreWeight);
                     terrainColor = mix(baseCol, peakRock, totalRock);
                     terrainColor = pow(terrainColor, vec3(1.05));
+                    // Склон вокруг грота: тёмный серо-зелёный камень (под цвет модели), чтобы пещера «росла» из горы
+                    if (uCaveRock.w > 0.001) {
+                        float cd = length(vWorldPosition.xz - uCaveRock.xy);
+                        float ck = (1.0 - smoothstep(uCaveRock.z * 0.35, uCaveRock.z, cd)) * uCaveRock.w;
+                        float ch = smoothstep(1.7, 3.0, vWorldPosition.y);
+                        float cn = avNoise(vWorldPosition.xz * 0.35) * 0.5 + avNoise(vWorldPosition.xz * 1.1) * 0.5;
+                        vec3 caveRock = rockTex * vec3(0.46, 0.47, 0.44) * (0.85 + 0.30 * cn);
+                        caveRock = mix(caveRock, caveRock * vec3(0.80, 1.00, 0.70), smoothstep(0.55, 0.85, vWorldNormal.y) * 0.5);
+                        terrainColor = mix(terrainColor, caveRock, ck * max(ch, totalRock));
+                        // Внутри грота земля не должна просвечивать светлым сквозь щели модели: тёмная заливка по контуру пещеры
+                        vec2 cin = vWorldPosition.xz - uCaveRock.xy;
+                        float inside = (1.0 - smoothstep(2.6, 3.6, abs(cin.y))) * smoothstep(-3.6, -2.4, cin.x) * (1.0 - smoothstep(4.4, 5.6, cin.x));
+                        inside *= 1.0 - smoothstep(1.9, 2.7, vWorldPosition.y);   // только низкий пол пещеры, не склон над ней
+                        terrainColor *= mix(1.0, 0.10, inside);
+                    }
                 }
 
                 // Намокание берега у самой кромки воды (влажная темная речная галька и песок)

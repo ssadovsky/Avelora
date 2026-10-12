@@ -539,6 +539,9 @@ class AveloraGame {
         this.waterfall = (loc.waterfalls && loc.waterfalls.length && window.AveloraWaterfall)
             ? new AveloraWaterfall(this.locationRoot, loc.waterfalls[0], this.terrain, this.pathfinder)
             : null;
+        this.grottos = (loc.grottos && loc.grottos.length && window.AveloraGrotto)
+            ? loc.grottos.map(cfg => new AveloraGrotto(this.locationRoot, cfg, this.terrain, this.pathfinder))
+            : [];
         this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc);
         this.worldObjects = window.AveloraWorldObjects ? new AveloraWorldObjects(this, loc) : null;
         this.creatures = window.AveloraCreatures ? new AveloraCreatures(this, loc) : null;
@@ -555,6 +558,7 @@ class AveloraGame {
         this.exits = [];
 
         if (this.waterfall) { this.waterfall.dispose(); this.waterfall = null; }
+        if (this.grottos) { this.grottos.forEach(g => g.dispose()); this.grottos = []; }
         if (this.skills) this.skills.clearAll(); // no projectile/impact survives into the next location
         if (this.combat) { this.combat.cancel(); this.combat.clearTarget(); }
         if (this.map) this.map.clearAll();        // close map panel when leaving location
@@ -2205,6 +2209,9 @@ class AveloraGame {
         }
         if (this.waterfall) {
             this.waterfall.update(delta);
+        }
+        if (this.grottos && this.grottos.length) {
+            this.grottos.forEach(g => g.update(delta));
         }
         if (this.environment) {
             this.environment.update(delta, this.character ? this.character.position : null);

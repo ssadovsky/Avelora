@@ -81,6 +81,10 @@ window.LOCATIONS = {
             mountainPasses: [
                 { x: -136.0, z: 8.0, radius: 14.0 }
             ],
+            // Арочный вырез в восточном горном барьере для грота (севернее водопада)
+            caves: [
+                { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
+            ],
 
             waterBody: {
                 type: 'lake',
@@ -135,6 +139,19 @@ window.LOCATIONS = {
                 z: 6.0,
                 scale: 16.0,
                 rotationY: -Math.PI / 2         // чаша (локальный +Z) смотрит на запад
+            }
+        ],
+
+        // Компактный грот-пещера в скалах за водопадом (вход на запад)
+        grottos: [
+            {
+                id: 'torchlit_grotto',
+                modelKey: 'torchlit_grotto',
+                x: 139.5,
+                z: -18.0,
+                y: 3.44,                        // пол модели = 1.50, на 0.1 м выше земли внутри (terrain.caves: 1.40) — без мерцания
+                scale: 4.55,
+                rotationY: -Math.PI / 2         // вход смотрит на запад
             }
         ],
 

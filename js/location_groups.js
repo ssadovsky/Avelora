@@ -98,6 +98,9 @@
         // Защита водопадов: чаша озера, скалы и утесы (деревья не растут на скалах)
         (location.waterfalls || []).forEach(wf => reserved.push({ x: wf.x, z: wf.z, r: 24.0 }));
 
+        // Защита гротов: вход и площадка перед пещерой свободны от деревьев
+        (location.grottos || []).forEach(gr => reserved.push({ x: gr.x, z: gr.z, r: (gr.scale || 6.5) * 1.1 }));
+
         // Защита ключевых зон существ
         (location.creatures || []).forEach(cr => {
             reserved.push({ x: cr.x, z: cr.z, r: (cr.id && cr.id.startsWith('rat')) ? 1.6 : 2.5 });
