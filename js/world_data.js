@@ -388,7 +388,6 @@ window.LOCATIONS = {
                 { id: 'tree_showcase_leaves', x: -65.0, z: 20.0, s: 1.0, r: 0.0, treeType: 'tree' },
                 // Новые деревья без листьев
                 { id: 'tree_showcase_birch', x: -58.0, z: 20.0, s: 1.0, r: 0.8, treeType: 'birch' },
-                { id: 'tree_showcase_willow', x: -72.0, z: 20.0, s: 1.0, r: 1.5, treeType: 'willow' },
                 { id: 'tree_showcase_sentinel', x: -58.0, z: 12.0, s: 1.0, r: 2.1, treeType: 'sentinel' },
                 { id: 'tree_showcase_twisted', x: -72.0, z: 12.0, s: 1.0, r: 0.5, treeType: 'twisted' },
                 { id: 'tree_showcase_silent', x: -65.0, z: 12.0, s: 1.0, r: 3.0, treeType: 'silent' },
@@ -399,7 +398,9 @@ window.LOCATIONS = {
                 // === НОВЫЕ ДЕРЕВЬЯ С ПЫШНЫМИ РОДНЫМИ ЛИСТЬЯМИ (Poly Haven) ===
                 { id: 'tree_showcase_oak_wide', x: -65.0, z: 4.0, s: 1.0, r: 0.5, treeType: 'oak_wide' },
                 { id: 'tree_showcase_oak_tall', x: -58.0, z: 4.0, s: 1.0, r: 1.2, treeType: 'oak_tall' },
-                { id: 'tree_showcase_elm',      x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' }
+                { id: 'tree_showcase_elm',      x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' },
+                { id: 'tree_showcase_sakura',   x: -75.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'sakura' },
+                { id: 'tree_showcase_poplar',   x: -56.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'poplar' }
             ],
             // 6 замшелых валунов для добычи камня и железа вдоль тропы под восточными горами к водопаду
             ores: [

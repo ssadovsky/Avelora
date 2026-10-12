@@ -385,13 +385,14 @@ class LakesideEnvironment {
             sentinel: 'tree_sentinel',
             silent: 'tree_silent',
             twisted: 'tree_twisted',
-            willow: 'tree_willow',
             winter_a: 'tree_winter_a',
             winter_b: 'tree_winter_b',
             winter_solitude: 'tree_winter_solitude',
             oak_wide: 'tree_oak_wide',
             oak_tall: 'tree_oak_tall',
-            elm: 'tree_elm'
+            elm: 'tree_elm',
+            poplar: 'tree_poplar',
+            sakura: 'tree_sakura'
         };
 
         const defaultScales = {
@@ -406,13 +407,14 @@ class LakesideEnvironment {
             sentinel: 1.0,
             silent: 1.0,
             twisted: 1.0,
-            willow: 1.0,
             winter_a: 1.0,
             winter_b: 1.0,
             winter_solitude: 1.0,
             oak_wide: 1.0,
             oak_tall: 1.0,
-            elm: 1.0
+            elm: 1.0,
+            poplar: 1.0,
+            sakura: 1.0
         };
 
         Object.keys(treeGroups).forEach(typeKey => {
