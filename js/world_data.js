@@ -128,7 +128,8 @@ window.LOCATIONS = {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
             camp:      { x: 6.0,    z: 12.0 },
             fromLake:  { x: -126.0, z: 8.0, r: 4.71 },  // персонаж выходит из ущелья в долину
-            waterfall: { x: 104.0,  z: 6.0, r: 4.71 }   // с видом на восточный каскадный водопад
+            waterfall: { x: 104.0,  z: 6.0, r: 4.71 },  // с видом на восточный каскадный водопад
+            fromDungeon: { x: 135.0, z: -18.0, r: 1.57 } // площадка перед входом в пещеру (лицом на запад к долине)
         },
 
         waterfalls: [
@@ -157,7 +158,20 @@ window.LOCATIONS = {
 
         exits: [
             // Проход в Озерный край через горный каньон на западе
-            { id: 'toLake', x: -138.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' }
+            { id: 'toLake', x: -138.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' },
+            // Тайный рунический портал в глубине пещеры (переход в подземелье)
+            {
+                id: 'toDungeon',
+                x: 140.0,
+                z: -17.7,
+                y: 1.52,          // каменный пол грота
+                radius: 1.3,
+                height: 2.2,      // световой луч под сводом пещеры
+                color: 0x6e8fff,  // мистический сине-фиолетовый рунный свет
+                to: 'ancientCatacombs',
+                spawn: 'entrance',
+                label: 'В глубины подземелья'
+            }
         ],
 
             // Тропы и поляны (свободные от плотных деревьев)
@@ -676,6 +690,92 @@ window.LOCATIONS = {
             // Сундук для излишков (содержимое хранится в сохранении персонажа)
             { id: 'homeCamp.chest1', prop: 'chest', x: -18.5, z: -9.5, r: 0.5 }
         ]
+    },
+
+    // -------------------------------------------------------------
+    // ЛОКАЦИЯ: Древние катакомбы (Подземелье)
+    // -------------------------------------------------------------
+    ancientCatacombs: {
+        id: 'ancientCatacombs',
+        name: 'Древние катакомбы',
+        isDungeon: true,
+        surfaceLocation: 'forestEdge',
+        surfaceSpawn: 'fromDungeon',
+
+        terrain: {
+            size: 60,
+            seed: 777,
+            biome: 'forest',
+            flat: true,
+            hidden: true,
+            segments: 4,
+            waterBody: { type: 'none' },
+            hills: { amplitude: 0.0, inclineX: 0.0, inclineZ: 0.0 },
+            baseHeight: 0.0,
+            border: 0
+        },
+
+        // Атмосфера глубокого подземелья: мрак и туман
+        atmosphere: {
+            sky: 0x06080c,
+            skyTop: 0x040508,
+            fogColor: 0x06080c,
+            fogDensity: 0.032
+        },
+
+        // Освещение: приглушенный амбиент, слабый холодный свет сверху, факелы дают основной свет
+        lighting: {
+            hemiSky: 0x182030,
+            hemiGround: 0x080a10,
+            hemiIntensity: 0.65,
+            sunColor: 0x486080,
+            sunIntensity: 0.15
+        },
+
+        cameraAngle: 0.0,
+        cameraDistance: 6.8,
+        minDistance: 3.8,
+        maxDistance: 8.5,
+        pitchZoomedIn: 0.28,
+        pitchZoomedOut: 0.52,
+
+        // Ограничитель камеры подземелья: удерживает камеру строго внутри коридора и под сводом
+        cameraBounds: {
+            minX: -1.8,
+            maxX: 1.8,
+            minZ: -2.8,
+            maxZ: 24.0,
+            minY: 1.2,
+            maxY: 4.8
+        },
+
+        spawns: {
+            default:  { x: 0.0, z: 1.6, r: Math.PI }, // лицом вдоль коридора (в сторону движения)
+            entrance: { x: 0.0, z: 1.6, r: Math.PI }
+        },
+
+        exits: [
+            // Обратный портал на поверхность (выход в грот)
+            {
+                id: 'toSurface',
+                x: 0.0,
+                z: -2.4,
+                y: 0.02,
+                radius: 1.3,
+                height: 2.2,
+                color: 0x6e8fff,
+                to: 'forestEdge',
+                spawn: 'fromDungeon',
+                label: 'Выход на поверхность'
+            }
+        ],
+
+        dungeon: {
+            id: 'crypt_passage'
+        },
+
+        decorations: [],
+        groups: []
     }
 };
 

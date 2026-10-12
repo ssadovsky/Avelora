@@ -155,6 +155,10 @@ class LakesideTerrain {
     }
 
     getRawHeightAt(x, z) {
+        if (this.locTerrain.flat) {
+            return (this.locTerrain.baseHeight !== undefined) ? this.locTerrain.baseHeight : 0.0;
+        }
+
         const nx = x / this.sizeX;
         const nz = z / this.sizeZ;
 
@@ -800,6 +804,7 @@ class LakesideTerrain {
         this.mesh = new THREE.Mesh(geo, this.material);
         this.mesh.receiveShadow = true;
         this.mesh.castShadow = false;
+        if (this.locTerrain.hidden) this.mesh.visible = false;
         this.scene.add(this.mesh);
     }
 

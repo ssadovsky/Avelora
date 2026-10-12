@@ -362,9 +362,22 @@ class AveloraGame {
      * (locationId + exact position) or empty for a brand new game (world's
      * default start location + default spawn).
      */
-    /** Locations with `cameraAngle` start (and are entered) with the camera at that yaw; 0 = looking north (−Z). */
+    /** Locations with camera settings apply them on entering; resets to default if omitted. */
     applyLocationCamera(loc) {
-        if (loc && typeof loc.cameraAngle === 'number') this.cameraAngle = this.targetCameraAngle = loc.cameraAngle;
+        if (loc && typeof loc.cameraAngle === 'number') {
+            this.cameraAngle = this.targetCameraAngle = loc.cameraAngle;
+        }
+        this.minDistance = (loc && typeof loc.minDistance === 'number') ? loc.minDistance : 5.0;
+        this.maxDistance = (loc && typeof loc.maxDistance === 'number') ? loc.maxDistance : 42.0;
+
+        if (loc && typeof loc.cameraDistance === 'number') {
+            this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, loc.cameraDistance));
+        } else {
+            this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.cameraDistance));
+        }
+
+        this.pitchZoomedIn = (loc && typeof loc.pitchZoomedIn === 'number') ? loc.pitchZoomedIn : 0.3491;
+        this.pitchZoomedOut = (loc && typeof loc.pitchZoomedOut === 'number') ? loc.pitchZoomedOut : 0.82;
     }
 
     async startGame(characterConfig, opts) {
@@ -399,7 +412,16 @@ class AveloraGame {
         // Per-character inventory/hotbar/pickups (separate key from the position save)
         this.gameState = window.AveloraState ? window.AveloraState.load(characterConfig.id) : null;
 
-        const startId = (opts.locationId && window.LOCATIONS[opts.locationId]) ? opts.locationId : this.getStartLocationId();
+        let startId = (opts.locationId && window.LOCATIONS[opts.locationId]) ? opts.locationId : this.getStartLocationId();
+
+        // Безопасность подземелий: если сохранение было в данже, при перезагрузке выкидываем наружу ко входу в пещеру
+        if (window.LOCATIONS && window.LOCATIONS[startId] && window.LOCATIONS[startId].isDungeon) {
+            const dungeonLoc = window.LOCATIONS[startId];
+            startId = dungeonLoc.surfaceLocation || 'forestEdge';
+            opts.spawnId = dungeonLoc.surfaceSpawn || 'fromDungeon';
+            opts.position = null; // спавним в безопасной точке снаружи
+        }
+
         const defaultSpawn = this.buildLocation(startId, opts.spawnId || null);
         let spawn = opts.position || defaultSpawn;
 
@@ -539,9 +561,35 @@ class AveloraGame {
         this.waterfall = (loc.waterfalls && loc.waterfalls.length && window.AveloraWaterfall)
             ? new AveloraWaterfall(this.locationRoot, loc.waterfalls[0], this.terrain, this.pathfinder)
             : null;
+        // Lighting adjustment (dungeons vs outdoor)
+        if (loc.lighting) {
+            if (this.hemiLight) {
+                if (loc.lighting.hemiSky !== undefined) this.hemiLight.color.setHex(loc.lighting.hemiSky);
+                if (loc.lighting.hemiGround !== undefined) this.hemiLight.groundColor.setHex(loc.lighting.hemiGround);
+                if (loc.lighting.hemiIntensity !== undefined) this.hemiLight.intensity = loc.lighting.hemiIntensity;
+            }
+            if (this.sunLight) {
+                if (loc.lighting.sunColor !== undefined) this.sunLight.color.setHex(loc.lighting.sunColor);
+                if (loc.lighting.sunIntensity !== undefined) this.sunLight.intensity = loc.lighting.sunIntensity;
+            }
+        } else {
+            if (this.hemiLight) {
+                this.hemiLight.color.setHex(0x9ec8e8);
+                this.hemiLight.groundColor.setHex(0x6e8060);
+                this.hemiLight.intensity = 1.8;
+            }
+            if (this.sunLight) {
+                this.sunLight.color.setHex(0xfff5e6);
+                this.sunLight.intensity = 0.85;
+            }
+        }
+
         this.grottos = (loc.grottos && loc.grottos.length && window.AveloraGrotto)
             ? loc.grottos.map(cfg => new AveloraGrotto(this.locationRoot, cfg, this.terrain, this.pathfinder))
             : [];
+        this.dungeon = (loc.dungeon && window.AveloraDungeon)
+            ? new AveloraDungeon(this.locationRoot, loc.dungeon, this.terrain, this.pathfinder)
+            : null;
         this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc);
         this.worldObjects = window.AveloraWorldObjects ? new AveloraWorldObjects(this, loc) : null;
         this.creatures = window.AveloraCreatures ? new AveloraCreatures(this, loc) : null;
@@ -559,6 +607,7 @@ class AveloraGame {
 
         if (this.waterfall) { this.waterfall.dispose(); this.waterfall = null; }
         if (this.grottos) { this.grottos.forEach(g => g.dispose()); this.grottos = []; }
+        if (this.dungeon) { this.dungeon.dispose(); this.dungeon = null; }
         if (this.skills) this.skills.clearAll(); // no projectile/impact survives into the next location
         if (this.combat) { this.combat.cancel(); this.combat.clearTarget(); }
         if (this.map) this.map.clearAll();        // close map panel when leaving location
@@ -692,8 +741,10 @@ class AveloraGame {
         (loc.exits || []).forEach(ex => {
             const radius = ex.radius || 3;
 
-            // Sit the marker directly on the terrain surface at exit center
-            const y = this.terrain.getHeightAt(ex.x, ex.z) + 0.04;
+            // Sit the marker directly on the terrain surface or at explicit Y
+            const y = (ex.y !== undefined) ? ex.y : ((this.terrain && this.terrain.getHeightAt) ? this.terrain.getHeightAt(ex.x, ex.z) + 0.04 : 0.04);
+            const colorHex = (ex.color !== undefined) ? ex.color : 0xffd98a;
+            const pHeight = (ex.height !== undefined) ? ex.height : 3.2;
 
             const group = new THREE.Group();
             group.position.set(ex.x, y, ex.z);
@@ -701,21 +752,21 @@ class AveloraGame {
             const ringGeo = new THREE.RingGeometry(radius * 0.82, radius, 48);
             ringGeo.rotateX(-Math.PI / 2);
             const ringMat = new THREE.MeshBasicMaterial({
-                color: 0xffd98a, transparent: true, opacity: 0.55,
+                color: colorHex, transparent: true, opacity: 0.55,
                 depthWrite: false, blending: THREE.AdditiveBlending
             });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             group.add(ring);
 
             // Soft vertical light column (fades upward)
-            const pillarGeo = new THREE.CylinderGeometry(radius * 0.9, radius * 0.9, 3.2, 40, 1, true);
-            pillarGeo.translate(0, 1.6, 0);
+            const pillarGeo = new THREE.CylinderGeometry(radius * 0.9, radius * 0.9, pHeight, 40, 1, true);
+            pillarGeo.translate(0, pHeight * 0.5, 0);
             const pillarMat = new THREE.ShaderMaterial({
-                uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0xffd98a) } },
+                uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(colorHex) } },
                 vertexShader: `
                     varying float vH;
                     void main() {
-                        vH = position.y / 3.2;
+                        vH = position.y / ${pHeight.toFixed(2)};
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                     }`,
                 fragmentShader: `
@@ -780,7 +831,8 @@ class AveloraGame {
         const v = new THREE.Vector3();
         for (const ex of this.exits) {
             if (!ex.labelEl) continue;
-            v.set(ex.data.x, ex.y + 3.6, ex.data.z).project(this.camera);
+            const pHeight = (ex.data.height !== undefined) ? ex.data.height : 3.2;
+            v.set(ex.data.x, ex.y + pHeight + 0.35, ex.data.z).project(this.camera);
             const visible = v.z < 1 && v.x > -1.1 && v.x < 1.1 && v.y > -1.1 && v.y < 1.1;
             ex.labelEl.style.display = visible ? 'block' : 'none';
             if (visible) {
@@ -839,6 +891,7 @@ class AveloraGame {
         const hemiLight = new THREE.HemisphereLight(0x9ec8e8, 0x6e8060, 1.8);
         hemiLight.position.set(0, 50, 0);
         this.scene.add(hemiLight);
+        this.hemiLight = hemiLight;
 
         // Солнце: даёт направление и тени, но НЕ слепит (0.85 вместо оригинальных 1.45)
         this.sunLight = new THREE.DirectionalLight(0xfff5e6, 0.85);
@@ -2028,9 +2081,17 @@ class AveloraGame {
             const hDist = this.cameraDistance * Math.cos(this.cameraPitch);
             const vDist = this.cameraDistance * Math.sin(this.cameraPitch);
 
-            const cx = this.cameraTarget.x + Math.sin(this.cameraAngle) * hDist;
-            const cz = this.cameraTarget.z + Math.cos(this.cameraAngle) * hDist;
-            const cy = this.cameraTarget.y + vDist;
+            let cx = this.cameraTarget.x + Math.sin(this.cameraAngle) * hDist;
+            let cz = this.cameraTarget.z + Math.cos(this.cameraAngle) * hDist;
+            let cy = this.cameraTarget.y + vDist;
+
+            // Camera bounds (e.g. inside dungeons, stops camera from escaping walls/ceiling)
+            if (this.location && this.location.cameraBounds) {
+                const b = this.location.cameraBounds;
+                if (typeof b.minX === 'number') cx = Math.max(b.minX, Math.min(b.maxX, cx));
+                if (typeof b.minZ === 'number') cz = Math.max(b.minZ, Math.min(b.maxZ, cz));
+                if (typeof b.minY === 'number') cy = Math.max(b.minY, Math.min(b.maxY, cy));
+            }
 
             if (instant) {
                 this.camera.position.set(cx, cy, cz);
@@ -2212,6 +2273,9 @@ class AveloraGame {
         }
         if (this.grottos && this.grottos.length) {
             this.grottos.forEach(g => g.update(delta));
+        }
+        if (this.dungeon) {
+            this.dungeon.update(delta, this.gameTime);
         }
         if (this.environment) {
             this.environment.update(delta, this.character ? this.character.position : null);
