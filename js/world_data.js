@@ -703,7 +703,7 @@ window.LOCATIONS = {
         surfaceSpawn: 'fromDungeon',
 
         terrain: {
-            size: 60,
+            size: 80,
             seed: 777,
             biome: 'forest',
             flat: true,
@@ -725,33 +725,25 @@ window.LOCATIONS = {
 
         // Освещение: приглушенный амбиент, слабый холодный свет сверху, факелы дают основной свет
         lighting: {
-            hemiSky: 0x182030,
-            hemiGround: 0x080a10,
-            hemiIntensity: 0.65,
+            hemiSky: 0x3a4660,
+            hemiGround: 0x2a2420,
+            hemiIntensity: 1.05,
             sunColor: 0x486080,
             sunIntensity: 0.15
         },
 
-        cameraAngle: 0.0,
+        cameraAngle: Math.PI,   // камера позади героя, который идёт вглубь пещеры (+Z)
         cameraDistance: 6.8,
         minDistance: 3.8,
         maxDistance: 8.5,
         pitchZoomedIn: 0.28,
         pitchZoomedOut: 0.52,
 
-        // Ограничитель камеры подземелья: удерживает камеру строго внутри коридора и под сводом
-        cameraBounds: {
-            minX: -1.8,
-            maxX: 1.8,
-            minZ: -2.8,
-            maxZ: 24.0,
-            minY: 1.2,
-            maxY: 4.8
-        },
+        // Камера подземелья: настоящая проверка столкновений со стенами и сводом (AveloraDungeon.constrainCamera)
 
         spawns: {
-            default:  { x: 0.0, z: 1.6, r: Math.PI }, // лицом вдоль коридора (в сторону движения)
-            entrance: { x: 0.0, z: 1.6, r: Math.PI }
+            default:  { x: 0.0, z: -24.8, r: Math.PI }, // лицом вглубь пещеры (на +Z)
+            entrance: { x: 0.0, z: -24.8, r: Math.PI }
         },
 
         exits: [
@@ -759,7 +751,7 @@ window.LOCATIONS = {
             {
                 id: 'toSurface',
                 x: 0.0,
-                z: -2.4,
+                z: -27.6,
                 y: 0.02,
                 radius: 1.3,
                 height: 2.2,

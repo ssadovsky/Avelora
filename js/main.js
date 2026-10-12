@@ -2085,8 +2085,15 @@ class AveloraGame {
             let cz = this.cameraTarget.z + Math.cos(this.cameraAngle) * hDist;
             let cy = this.cameraTarget.y + vDist;
 
-            // Camera bounds (e.g. inside dungeons, stops camera from escaping walls/ceiling)
-            if (this.location && this.location.cameraBounds) {
+            // Подземелья: настоящие столкновения камеры со стенами/сводом пещеры и склепа
+            // (в обычных локациях можно задать коробку cameraBounds)
+            const dng = this.dungeon && this.dungeon.constrainCamera ? this.dungeon : null;
+            const headPt = { x: this.cameraTarget.x, y: this.cameraTarget.y + 1.4, z: this.cameraTarget.z };
+            const wantCam = { x: cx, y: cy, z: cz };
+            if (dng) {
+                dng.constrainCamera(wantCam, headPt);
+                cx = wantCam.x; cy = wantCam.y; cz = wantCam.z;
+            } else if (this.location && this.location.cameraBounds) {
                 const b = this.location.cameraBounds;
                 if (typeof b.minX === 'number') cx = Math.max(b.minX, Math.min(b.maxX, cx));
                 if (typeof b.minZ === 'number') cz = Math.max(b.minZ, Math.min(b.maxZ, cz));
@@ -2096,7 +2103,13 @@ class AveloraGame {
             if (instant) {
                 this.camera.position.set(cx, cy, cz);
             } else {
+                // Быстрее подтягиваем камеру, если она упирается в стену (без «проезда» сквозь камень)
                 this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
+                if (dng) {
+                    const cp = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
+                    dng.constrainCamera(cp, headPt);
+                    this.camera.position.set(cp.x, cp.y, cp.z);
+                }
             }
 
             this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y + 1.2, this.cameraTarget.z);
