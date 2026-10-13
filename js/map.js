@@ -117,7 +117,61 @@
 
         /** Вызывается при смене локации — сбрасывает кэш. */
         clearAll() {
+            this._layout = null;
             if (this.isOpen) this.close();
+        }
+
+        /**
+         * Планировка подземелья по навигационной сетке: проходимые клетки → картинка, границы — по самим клеткам.
+         * Строится один раз на сетку. null, если вся сетка проходима (нечего показывать — старый вид карты).
+         */
+        _getDungeonLayout(pf) {
+            if (this._layout && this._layout.pf === pf) return this._layout.data;
+            const nx = pf.gridSizeX, nz = pf.gridSizeZ;
+            let minI = nx, maxI = -1, minJ = nz, maxJ = -1, blocked = 0;
+            for (let j = 0; j < nz; j++) {
+                for (let i = 0; i < nx; i++) {
+                    if (pf.grid[pf.getIndex(i, j)] === 0) {
+                        if (i < minI) minI = i; if (i > maxI) maxI = i;
+                        if (j < minJ) minJ = j; if (j > maxJ) maxJ = j;
+                    } else blocked++;
+                }
+            }
+            let data = null;
+            if (blocked > 0 && maxI >= 0) {
+                const pad = 2;                                   // клетки запаса вокруг
+                const i0 = Math.max(0, minI - pad), i1 = Math.min(nx - 1, maxI + pad);
+                const j0 = Math.max(0, minJ - pad), j1 = Math.min(nz - 1, maxJ + pad);
+                const SUB = 3;                                   // пикселей на клетку (сглаживается при отрисовке)
+                const W = (i1 - i0 + 1) * SUB, H = (j1 - j0 + 1) * SUB;
+                const cv = document.createElement('canvas');
+                cv.width = W; cv.height = H;
+                const cx = cv.getContext('2d');
+                const img = cx.createImageData(W, H);
+                const walk = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && pf.grid[pf.getIndex(i, j)] === 0;
+                for (let j = j0; j <= j1; j++) {
+                    for (let i = i0; i <= i1; i++) {
+                        if (!walk(i, j)) continue;
+                        const edge = !walk(i - 1, j) || !walk(i + 1, j) || !walk(i, j - 1) || !walk(i, j + 1);
+                        const c = edge ? [214, 176, 98] : [96, 80, 58];
+                        for (let sy = 0; sy < SUB; sy++) for (let sx = 0; sx < SUB; sx++) {
+                            const k = ((j - j0) * SUB + sy) * W + (i - i0) * SUB + sx;
+                            img.data[k * 4] = c[0]; img.data[k * 4 + 1] = c[1]; img.data[k * 4 + 2] = c[2]; img.data[k * 4 + 3] = edge ? 255 : 235;
+                        }
+                    }
+                }
+                cx.putImageData(img, 0, 0);
+                const wa = pf.gridToWorld(i0, j0), wb = pf.gridToWorld(i1, j1);
+                data = {
+                    canvas: cv,
+                    bounds: {
+                        minX: wa.x - pf.cellWidth / 2, maxX: wb.x + pf.cellWidth / 2,
+                        minZ: wa.z - pf.cellHeight / 2, maxZ: wb.z + pf.cellHeight / 2
+                    }
+                };
+            }
+            this._layout = { pf, data };
+            return data;
         }
 
         // -----------------------------------------------------------
@@ -144,19 +198,41 @@
             const halfZ = sizeZ / 2;
 
             // --- Преобразование мировых координат → canvas px ---
-            const toX = (wx) => PADDING + (wx + halfX) / sizeX * (S - PADDING * 2);
-            const toZ = (wz) => PADDING + (wz + halfZ) / sizeZ * (S - PADDING * 2);
-            const toR = (wr) => wr / Math.max(sizeX, sizeZ) * (S - PADDING * 2); // radius in px
+            let toX = (wx) => PADDING + (wx + halfX) / sizeX * (S - PADDING * 2);
+            let toZ = (wz) => PADDING + (wz + halfZ) / sizeZ * (S - PADDING * 2);
+            let toR = (wr) => wr / Math.max(sizeX, sizeZ) * (S - PADDING * 2); // radius in px
+
+            // Подземелье: карта строится по реальной сетке проходимости локации (без привязки к конкретному данжу)
+            let dungeonLayout = null;
+            if (loc.isDungeon && g.pathfinder) {
+                try { dungeonLayout = this._getDungeonLayout(g.pathfinder); } catch (e) { dungeonLayout = null; }
+            }
+            if (dungeonLayout) {
+                const b = dungeonLayout.bounds, bw = b.maxX - b.minX, bh = b.maxZ - b.minZ;
+                const sc = (S - PADDING * 2) / Math.max(bw, bh);
+                const offX = (S - bw * sc) / 2, offZ = (S - bh * sc) / 2;
+                toX = (wx) => offX + (wx - b.minX) * sc;
+                toZ = (wz) => offZ + (wz - b.minZ) * sc;
+                toR = (wr) => wr * sc;
+                dungeonLayout.draw = () => {
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+                    try { ctx.filter = 'blur(1.1px)'; } catch (e) { /* без сглаживания */ }
+                    ctx.drawImage(dungeonLayout.canvas, offX, offZ, bw * sc, bh * sc);
+                    ctx.restore();
+                };
+            }
 
             // === Фон ===
             ctx.fillStyle = TERRAIN_FILL;
             ctx.fillRect(0, 0, S, S);
 
-            // Слабая сетка
+            // Слабая сетка (для подземелья вместо неё — планировка)
             ctx.strokeStyle = GRID_COLOR;
             ctx.lineWidth = 1;
             const step = (S - PADDING * 2) / 4;
-            for (let i = 0; i <= 4; i++) {
+            if (dungeonLayout) dungeonLayout.draw();
+            for (let i = 0; !dungeonLayout && i <= 4; i++) {
                 const v = PADDING + step * i;
                 ctx.beginPath(); ctx.moveTo(v, PADDING); ctx.lineTo(v, S - PADDING); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(PADDING, v); ctx.lineTo(S - PADDING, v); ctx.stroke();
