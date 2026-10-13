@@ -703,7 +703,7 @@ window.LOCATIONS = {
         surfaceSpawn: 'fromDungeon',
 
         terrain: {
-            size: 80,
+            size: 100,
             seed: 777,
             biome: 'forest',
             flat: true,
@@ -720,7 +720,7 @@ window.LOCATIONS = {
             sky: 0x06080c,
             skyTop: 0x040508,
             fogColor: 0x06080c,
-            fogDensity: 0.032
+            fogDensity: 0.022
         },
 
         // Освещение: приглушенный амбиент, слабый холодный свет сверху, факелы дают основной свет
@@ -742,8 +742,8 @@ window.LOCATIONS = {
         // Камера подземелья: настоящая проверка столкновений со стенами и сводом (AveloraDungeon.constrainCamera)
 
         spawns: {
-            default:  { x: 0.0, z: -24.8, r: Math.PI }, // лицом вглубь пещеры (на +Z)
-            entrance: { x: 0.0, z: -24.8, r: Math.PI }
+            default:  { x: 0.0, z: -38.0, r: Math.PI }, // лицом вглубь пещеры (на +Z)
+            entrance: { x: 0.0, z: -38.0, r: Math.PI }
         },
 
         exits: [
@@ -751,7 +751,7 @@ window.LOCATIONS = {
             {
                 id: 'toSurface',
                 x: 0.0,
-                z: -27.6,
+                z: -41.2,
                 y: 0.02,
                 radius: 1.3,
                 height: 2.2,

@@ -183,53 +183,56 @@
                 const dx = x - B[i][0], dz = z - B[i][1];
                 const v = Math.sqrt(dx * dx + dz * dz) - B[i][2];
                 // гладкий минимум k = 1.0
-                const h = Math.max(1.0 - Math.abs(d - v), 0) / 1.0;
-                d = Math.min(d, v) - h * h * 0.25;
+                const h = Math.max(1.8 - Math.abs(d - v), 0) / 1.8;
+                d = Math.min(d, v) - h * h * 0.45;
             }
             // стены ходов шероховатые, но у арки (z → ZCLIP) шум гаснет — стык ровный
             const damp = Math.max(0, Math.min(1, (-z + this.ZCLIP - 0.1) / 4.0));
-            d += (0.30 * this._fbm(x * 0.32 + 11, z * 0.32) + 0.11 * this._fbm(x * 0.9, z * 0.9 + 4)) * damp;
+            d += (0.50 * this._fbm(x * 0.22 + 11, z * 0.22) + 0.16 * this._fbm(x * 0.7, z * 0.7 + 4)) * damp;
             // колонны: вернуть камень
             const K = this._pillars;
             for (let i = 0; i < K.length; i++) {
                 const dx = x - K[i][0], dz = z - K[i][1];
                 const v = K[i][2] - Math.sqrt(dx * dx + dz * dz);
-                const h = Math.max(0.8 - Math.abs(d - (-v)), 0) / 0.8;
-                d = Math.max(d, v) + h * h * 0.2;
+                const h = Math.max(1.4 - Math.abs(d - (-v)), 0) / 1.4;
+                d = Math.max(d, v) + h * h * 0.35;
             }
             return d;
         }
 
         _surf(x, z, s) {
-            const HE = this.CAVE_HE;
+            const HE = this.CAVE_HE, SC = this.CAVE_SC;
             const sm = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
-            const t = sm(-0.3, 0.9, s);
-            const w = 1.0 - sm(0.3, 0.9, s);
-            let F = HE * Math.pow(t, 0.85) + 0.30 * this._fbm(x * 0.7 + 3, z * 0.7) * t * w
-                + 0.035 * this._fbm(x * 1.7, z * 1.7 + 8) * (1 - t);
-            const cmax = 3.2 + 2.3 * Math.max(0, Math.min(1, (-s - 1.0) / 3.0));
-            let C = HE + (cmax - HE) * sm(0.9, -1.6, s) + 0.45 * this._fbm(x * 0.5 + 5, z * 0.5 + 2) * w;
+            const t = sm(-0.3, SC, s);
+            const w = 1.0 - sm(0.3, SC, s);
+            const g = sm(this.ZCLIP - 3, this.ZCLIP - 15, z);            // 0 у арки → 1 вдали (свод поднимается)
+            let F = HE * Math.pow(t, 0.85) + 0.45 * this._fbm(x * 0.5 + 3, z * 0.5) * t * w
+                + 0.04 * this._fbm(x * 1.7, z * 1.7 + 8) * (1 - t);
+            const normal = 6.0 + 3.0 * Math.max(0, Math.min(1, (-s - 1.0) / 4.0));
+            const tail = HE + 0.5;
+            const cmax = tail + (normal - tail) * g;
+            let C = HE + (cmax - HE) * sm(SC, -1.8, s) + 0.9 * this._fbm(x * 0.35 + 5, z * 0.35 + 2) * w * g;
             if (C < F + 0.05) C = F + 0.05;
-            if (s >= 0.9) { F = HE; C = HE; }
+            if (s >= SC) { F = HE; C = HE; }
             return [F, C];
         }
 
         _buildCave() {
-            this.CAVE_HE = 2.3;
+            this.CAVE_HE = 4.6; this.CAVE_SC = 1.5;
             this.ZCLIP = -4.25;                    // плоскость арки
             const H = 0.25;                        // шаг сетки
-            const X0 = -17.0, X1 = 11.0, Z0 = -34.0, Z1 = this.ZCLIP;
+            const X0 = -30.0, X1 = 18.0, Z0 = -50.0, Z1 = this.ZCLIP;
             const NX = Math.round((X1 - X0) / H) + 1, NZ = Math.round((Z1 - Z0) / H) + 1;
 
             // Ось главного хода (x, z, радиус) и ответвления
-            const main = [[0, -29.4, 1.9], [0, -27.0, 2.2], [-1.8, -23.6, 1.8], [-4.4, -20.4, 2.3], [-6.4, -16.0, 1.9],
-                [-3.9, -12.0, 1.8], [1.0, -9.8, 1.9], [1.5, -7.4, 1.8], [0.5, -5.8, 1.7], [0, -4.0, 1.5], [0, -3.2, 1.5]];
-            const nicheBr = [[1.0, -9.8, 1.6], [3.4, -10.8, 1.6], [5.6, -11.8, 1.9]];
-            const westBr = [[-7.4, -17.4, 1.6], [-10.2, -19.4, 1.7], [-12.4, -22.4, 2.0]];
+            const main = [[0, -44.0, 2.9], [0, -40.5, 3.4], [-3.5, -35.5, 3.0], [-8.5, -30.5, 3.4], [-11.5, -24.5, 3.0],
+                [-7.5, -18.5, 3.0], [0.5, -14.5, 3.0], [2.5, -10.0, 2.9], [0.8, -7.2, 2.4], [0, -5.2, 1.9], [0, -3.2, 1.6]];
+            const nicheBr = [[2.5, -10.0, 2.3], [6.5, -11.5, 2.5], [10.5, -13.0, 2.9]];
+            const westBr = [[-12.5, -22.5, 2.4], [-16.5, -25.0, 2.6], [-20.5, -29.0, 3.0]];
             this._pathMain = this._catmull(main, 0.2);
             this._pathDense = this._pathMain.concat(this._catmull(nicheBr, 0.2), this._catmull(westBr, 0.2));
-            this._blobs = [[-6.3, -17.6, 3.7], [5.8, -12.0, 2.3], [-12.7, -22.9, 2.4]];
-            this._pillars = [[-6.7, -18.6, 0.75], [-4.6, -15.8, 0.6]];
+            this._blobs = [[-8.5, -21.5, 6.0], [11.5, -13.5, 4.2], [-21.8, -30.0, 4.4]];
+            this._pillars = [[-8.4, -21.8, 2.0]];
 
             // Поля
             const S = new Float32Array(NX * NZ), FF = new Float32Array(NX * NZ), CC = new Float32Array(NX * NZ);
@@ -267,7 +270,7 @@
             for (let iz = 0; iz < NZ - 1; iz++) {
                 for (let ix = 0; ix < NX - 1; ix++) {
                     const a = iz * NX + ix, b = a + 1, c = a + NX, d = c + 1;
-                    if (Math.min(S[a], S[b], S[c], S[d]) >= 0.9) continue;
+                    if (Math.min(S[a], S[b], S[c], S[d]) >= this.CAVE_SC) continue;
                     // пол: смотрит вверх
                     idx.push(a, c, b, b, c, d);
                     // свод: смотрит вниз
@@ -311,12 +314,14 @@
             return y > q.F + mF && y < q.C - mC;
         }
 
-        _wallPoint(px, pz, dx, dz, target) {
-            // идём из (px,pz) по (dx,dz) до стены s > target
+        _wallPoint(px, pz, dx, dz, target, yTarget) {
+            // идём из (px,pz) по (dx,dz) до стены: s > target, а при заданном yTarget — до высоты пола у стены
             const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
             let x = px, z = pz;
-            for (let i = 0; i < 160; i++) {
-                if (this._caveSdf(x, z) > target) return { x, z };
+            for (let i = 0; i < 480; i++) {
+                const q = this._caveSample(x, z);
+                if (!q) return { x, z };
+                if (yTarget !== undefined ? q.F > yTarget - 0.2 : q.s > target) return { x, z };
                 x += dx * 0.05; z += dz * 0.05;
             }
             return { x, z };
@@ -331,16 +336,16 @@
                 const l = Math.hypot(tx, tz) || 1;
                 return { x: P[i][0], z: P[i][1], nx: -tz / l, nz: tx / l };
             };
-            const torchSpec = [[0.17, 1], [0.47, -1], [0.74, 1]];
+            const torchSpec = [[0.10, 1], [0.30, -1], [0.52, 1], [0.74, -1]];
             torchSpec.forEach(([f, side]) => {
                 const a = at(f);
-                const wp = this._wallPoint(a.x, a.z, a.nx * side, a.nz * side, 0.55);
-                this._createWallTorch(wp.x, 1.75, wp.z, 1, Math.atan2(a.nz * side, -a.nx * side), true);
+                const wp = this._wallPoint(a.x, a.z, a.nx * side, a.nz * side, 0.55, 2.4);
+                this._createWallTorch(wp.x, 2.4, wp.z, 1, Math.atan2(a.nz * side, -a.nx * side), true);
             });
-            // Факелы у арки (без лишних источников света — арку подсвечивают соседние)
+            // Факелы у арки со светом: из склепа видно освещённый вход в пещеру
             [-1, 1].forEach(sd => {
-                const wp = this._wallPoint(sd * 0.9, this.ZCLIP - 1.4, sd, 0, 0.55);
-                this._createWallTorch(wp.x, 1.8, wp.z, 1, Math.atan2(0, -sd), false);
+                const wp = this._wallPoint(sd * 1.3, this.ZCLIP - 1.8, sd, 0, 0.55, 2.2);
+                this._createWallTorch(wp.x, 2.2, wp.z, 1, Math.atan2(0, -sd), true);
             });
 
             // Сталактиты / сталагмиты (инстансы)
@@ -353,14 +358,14 @@
             let seed = 3;
             const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
             const c = this.cave;
-            for (let tries = 0; tries < 900 && sp.length < 70; tries++) {
+            for (let tries = 0; tries < 1600 && sp.length < 110; tries++) {
                 const x = c.X0 + rnd() * (c.NX - 1) * c.H, z = c.Z0 + rnd() * (c.NZ - 1) * c.H;
-                if (z > this.ZCLIP - 1.6) continue;
+                if (z > this.ZCLIP - 2.0) continue;
                 const smp = this._caveSample(x, z); if (!smp) continue;
-                if (smp.s > -0.9 || smp.C < 3.4) continue;
+                if (smp.s > -1.2 || smp.C < 5.5) continue;
                 const down = rnd() < 0.7;
-                const h = 0.4 + rnd() * (down ? 0.9 : 0.6), r = 0.16 + rnd() * 0.26;
-                if (!down && smp.s > -1.6) continue;            // сталагмиты — только вдали от хода
+                const h = 0.6 + rnd() * (down ? 1.8 : 0.9), r = 0.22 + rnd() * 0.34;
+                if (!down && smp.s > -2.2) continue;            // сталагмиты — только вдали от хода
                 const y = down ? smp.C + 0.05 - h * 0.5 + 0.0 : smp.F - 0.05 + h * 0.5;
                 e.set(down ? Math.PI : 0, rnd() * 6, 0); q.setFromEuler(e);
                 m4.compose(new THREE.Vector3(x, down ? smp.C - h * 0.5 + 0.1 : smp.F + h * 0.5 - 0.05, z), q, new THREE.Vector3(r, h, r));
@@ -380,10 +385,10 @@
             this.materials.push(crysMat);
             const cGeo = new THREE.ConeGeometry(0.16, 1.0, 5);
             this.geometries.push(cGeo);
-            const clusters = [[6.4, -12.4], [-13.6, -23.8], [-8.4, -14.2], [-2.6, -25.2]];
+            const clusters = [[10.5, -15.8], [-19.8, -27.4], [-12.5, -17.0], [-5.5, -32.5]];
             clusters.forEach(([cx, cz], ci) => {
                 const grp = new THREE.Group();
-                const wp = this._wallPoint(cx - 1.5, cz + 0.6, cx > 0 ? 1 : -1, -0.3, 0.2);
+                const wp = this._wallPoint(cx - 1.5 * (cx > 0 ? 1 : -1), cz + 0.6, cx > 0 ? 1 : -1, -0.3, 0.2);
                 const base = this._caveSample(wp.x, wp.z);
                 grp.position.set(wp.x, base ? base.F : 0, wp.z);
                 for (let i = 0; i < 5; i++) {
@@ -441,11 +446,11 @@
             this.group.add(rightWall);
 
             // 3. Древняя арка в скале: плита с арочным проёмом (стык пещеры и склепа) + обрамляющее кольцо
-            const slabW = width + wallThick * 2, slabH = height + 0.6, depth = 0.75;
+            const slabW = 7.4, slabH = height + 0.8, depth = 0.75;
             const slabShape = new THREE.Shape();
             slabShape.moveTo(-slabW / 2, 0); slabShape.lineTo(slabW / 2, 0); slabShape.lineTo(slabW / 2, slabH); slabShape.lineTo(-slabW / 2, slabH); slabShape.lineTo(-slabW / 2, 0);
             const hole = new THREE.Path();
-            hole.moveTo(-1.1, 0); hole.lineTo(-1.1, 2.0); hole.absarc(0, 2.0, 1.1, Math.PI, 0, true); hole.lineTo(1.1, 0); hole.lineTo(-1.1, 0);
+            hole.moveTo(-1.5, 0); hole.lineTo(-1.5, 2.7); hole.absarc(0, 2.7, 1.5, Math.PI, 0, true); hole.lineTo(1.5, 0); hole.lineTo(-1.5, 0);
             slabShape.holes.push(hole);
             const slabGeo = new THREE.ExtrudeGeometry(slabShape, { depth, bevelEnabled: false, curveSegments: 14 });
             this.geometries.push(slabGeo);
@@ -455,9 +460,9 @@
             this.group.add(slab);
 
             const ringShape = new THREE.Shape();
-            ringShape.moveTo(-1.62, 0); ringShape.lineTo(-1.62, 2.0); ringShape.absarc(0, 2.0, 1.62, Math.PI, 0, true);
-            ringShape.lineTo(1.62, 0); ringShape.lineTo(1.1, 0); ringShape.lineTo(1.1, 2.0);
-            ringShape.absarc(0, 2.0, 1.1, 0, Math.PI, false); ringShape.lineTo(-1.1, 0); ringShape.lineTo(-1.62, 0);
+            ringShape.moveTo(-2.1, 0); ringShape.lineTo(-2.1, 2.7); ringShape.absarc(0, 2.7, 2.1, Math.PI, 0, true);
+            ringShape.lineTo(2.1, 0); ringShape.lineTo(1.5, 0); ringShape.lineTo(1.5, 2.7);
+            ringShape.absarc(0, 2.7, 1.5, 0, Math.PI, false); ringShape.lineTo(-1.5, 0); ringShape.lineTo(-2.1, 0);
             const ringGeo = new THREE.ExtrudeGeometry(ringShape, { depth: 0.32, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1, curveSegments: 14 });
             this.geometries.push(ringGeo);
             const ring = new THREE.Mesh(ringGeo, this.trimMat);
@@ -465,14 +470,14 @@
             ring.castShadow = true; ring.receiveShadow = true;
             this.group.add(ring);
             // замковый камень арки
-            const keyGeo = new THREE.BoxGeometry(0.42, 0.62, 0.46);
+            const keyGeo = new THREE.BoxGeometry(0.5, 0.8, 0.46);
             this.geometries.push(keyGeo);
             const key = new THREE.Mesh(keyGeo, this.trimMat);
-            key.position.set(0, 2.0 + 1.36, this.ZCLIP - 0.28);
+            key.position.set(0, 2.7 + 1.8, this.ZCLIP - 0.28);
             this.group.add(key);
 
             // 3.1 Пол в проёме арки (между краем пещеры и склепом)
-            const stripGeo = new THREE.PlaneGeometry(2.4, 0.95);
+            const stripGeo = new THREE.PlaneGeometry(3.0, 0.95);
             stripGeo.rotateX(-Math.PI / 2);
             this.geometries.push(stripGeo);
             const strip = new THREE.Mesh(stripGeo, this.floorMat);
@@ -494,7 +499,9 @@
             this.materials.push(shellMat);
             const shellGeo = new THREE.BoxGeometry(width + wallThick * 2 + 0.4, height + 1.2, length + wallThick * 2 + 0.4);
             this.geometries.push(shellGeo);
-            const shellMesh = new THREE.Mesh(shellGeo, shellMat);
+            const hiddenFace = new THREE.MeshBasicMaterial({ visible: false });
+            this.materials.push(hiddenFace);
+            const shellMesh = new THREE.Mesh(shellGeo, [shellMat, shellMat, shellMat, shellMat, shellMat, hiddenFace]);   // задняя (−z) грань скрыта: из склепа видна пещера
             shellMesh.position.set(0, height * 0.5 + 0.1, zCenter);
             this.group.add(shellMesh);
 
@@ -575,8 +582,8 @@
             const torchY = 2.2;  // комфортная высота на уровне взгляда героя
 
             torchZs.forEach((tz, idx) => {
-                this._createWallTorch(-torchX, torchY, tz, 1);   // левый факел (смотрит вправо)
-                this._createWallTorch(torchX, torchY, tz, -1);  // правый факел (смотрит влево)
+                this._createWallTorch(-torchX, torchY, tz, 1, 0, true);   // левый факел со светом (смотрит вправо)
+                this._createWallTorch(torchX, torchY, tz, -1, 0, false);  // правый — только пламя (бюджет света)
             });
         }
 
@@ -629,12 +636,12 @@
         // Проходимо только: внутри пещеры (с запасом от стен), внутри склепа и в проёме арки.
         // Сетку навигации пишем напрямую (всё остальное в локации — камень).
         _corridorWalk(x, z, m) {
-            if (z >= this.ZCLIP + 0.75 - 0.05 && z <= 24.0 - m) return Math.abs(x) <= 1.95 - m * 0.2;
+            if (z >= this.ZCLIP + 0.75 - 0.05 && z <= 24.0 - m) return Math.abs(x) <= 1.55 - m * 0.2;
             return false;
         }
 
         _isWalkPoint(x, z) {
-            if (Math.abs(x) <= 1.0 && z > this.ZCLIP - 1.3 && z < this.ZCLIP + 0.9) return true;   // проём арки
+            if (Math.abs(x) <= 1.3 && z > this.ZCLIP - 1.3 && z < this.ZCLIP + 0.9) return true;   // проём арки
             if (this._corridorWalk(x, z, 0.3)) return true;
             const q = this._caveSample(x, z);
             return !!q && q.s < -0.28 && z < this.ZCLIP - 0.9;
@@ -655,7 +662,7 @@
                             && this._isWalkPoint(p.x - ox, p.z + oz) && this._isWalkPoint(p.x + ox, p.z + oz);
                     }
                     // проём арки — всегда проходим для связности
-                    if (!ok && Math.abs(p.x) <= 0.95 && p.z > this.ZCLIP - 1.4 && p.z < this.ZCLIP + 1.3) ok = true;
+                    if (!ok && Math.abs(p.x) <= 1.2 && p.z > this.ZCLIP - 1.4 && p.z < this.ZCLIP + 1.3) ok = true;
                     pf.grid[pf.getIndex(gx, gz)] = ok ? 0 : 1;
                 }
             }
@@ -667,7 +674,7 @@
             // склеп (внутренняя коробка с запасом от стен и свода)
             if (z >= this.ZCLIP + 0.1 && z <= 24.0 && Math.abs(x) <= 2.05 && y >= 0.6 && y <= 4.9) return true;
             // проём арки
-            if (Math.abs(x) <= 0.95 && z > this.ZCLIP - 0.2 && z < this.ZCLIP + 0.95 && y >= 0.6 && y <= 2.9) return true;
+            if (Math.abs(x) <= 1.3 && z > this.ZCLIP - 0.2 && z < this.ZCLIP + 0.95 && y >= 0.6 && y <= 3.9) return true;
             if (z < this.ZCLIP - 0.05) {
                 const q = this._caveSample(x, z);
                 return !!q && q.s < -0.12 && y > q.F + 0.55 && y < q.C - 0.45;

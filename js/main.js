@@ -833,7 +833,7 @@ class AveloraGame {
             if (!ex.labelEl) continue;
             const pHeight = (ex.data.height !== undefined) ? ex.data.height : 3.2;
             v.set(ex.data.x, ex.y + pHeight + 0.35, ex.data.z).project(this.camera);
-            const visible = v.z < 1 && v.x > -1.1 && v.x < 1.1 && v.y > -1.1 && v.y < 1.1;
+            const visible = v.z > -1 && v.z < 1 && v.x > -1.1 && v.x < 1.1 && v.y > -1.1 && v.y < 1.1;
             ex.labelEl.style.display = visible ? 'block' : 'none';
             if (visible) {
                 ex.labelEl.style.transform =
