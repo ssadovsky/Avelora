@@ -136,11 +136,14 @@
         respawnSeconds(def) { return Math.max(5, (Number(def.respawnMinutes) || 5) * 60); }
 
         makeRecord(sp, def) {
+            const mergedDef = (sp.behavior || sp.aggroRadius !== undefined || sp.leashRadius !== undefined)
+                ? Object.assign({}, def, sp)
+                : def;
             return {
-                id: sp.id, type: sp.type, def, spawn: sp,
+                id: sp.id, type: sp.type, def: mergedDef, spawn: sp,
                 home: { x: sp.x, z: sp.z },
                 state: 'gone',       // idle | wander | chase | attack | return | dead | gone
-                hp: def.hp || 10, maxHp: def.hp || 10,
+                hp: mergedDef.hp || 10, maxHp: mergedDef.hp || 10,
                 x: sp.x, z: sp.z, y: 0, yaw: sp.r || 0,
                 group: null, model: null, proxy: null, mixer: null, actions: {}, current: null, anim: null,
                 materials: [], height: 0.5,
