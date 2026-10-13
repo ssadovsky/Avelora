@@ -176,6 +176,18 @@
                     const height = Math.max(0.3, (box.max.y - Math.max(0, box.min.y)) * s);
                     // body footprint (for the hit cylinder): geometric mean of width/length, as a radius
                     const bodyR = 0.5 * Math.sqrt(Math.max(1e-4, (box.max.x - box.min.x) * s) * Math.max(1e-4, (box.max.z - box.min.z) * s));
+                    if (def.textureKey && window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures[def.textureKey]) {
+                        const texData = window.GAME_ASSETS.textures[def.textureKey];
+                        const texLoader = new THREE.TextureLoader();
+                        texLoader.load(texData, (newTex) => {
+                            newTex.flipY = false;
+                            newTex.encoding = THREE.sRGBEncoding;
+                            resolve({ scene, clips: clips || [], height, bodyR, fallback: !buffer, customMap: newTex });
+                        }, undefined, () => {
+                            resolve({ scene, clips: clips || [], height, bodyR, fallback: !buffer });
+                        });
+                        return;
+                    }
                     resolve({ scene, clips: clips || [], height, bodyR, fallback: !buffer });
                 };
                 if (!buffer) { finish(null, null); return; }
@@ -225,6 +237,10 @@
                     if (!o.isMesh || !o.material) return;
                     const m = o.material.clone();
                     o.material = m;
+                    if (tpl.customMap) {
+                        m.map = tpl.customMap;
+                        m.needsUpdate = true;
+                    }
                     if (m.emissive) {
                         m.userData.baseEmissive = m.emissive.clone();
                         m.userData.baseEmissiveIntensity = m.emissiveIntensity;

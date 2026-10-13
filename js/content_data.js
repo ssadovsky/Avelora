@@ -1192,6 +1192,36 @@ window.GAME_CONTENT = {
    ],
    "modelKey": "creatures/forest_doe"
   },
+  "grey_rat": {
+   "id": "grey_rat",
+   "name": "Серая крыса",
+   "hp": 16,
+   "damage": [
+    1,
+    3
+   ],
+   "attackRange": 0.55,
+   "attackCooldown": 1.1,
+   "walkSpeed": 0.95,
+   "runSpeed": 4.3,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 14,
+   "wanderRadius": 4,
+   "respawnMinutes": 3,
+   "hitRadius": 1.26,
+   "scale": 4.2,
+   "modelKey": "creatures/rat",
+   "textureKey": "creatures/grey_rat",
+   "drops": [
+    {
+     "item": "rat_tail",
+     "count": 1
+    }
+   ],
+   "xp": 8,
+   "level": 1
+  },
   "minotaur": {
    "id": "minotaur",
    "name": "Железнокожий минотавр",
