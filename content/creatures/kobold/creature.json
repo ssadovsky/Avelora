@@ -1,0 +1,32 @@
+{
+  "id": "kobold",
+  "name": "Кобольд-рудокоп",
+  "hp": 45,
+  "damage": [
+    4,
+    8
+  ],
+  "attackRange": 0.9,
+  "attackCooldown": 1.2,
+  "walkSpeed": 1.1,
+  "runSpeed": 3.8,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 16,
+  "wanderRadius": 6,
+  "respawnMinutes": 5,
+  "hitRadius": 0.8,
+  "scale": 1.5,
+  "drops": [
+    {
+      "item": "iron_ore",
+      "count": 2
+    },
+    {
+      "item": "stone",
+      "count": 3
+    }
+  ],
+  "xp": 18,
+  "level": 3
+}

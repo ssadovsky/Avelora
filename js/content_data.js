@@ -1222,6 +1222,39 @@ window.GAME_CONTENT = {
    "xp": 8,
    "level": 1
   },
+  "kobold": {
+   "id": "kobold",
+   "name": "Кобольд-рудокоп",
+   "hp": 45,
+   "damage": [
+    4,
+    8
+   ],
+   "attackRange": 0.9,
+   "attackCooldown": 1.2,
+   "walkSpeed": 1.1,
+   "runSpeed": 3.8,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 16,
+   "wanderRadius": 6,
+   "respawnMinutes": 5,
+   "hitRadius": 0.8,
+   "scale": 1.5,
+   "drops": [
+    {
+     "item": "iron_ore",
+     "count": 2
+    },
+    {
+     "item": "stone",
+     "count": 3
+    }
+   ],
+   "xp": 18,
+   "level": 3,
+   "modelKey": "creatures/kobold"
+  },
   "minotaur": {
    "id": "minotaur",
    "name": "Железнокожий минотавр",
@@ -1340,6 +1373,35 @@ window.GAME_CONTENT = {
    "xp": 60,
    "level": 5,
    "modelKey": "creatures/rune_boar"
+  },
+  "spider": {
+   "id": "spider",
+   "name": "Паук-отшельник",
+   "hp": 35,
+   "damage": [
+    3,
+    7
+   ],
+   "attackRange": 0.85,
+   "attackCooldown": 1.2,
+   "walkSpeed": 1.0,
+   "runSpeed": 3.6,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 15,
+   "wanderRadius": 5,
+   "respawnMinutes": 4,
+   "hitRadius": 0.9,
+   "scale": 0.85,
+   "drops": [
+    {
+     "item": "meat",
+     "count": 1
+    }
+   ],
+   "xp": 14,
+   "level": 2,
+   "modelKey": "creatures/spider"
   },
   "thunderclaw": {
    "id": "thunderclaw",
