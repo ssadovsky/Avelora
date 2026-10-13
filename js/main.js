@@ -607,6 +607,7 @@ class AveloraGame {
 
         if (this.waterfall) { this.waterfall.dispose(); this.waterfall = null; }
         if (this.grottos) { this.grottos.forEach(g => g.dispose()); this.grottos = []; }
+        this.cameraBlockers = [];
         if (this.dungeon) { this.dungeon.dispose(); this.dungeon = null; }
         if (this.skills) this.skills.clearAll(); // no projectile/impact survives into the next location
         if (this.combat) { this.combat.cancel(); this.combat.clearTarget(); }
@@ -2090,8 +2091,12 @@ class AveloraGame {
             const dng = this.dungeon && this.dungeon.constrainCamera ? this.dungeon : null;
             const headPt = { x: this.cameraTarget.x, y: this.cameraTarget.y + 1.4, z: this.cameraTarget.z };
             const wantCam = { x: cx, y: cy, z: cz };
+            const outdoor = !dng && this.terrain && !(this.location && this.location.isDungeon);
             if (dng) {
                 dng.constrainCamera(wantCam, headPt);
+                cx = wantCam.x; cy = wantCam.y; cz = wantCam.z;
+            } else if (outdoor) {
+                this.constrainCameraOutdoor(wantCam, headPt);
                 cx = wantCam.x; cy = wantCam.y; cz = wantCam.z;
             } else if (this.location && this.location.cameraBounds) {
                 const b = this.location.cameraBounds;
@@ -2105,9 +2110,9 @@ class AveloraGame {
             } else {
                 // Быстрее подтягиваем камеру, если она упирается в стену (без «проезда» сквозь камень)
                 this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
-                if (dng) {
+                if (dng || outdoor) {
                     const cp = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
-                    dng.constrainCamera(cp, headPt);
+                    if (dng) dng.constrainCamera(cp, headPt); else this.constrainCameraOutdoor(cp, headPt);
                     this.camera.position.set(cp.x, cp.y, cp.z);
                 }
             }
@@ -2134,6 +2139,103 @@ class AveloraGame {
         if (this.skyDome) {
             this.skyDome.position.set(this.camera.position.x, 0, this.camera.position.z);
         }
+    }
+
+    /**
+     * Камера в открытых локациях: не вылетает за край мира, не уходит под рельеф (горный барьер по периметру,
+     * склоны у водопада) и не залезает в крупные скальные модели (вход в грот). Деревья, кусты и прочие мелкие объекты
+     * НЕ учитываются — камера по ним скользит, как раньше. Камера притягивается к герою вдоль своего луча,
+     * направление взгляда и зум не меняются.
+     */
+    constrainCameraOutdoor(cam, head) {
+        const t = this.terrain;
+        if (!t) return cam;
+        const dx = cam.x - head.x, dy = cam.y - head.y, dz = cam.z - head.z;
+        const dist = Math.hypot(dx, dy, dz);
+        if (dist < 0.5) return cam;
+        let k = 1;
+
+        // 1. Край мира (с запасом): дальше только пустота за горами
+        const mg = 2.0;
+        const hx = (t.halfX !== undefined ? t.halfX : (t.sizeX || 120) / 2) - mg;
+        const hz = (t.halfZ !== undefined ? t.halfZ : (t.sizeZ || 120) / 2) - mg;
+        if (dx > 0 && head.x + dx * k > hx) k = Math.min(k, Math.max(0, (hx - head.x) / dx));
+        if (dx < 0 && head.x + dx * k < -hx) k = Math.min(k, Math.max(0, (-hx - head.x) / dx));
+        if (dz > 0 && head.z + dz * k > hz) k = Math.min(k, Math.max(0, (hz - head.z) / dz));
+        if (dz < 0 && head.z + dz * k < -hz) k = Math.min(k, Math.max(0, (-hz - head.z) / dz));
+
+        const kBounds = k;
+
+        // 2. Рельеф: камера не уходит в склон между героем и собой
+        const N = 14;
+        for (let i = 1; i <= N; i++) {
+            const s = (i / N) * k;
+            const py = head.y + dy * s;
+            const gh = t.getHeightAt(head.x + dx * s, head.z + dz * s);
+            if (py < gh + 0.5) { k = Math.min(k, Math.max(0, ((i - 1) / N) * k)); break; }
+        }
+
+        // 3. Крупные скальные модели (грот): луч от головы к камере
+        // не прижимаем камеру вплотную к герою (рельеф); скалы — отдельно, ниже
+        const kmin = Math.min(1, 2.5 / dist);
+        if (k < 1) k = Math.min(kBounds, Math.max(k, kmin));
+
+        const blockers = this._cameraBlockerModels();
+        const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
+        for (let i = 0; i < blockers.length; i++) {
+            const d = this._modelRayLimit(blockers[i], head, dir, dist * k);
+            if (d !== null) k = Math.min(k, Math.max((d - 0.4) / dist, 0.6 / dist));
+        }
+        cam.x = head.x + dx * k; cam.y = head.y + dy * k; cam.z = head.z + dz * k;
+        const g = t.getHeightAt(cam.x, cam.z) + 0.6;
+        if (cam.y < g) cam.y = g;
+        return cam;
+    }
+
+    // Камера и крупные твёрдые объекты. Блокирует любой объект сцены, чья модель (THREE.Object3D)
+    // попадает в список: модель водопада, грота или любой Object3D, добавленный через addCameraBlocker().
+    // Координаты не зашиты — если объект переставить, коллизия переедет вместе с ним.
+    _cameraBlockerModels() {
+        const out = [];
+        if (this.waterfall && this.waterfall.model) out.push(this.waterfall.model);
+        if (this.grottos) this.grottos.forEach(g => { if (g.model) out.push(g.model); });
+        if (this.cameraBlockers) this.cameraBlockers.forEach(o => { if (o) out.push(o); });
+        return out;
+    }
+
+    // Регистрация любого другого крупного объекта как препятствия камеры (деревья/кусты не регистрируем).
+    addCameraBlocker(obj) {
+        if (!this.cameraBlockers) this.cameraBlockers = [];
+        if (obj && !this.cameraBlockers.includes(obj)) this.cameraBlockers.push(obj);
+    }
+
+    // Расстояние от origin до ближайшей поверхности модели по лучу или null.
+    // Описанная сфера (пересчитывается при смещении модели) отсекает почти все вызовы; внутри — raycast
+    // с временно двусторонними материалами, чтобы внутренние грани тоже считались.
+    _modelRayLimit(model, origin, dir, maxDist) {
+        let c = model.userData._cb;
+        const e = model.matrixWorld.elements;
+        const key = e[12].toFixed(2) + ',' + e[13].toFixed(2) + ',' + e[14].toFixed(2) + ',' + e[0].toFixed(3) + ',' + e[5].toFixed(3);
+        if (!c || c.key !== key) {
+            model.updateWorldMatrix(true, true);
+            const box = new THREE.Box3().setFromObject(model);
+            if (box.isEmpty()) return null;
+            const mats = [];
+            model.traverse((o) => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.push(m)); });
+            c = model.userData._cb = { key, sphere: box.getBoundingSphere(new THREE.Sphere()), mats, ray: new THREE.Raycaster() };
+        }
+        const s = c.sphere;
+        const ox = s.center.x - origin.x, oy = s.center.y - origin.y, oz = s.center.z - origin.z;
+        const tp = Math.max(0, Math.min(maxDist, ox * dir.x + oy * dir.y + oz * dir.z));
+        const px = origin.x + dir.x * tp - s.center.x, py = origin.y + dir.y * tp - s.center.y, pz = origin.z + dir.z * tp - s.center.z;
+        if (px * px + py * py + pz * pz > s.radius * s.radius) return null;
+        c.ray.set(new THREE.Vector3(origin.x, origin.y, origin.z), new THREE.Vector3(dir.x, dir.y, dir.z));
+        c.ray.far = maxDist + 0.5;
+        const saved = c.mats.map(m => m.side);
+        c.mats.forEach(m => { m.side = THREE.DoubleSide; });
+        const hits = c.ray.intersectObject(model, true);
+        c.mats.forEach((m, i) => { m.side = saved[i]; });
+        return hits.length ? hits[0].distance : null;
     }
 
     updateHUD() {

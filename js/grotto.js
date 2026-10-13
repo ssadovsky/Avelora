@@ -114,6 +114,36 @@
             this._backdrop = box;
         }
 
+        // Столкновение камеры: расстояние от головы героя до ближайшей поверхности модели по лучу (или null).
+        // Проверка только вблизи грота (по описанной сфере), поэтому почти бесплатна.
+        rayLimit(origin, dir, maxDist) {
+            if (!this.model) return null;
+            if (!this._sphere) {
+                this.group.updateMatrixWorld(true);
+                const box = new THREE.Box3().setFromObject(this.model);
+                this._sphere = box.getBoundingSphere(new THREE.Sphere());
+                this._ray = new THREE.Raycaster();
+            }
+            const s = this._sphere;
+            // отрезок луча [origin, origin + dir*maxDist] не касается сферы — выходим
+            const ox = s.center.x - origin.x, oy = s.center.y - origin.y, oz = s.center.z - origin.z;
+            const tproj = Math.max(0, Math.min(maxDist, ox * dir.x + oy * dir.y + oz * dir.z));
+            const px = origin.x + dir.x * tproj - s.center.x, py = origin.y + dir.y * tproj - s.center.y, pz = origin.z + dir.z * tproj - s.center.z;
+            if (px * px + py * py + pz * pz > s.radius * s.radius) return null;
+            this._ray.set(new THREE.Vector3(origin.x, origin.y, origin.z), new THREE.Vector3(dir.x, dir.y, dir.z));
+            this._ray.far = maxDist + 0.5;
+            // стены грота изнутри — «задние» грани: на время проверки считаем материалы двусторонними
+            if (!this._mats) {
+                this._mats = [];
+                this.model.traverse((c) => { if (c.isMesh && c.material) (Array.isArray(c.material) ? c.material : [c.material]).forEach((mt) => this._mats.push(mt)); });
+            }
+            const saved = this._mats.map((mt) => mt.side);
+            this._mats.forEach((mt) => { mt.side = THREE.DoubleSide; });
+            const hits = this._ray.intersectObject(this.model, true);
+            this._mats.forEach((mt, i) => { mt.side = saved[i]; });
+            return hits.length ? hits[0].distance : null;
+        }
+
         update(delta) { /* факелов нет */ }
 
         dispose() {
