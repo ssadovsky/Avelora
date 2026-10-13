@@ -268,7 +268,9 @@
                 rec.height = tpl.height;
                 rec.hp = rec.maxHp;
                 rec.x = rec.home.x; rec.z = rec.home.z; rec.yaw = rec.spawn.r || 0;
-                rec.y = this.terrain.getHeightAt(rec.x, rec.z);
+                const baseGroundY = this.terrain.getHeightAt(rec.x, rec.z);
+                rec.y = baseGroundY + (def.flyHeight || 0);
+                rec.hoverT = Math.random() * Math.PI * 2;
                 rec.state = 'idle';
                 rec.timer = 1 + Math.random() * 3;
                 rec.aggro = false; rec.attackT = -1; rec.staggerT = 0; rec.flashT = 0; rec.path = null;
@@ -495,6 +497,18 @@
 
                 if (rec.mixer) rec.mixer.update(delta);
                 this.proceduralPose(rec, delta);
+                if (rec.def.flyHeight) {
+                    const groundY = this.terrain.getHeightAt(rec.x, rec.z);
+                    if (rec.state === 'dead') {
+                        // Smoothly fall down to the ground upon death
+                        const fallProgress = Math.min(1, rec.deadT / 0.6);
+                        rec.y = groundY + rec.def.flyHeight * (1 - fallProgress);
+                    } else {
+                        rec.hoverT = (rec.hoverT || 0) + delta * 3.5;
+                        const hoverBob = Math.sin(rec.hoverT) * 0.12;
+                        rec.y = groundY + rec.def.flyHeight + hoverBob;
+                    }
+                }
                 rec.group.position.set(rec.x, rec.y, rec.z);
                 rec.group.rotation.y = rec.yaw;
                 if (rec.def.tiltSpan && rec.state !== 'dead') this.alignToTerrain(rec, delta);

@@ -1057,6 +1057,36 @@ window.GAME_CONTENT = {
    "level": 7,
    "modelKey": "creatures/bear"
   },
+  "bee": {
+   "id": "bee",
+   "name": "Лесная пчела",
+   "hp": 25,
+   "damage": [
+    2,
+    5
+   ],
+   "attackRange": 0.8,
+   "attackCooldown": 1.0,
+   "walkSpeed": 1.2,
+   "runSpeed": 3.8,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 16,
+   "wanderRadius": 6,
+   "respawnMinutes": 4,
+   "hitRadius": 0.6,
+   "scale": 1.0,
+   "flyHeight": 1.3,
+   "drops": [
+    {
+     "item": "meat",
+     "count": 1
+    }
+   ],
+   "xp": 12,
+   "level": 2,
+   "modelKey": "creatures/bee"
+  },
   "boar": {
    "id": "boar",
    "name": "Вепрь",
