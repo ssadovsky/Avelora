@@ -2288,7 +2288,7 @@ class AveloraGame {
             this.grottos.forEach(g => g.update(delta));
         }
         if (this.dungeon) {
-            this.dungeon.update(delta, this.gameTime);
+            this.dungeon.update(delta, this.gameTime, this.character ? this.character.position : null);
         }
         if (this.environment) {
             this.environment.update(delta, this.character ? this.character.position : null);

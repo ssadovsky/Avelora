@@ -478,19 +478,20 @@
             this.group.add(key);
 
             // 3.1 Пол в проёме арки (между краем пещеры и склепом)
-            const stripGeo = new THREE.PlaneGeometry(3.0, 0.95);
+            const stripGeo = new THREE.PlaneGeometry(3.0, 0.85);
             stripGeo.rotateX(-Math.PI / 2);
             this.geometries.push(stripGeo);
             const strip = new THREE.Mesh(stripGeo, this.floorMat);
-            strip.position.set(0, 0.0, this.ZCLIP + 0.375);
+            strip.position.set(0, 0.02, (this.ZCLIP - 0.1 + zStart) * 0.5);
             strip.receiveShadow = true;
             this.group.add(strip);
 
             // 4. Сплошной каменный свод / потолок коридора (монолитный верх над всей галереей)
-            const roofGeo = new THREE.BoxGeometry(width + wallThick * 2, 0.6, length + wallThick * 2);
+            const roofDepth = (zEnd + 0.4) - (zStart - 0.8);     // кончается внутри торцевой стены (иначе мерцает на стене зала)
+            const roofGeo = new THREE.BoxGeometry(width + wallThick * 2, 0.6, roofDepth);
             this.geometries.push(roofGeo);
             const roofMesh = new THREE.Mesh(roofGeo, this.trimMat);
-            roofMesh.position.set(0, height + 0.3, zCenter);
+            roofMesh.position.set(0, height + 0.3, (zStart - 0.8) + roofDepth * 0.5);
             roofMesh.castShadow = true;
             roofMesh.receiveShadow = true;
             this.group.add(roofMesh);
@@ -498,12 +499,13 @@
             // 4.1 Внешний защитный кожух (Backdrop shell): темный матовый монолит снаружи стен и потолка
             const shellMat = new THREE.MeshBasicMaterial({ color: 0x050608, side: THREE.BackSide });
             this.materials.push(shellMat);
-            const shellGeo = new THREE.BoxGeometry(width + wallThick * 2 + 0.4, height + 1.2, length + wallThick * 2 + 0.4);
+            const shellDepth = zEnd + 4.5;                       // кожух кончается у торцевой стены, чтобы не торчать в зале
+            const shellGeo = new THREE.BoxGeometry(width + wallThick * 2 + 0.4, height + 1.2, shellDepth);
             this.geometries.push(shellGeo);
             const hiddenFace = new THREE.MeshBasicMaterial({ visible: false });
             this.materials.push(hiddenFace);
-            const shellMesh = new THREE.Mesh(shellGeo, [shellMat, shellMat, shellMat, shellMat, shellMat, hiddenFace]);   // задняя (−z) грань скрыта: из склепа видна пещера
-            shellMesh.position.set(0, height * 0.5 + 0.1, zCenter);
+            const shellMesh = new THREE.Mesh(shellGeo, [shellMat, shellMat, shellMat, shellMat, hiddenFace, hiddenFace]);   // задняя (−z) грань скрыта: из склепа видна пещера
+            shellMesh.position.set(0, height * 0.5 + 0.1, -4.5 + shellDepth * 0.5);
             this.group.add(shellMesh);
 
             // 5. Каменные колонны и стрельчатые арки вдоль коридора
@@ -536,15 +538,117 @@
             });
 
             // 6. Дальний конец коридора (массивная кованая решетка и арка входа в будущий Великий Зал)
-            const endWallGeo = new THREE.BoxGeometry(width + wallThick * 2, height, wallThick);
-            this.geometries.push(endWallGeo);
-            const endWall = new THREE.Mesh(endWallGeo, this.wallMat);
-            endWall.position.set(0, height * 0.5, zEnd + wallThick * 0.5);
-            endWall.castShadow = true;
-            this.group.add(endWall);
+            // Торцевая стена с проёмом 3.0 м (решётка поднимается внутрь перемычки)
+            const hw = width * 0.5 + wallThick;           // 3.2
+            const openW = 1.5, openH = 3.9;
+            const sideW = hw - openW;
+            const endZ = zEnd + wallThick * 0.5;
+            [-1, 1].forEach(sd => {
+                const g = this._wallBox(sideW, height, wallThick);
+                const m = new THREE.Mesh(g, this.wallMat);
+                m.position.set(sd * (openW + sideW * 0.5), height * 0.5, endZ);
+                m.castShadow = true;
+                this.group.add(m);
+            });
+            const lintel = new THREE.Mesh(this._wallBox(openW * 2, height - openH, wallThick), this.wallMat);
+            lintel.position.set(0, openH + (height - openH) * 0.5, endZ);
+            this.group.add(lintel);
 
-            // Кованая железная решетка (Portcullis) в конце коридора
-            this._buildPortcullis(0, zEnd);
+            // Пол в проёме торцевой стены (между коридором и залом)
+            const dfGeo = new THREE.PlaneGeometry(3.2, wallThick);
+            dfGeo.rotateX(-Math.PI / 2);
+            this.geometries.push(dfGeo);
+            const df = new THREE.Mesh(dfGeo, this.floorMat);
+            df.position.set(0, 0.0, endZ);
+            df.receiveShadow = true;
+            this.group.add(df);
+
+            // Кованая железная решётка (Portcullis): поднимается, когда герой подходит
+            this._buildPortcullis(0, endZ);
+
+            // 7. Зал босса за решёткой
+            this._buildBossHall(zEnd + wallThick, height);
+        }
+
+        // Бокс со стенами, UV которых растянуты по размеру (плитка ~3 м), а не на всю грань
+        _wallBox(w, h, d, tile = 3.0) {
+            const g = new THREE.BoxGeometry(w, h, d);
+            const uv = g.attributes.uv;
+            const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];   // px, nx, py, ny, pz, nz
+            for (let f = 0; f < 6; f++) {
+                for (let i = 0; i < 4; i++) {
+                    const k = f * 4 + i;
+                    uv.setXY(k, uv.getX(k) * dims[f][0] / tile * 0.5, uv.getY(k) * dims[f][1] / tile * 0.5);
+                }
+            }
+            this.geometries.push(g);
+            return g;
+        }
+
+        // Квадратный зал босса: каменный пол, деревянные подпорки вдоль стен, жаровни по углам
+        _buildBossHall(z0, height) {
+            const S = 30.0, HX = S / 2, H = 18.0, t = 0.8;
+            const z1 = z0 + S;
+            const zc = z0 + S / 2;
+            this.hall = { z0, z1, hx: HX, H };
+            this.bossSpawn = { x: 0, z: z0 + 20.0 };
+
+            // Пол (плотность плитки как в коридоре)
+            const floorGeo = new THREE.PlaneGeometry(S, S, 12, 12);
+            floorGeo.rotateX(-Math.PI / 2);
+            const fuv = floorGeo.attributes.uv;
+            for (let i = 0; i < fuv.count; i++) fuv.setXY(i, fuv.getX(i) * S / 4.8, fuv.getY(i) * S / 23.5);
+            this.geometries.push(floorGeo);
+            const floor = new THREE.Mesh(floorGeo, this.floorMat);
+            floor.position.set(0, 0, zc);
+            floor.receiveShadow = true;
+            this.group.add(floor);
+
+            // Стены, потолок
+            const mk = (w, h, d, x, y, z, mat) => {
+                const m = new THREE.Mesh(this._wallBox(w, h, d), mat || this.wallMat);
+                m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
+                this.group.add(m);
+            };
+            mk(S + t * 2, H, t, 0, H / 2, z1 + t / 2);                       // дальняя
+            mk(t, H, S + t, -HX - t / 2, H / 2, zc + t / 2 - t / 2 + 0.0);     // левая
+            mk(t, H, S + t, HX + t / 2, H / 2, zc + t / 2 - t / 2 + 0.0);      // правая
+            // передняя стена по бокам от коридора (между x=±3.2 и ±(HX+t))
+            const fw = HX + t - 3.2;
+            [-1, 1].forEach(sd => mk(fw, H, t, sd * (3.2 + fw / 2), H / 2, z0 - t / 2));
+            // верх над коридором и перемычка (коридор ниже зала)
+            mk(6.4, H - height, t, 0, height + (H - height) / 2, z0 - t / 2);
+            mk(S + t * 2, 0.6, S + t * 2, 0, H + 0.3, zc, this.trimMat);        // потолок
+
+            // Стены ровные (без подпорок): по 2 факела на каждой боковой стене
+            this._hallPillarZ = [];
+            [10.0, 20.0].forEach(dz => {
+                this._createWallTorch(-HX + 0.05, 3.2, z0 + dz, 1, 0, false);
+                this._createWallTorch(HX - 0.05, 3.2, z0 + dz, -1, 0, false);
+            });
+
+            // Жаровни по углам арены (с живым светом)
+            this._blockers = [];
+            const stoneGeo = new THREE.CylinderGeometry(0.42, 0.55, 1.0, 10);
+            const bowlGeo = new THREE.CylinderGeometry(0.62, 0.36, 0.34, 12);
+            this.geometries.push(stoneGeo, bowlGeo);
+            [[-10.5, 6.0], [10.5, 6.0], [-10.5, 24.0], [10.5, 24.0]].forEach(([bx, bz], i) => {
+                const g = new THREE.Group();
+                g.position.set(bx, 0, z0 + bz);
+                const ped = new THREE.Mesh(stoneGeo, this.trimMat); ped.position.y = 0.5; g.add(ped);
+                const bowl = new THREE.Mesh(bowlGeo, this.ironMat); bowl.position.y = 1.12; g.add(bowl);
+                if (window.AveloraFire) {
+                    const fire = new window.AveloraFire(g, { y: 1.3, size: 0.9 });
+                    fire.group.position.set(0, 1.3, 0);
+                    this.fires.push(fire);
+                }
+                const L = new THREE.PointLight(0xff8a2a, 2.8, 28.0, 1.6);
+                L.position.set(0, 2.0, 0); g.add(L);
+                this.lights.push({ light: L, baseIntensity: 2.8, seed: 7 + i * 13.7 });
+                this.group.add(g);
+                this._blockers.push([bx, z0 + bz, 0.85]);
+            });
+
         }
 
         _buildPortcullis(x, z) {
@@ -575,6 +679,7 @@
             });
 
             this.group.add(gateGroup);
+            this.gate = gateGroup; this.gateOpen = 0;
         }
 
         _buildTorches() {
@@ -637,6 +742,19 @@
 
         // Проходимо только: внутри пещеры (с запасом от стен), внутри склепа и в проёме арки.
         // Сетку навигации пишем напрямую (всё остальное в локации — камень).
+        _hallWalk(x, z, m) {
+            const h = this.hall;
+            if (!h) return false;
+            if (z < h.z0 - 0.0 + m * 0.2 || z > h.z1 - 0.5 - m * 0.2 || Math.abs(x) > h.hx - 0.5 - m * 0.2) return false;
+            if (Math.abs(x) > h.hx - 1.5) for (let i = 0; i < this._hallPillarZ.length; i++) if (Math.abs(z - this._hallPillarZ[i]) < 0.9 + m * 0.3) return false;
+            for (let i = 0; i < this._blockers.length; i++) { const b = this._blockers[i]; if (Math.hypot(x - b[0], z - b[1]) < b[2] + m * 0.5) return false; }
+            return true;
+        }
+
+        _inDoorway(x, z, ax) {
+            return this.hall && Math.abs(x) <= ax && z > this.ZEND - 0.7 && z < this.hall.z0 + 0.4;
+        }
+
         _corridorWalk(x, z, m) {
             if (z >= this.ZCLIP + 0.75 - 0.05 && z <= this.ZEND - 0.5 - m) {
                 if (Math.abs(x) > 2.05 - m * 0.2) return false;
@@ -652,7 +770,7 @@
 
         _isWalkPoint(x, z) {
             if (Math.abs(x) <= 1.3 && z > this.ZCLIP - 1.3 && z < this.ZCLIP + 0.9) return true;   // проём арки
-            if (this._corridorWalk(x, z, 0.3)) return true;
+            if (this._corridorWalk(x, z, 0.3) || this._hallWalk(x, z, 0.3) || this._inDoorway(x, z, 1.3)) return true;
             const q = this._caveSample(x, z);
             return !!q && q.s < -0.28 && z < this.ZCLIP - 0.9;
         }
@@ -672,6 +790,7 @@
                             && this._isWalkPoint(p.x - ox, p.z + oz) && this._isWalkPoint(p.x + ox, p.z + oz);
                     }
                     // проём арки — всегда проходим для связности
+                    if (!ok && this._inDoorway(p.x, p.z, 1.0)) ok = true;
                     if (!ok && Math.abs(p.x) <= 1.2 && p.z > this.ZCLIP - 1.4 && p.z < this.ZCLIP + 1.3) ok = true;
                     pf.grid[pf.getIndex(gx, gz)] = ok ? 0 : 1;
                 }
@@ -685,6 +804,17 @@
             if (z >= this.ZCLIP + 0.1 && z <= this.ZEND - 0.5 && Math.abs(x) <= 2.05 && y >= 0.6 && y <= 4.9) {
                 if (Math.abs(x) > 1.5 && this._pillarZ) for (let i = 0; i < this._pillarZ.length; i++) if (Math.abs(z - this._pillarZ[i]) < 0.55) return false;
                 return true;
+            }
+            // проём решётки
+            if (this._inDoorway(x, z, 1.3) && y >= 0.6 && y <= 3.9) return true;
+            // зал босса
+            if (this.hall) {
+                const h = this.hall;
+                if (z >= h.z0 + 0.3 && z <= h.z1 - 0.5 && Math.abs(x) <= h.hx - 0.5 && y >= 0.6 && y <= h.H - 0.6) {
+                    if (Math.abs(x) > h.hx - 1.7) for (let i = 0; i < this._hallPillarZ.length; i++) if (Math.abs(z - this._hallPillarZ[i]) < 0.9) return false;
+                    for (let i = 0; i < this._blockers.length; i++) { const b = this._blockers[i]; if (y < 1.7 && Math.hypot(x - b[0], z - b[1]) < b[2] + 0.2) return false; }
+                    return true;
+                }
             }
             // проём арки
             if (Math.abs(x) <= 1.3 && z > this.ZCLIP - 0.2 && z < this.ZCLIP + 0.95 && y >= 0.6 && y <= 3.9) return true;
@@ -739,8 +869,18 @@
             return cam;
         }
 
-        update(delta, time) {
+        update(delta, time, heroPos) {
             if (this.disposed) return;
+
+            // Решётка поднимается, когда герой подходит (и остаётся поднятой, пока он в зале)
+            if (this.gate && heroPos) {
+                const near = Math.abs(heroPos.x) < 5.0 && heroPos.z > this.ZEND - 5.5;
+                const target = near ? 1 : 0;
+                const sp = (target > this.gateOpen ? 1.0 : 0.6) * delta;
+                this.gateOpen += Math.max(-sp, Math.min(sp, target - this.gateOpen));
+                const e = this.gateOpen * this.gateOpen * (3 - 2 * this.gateOpen);
+                this.gate.position.y = e * 4.1;
+            }
 
             // Обновление частиц пламени факелов
             for (let i = 0; i < this.fires.length; i++) {

@@ -703,7 +703,7 @@ window.LOCATIONS = {
         surfaceSpawn: 'fromDungeon',
 
         terrain: {
-            size: 100,
+            size: 130,
             seed: 777,
             biome: 'forest',
             flat: true,
