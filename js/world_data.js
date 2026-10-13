@@ -419,7 +419,10 @@ window.LOCATIONS = {
                 { id: 'tree_showcase_oak_tall', x: -58.0, z: 4.0, s: 1.0, r: 1.2, treeType: 'oak_tall' },
                 { id: 'tree_showcase_elm',      x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' },
                 { id: 'tree_showcase_sakura',   x: -75.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'sakura' },
-                { id: 'tree_showcase_poplar',   x: -56.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'poplar' }
+                { id: 'tree_showcase_poplar',   x: -56.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'poplar' },
+                // Яблоня и Вечнозеленое дерево возле озера
+                { id: 'tree_showcase_apple',     x: -48.0, z: -6.0, s: 1.0, r: 0.7, treeType: 'apple' },
+                { id: 'tree_showcase_evergreen', x: -44.0, z: -16.0, s: 1.0, r: 1.4, treeType: 'evergreen' }
             ],
             // 6 замшелых валунов для добычи камня и железа вдоль тропы под восточными горами к водопаду
             ores: [

@@ -392,7 +392,9 @@ class LakesideEnvironment {
             oak_tall: 'tree_oak_tall',
             elm: 'tree_elm',
             poplar: 'tree_poplar',
-            sakura: 'tree_sakura'
+            sakura: 'tree_sakura',
+            apple: 'tree_apple',
+            evergreen: 'tree_evergreen'
         };
 
         const defaultScales = {
@@ -414,7 +416,9 @@ class LakesideEnvironment {
             oak_tall: 1.0,
             elm: 1.0,
             poplar: 1.0,
-            sakura: 1.0
+            sakura: 1.0,
+            apple: 1.0,
+            evergreen: 1.0
         };
 
         Object.keys(treeGroups).forEach(typeKey => {
@@ -433,7 +437,7 @@ class LakesideEnvironment {
                     if (c.material) {
                         c.material.side = THREE.DoubleSide;
                         const mName = (c.material.name || '').toLowerCase();
-                        if (mName.includes('tree_1') || mName.includes('twig') || mName.includes('leaves') || mName.includes('needle')) {
+                        if (mName.includes('tree_1') || mName.includes('twig') || mName.includes('leaves') || mName.includes('needle') || mName.includes('leaf') || (c.material.alphaTest > 0) || (c.material.map && c.material.map.format === THREE.RGBAFormat)) {
                             c.material.transparent = false;
                             c.material.alphaTest = 0.22;
                             c.material.alphaToCoverage = true;
