@@ -480,6 +480,7 @@
             // 3.1 Пол в проёме арки (между краем пещеры и склепом)
             const stripGeo = new THREE.PlaneGeometry(3.0, 0.85);
             stripGeo.rotateX(-Math.PI / 2);
+            this._scaleFloorUV(stripGeo, 3.0, 0.85);
             this.geometries.push(stripGeo);
             const strip = new THREE.Mesh(stripGeo, this.floorMat);
             strip.position.set(0, 0.02, (this.ZCLIP - 0.1 + zStart) * 0.5);
@@ -557,6 +558,7 @@
             // Пол в проёме торцевой стены (между коридором и залом)
             const dfGeo = new THREE.PlaneGeometry(3.2, wallThick);
             dfGeo.rotateX(-Math.PI / 2);
+            this._scaleFloorUV(dfGeo, 3.2, wallThick);
             this.geometries.push(dfGeo);
             const df = new THREE.Mesh(dfGeo, this.floorMat);
             df.position.set(0, 0.0, endZ);
@@ -568,6 +570,12 @@
 
             // 7. Зал босса за решёткой
             this._buildBossHall(zEnd + wallThick, height);
+        }
+
+        // UV пола: плотность плитки как у пола коридора (4.8 × 23.5 м на всю текстуру)
+        _scaleFloorUV(geo, w, d) {
+            const uv = geo.attributes.uv;
+            for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 4.8, uv.getY(i) * d / 23.5);
         }
 
         // Бокс со стенами, UV которых растянуты по размеру (плитка ~3 м), а не на всю грань
@@ -587,7 +595,7 @@
 
         // Квадратный зал босса: каменный пол, деревянные подпорки вдоль стен, жаровни по углам
         _buildBossHall(z0, height) {
-            const S = 30.0, HX = S / 2, H = 18.0, t = 0.8;
+            const S = 30.0, HX = S / 2, H = 15.0, t = 0.8;
             const z1 = z0 + S;
             const zc = z0 + S / 2;
             this.hall = { z0, z1, hx: HX, H };
@@ -623,8 +631,8 @@
             // Стены ровные (без подпорок): по 2 факела на каждой боковой стене
             this._hallPillarZ = [];
             [10.0, 20.0].forEach(dz => {
-                this._createWallTorch(-HX + 0.05, 3.2, z0 + dz, 1, 0, false);
-                this._createWallTorch(HX - 0.05, 3.2, z0 + dz, -1, 0, false);
+                this._createWallTorch(-HX, 3.2, z0 + dz, 1, 0, false);
+                this._createWallTorch(HX, 3.2, z0 + dz, -1, 0, false);
             });
 
             // Жаровни по углам арены (с живым светом)
@@ -685,7 +693,7 @@
         _buildTorches() {
             // Расстановка парных факелов на стенах
             const torchZs = [2.5, 7.5, 12.5, 17.5];
-            const torchX = 2.15; // отступ от центра к стенам
+            const torchX = 2.4;  // прямо на стене коридора
             const torchY = 2.2;  // комфортная высота на уровне взгляда героя
 
             torchZs.forEach((tz, idx) => {
@@ -699,35 +707,45 @@
             torchGroup.position.set(x, y, z);
             torchGroup.rotation.y = rotY;
 
-            // Кронштейн факела (диагональный металлический держатель)
-            const holderGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.55, 6);
-            holderGeo.rotateZ(dirX * 0.55);
-            this.geometries.push(holderGeo);
-            const holder = new THREE.Mesh(holderGeo, this.ironMat);
-            holder.position.set(dirX * 0.18, 0, 0);
-            torchGroup.add(holder);
-
-            // Чаша факела
-            const cupGeo = new THREE.CylinderGeometry(0.12, 0.06, 0.18, 8);
+            // Настенный светильник: кованая плита вплотную к стене, балка-кронштейн, чаша и деревянная головка факела
+            const plateGeo = new THREE.BoxGeometry(0.2, 0.5, 0.28);
+            this.geometries.push(plateGeo);
+            const plate = new THREE.Mesh(plateGeo, this.ironMat);
+            plate.position.set(0, 0, 0);                       // половина плиты уходит в стену
+            torchGroup.add(plate);
+            const armGeo = new THREE.BoxGeometry(0.34, 0.05, 0.07);
+            this.geometries.push(armGeo);
+            const arm = new THREE.Mesh(armGeo, this.ironMat);
+            arm.position.set(dirX * 0.2, -0.1, 0);
+            torchGroup.add(arm);
+            const braceGeo = new THREE.BoxGeometry(0.3, 0.035, 0.05);
+            this.geometries.push(braceGeo);
+            const brace = new THREE.Mesh(braceGeo, this.ironMat);   // подкос
+            brace.position.set(dirX * 0.17, -0.2, 0);
+            brace.rotation.z = dirX * 0.75;
+            torchGroup.add(brace);
+            const cupGeo = new THREE.CylinderGeometry(0.12, 0.07, 0.2, 8);
             this.geometries.push(cupGeo);
             const cup = new THREE.Mesh(cupGeo, this.ironMat);
-            cup.position.set(dirX * 0.32, 0.22, 0);
+            cup.position.set(dirX * 0.34, -0.02, 0);
             torchGroup.add(cup);
+            const headGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.3, 7);
+            this.geometries.push(headGeo);
+            const head = new THREE.Mesh(headGeo, this.trimMat);
+            head.position.set(dirX * 0.34, 0.14, 0);
+            torchGroup.add(head);
 
             // Живое пламя (AveloraFire)
             if (window.AveloraFire) {
-                const fire = new window.AveloraFire(torchGroup, {
-                    y: 0.24,
-                    size: 0.38
-                });
-                fire.group.position.set(dirX * 0.32, 0.24, 0);
+                const fire = new window.AveloraFire(torchGroup, { y: 0.3, size: 0.38 });
+                fire.group.position.set(dirX * 0.34, 0.3, 0);
                 this.fires.push(fire);
             }
 
             // Динамический точечный источник света
             if (withLight) {
                 const light = new THREE.PointLight(0xff942c, 1.45, 9.5, 2.0);
-                light.position.set(dirX * 0.32, 0.35, 0);
+                light.position.set(dirX * 0.34, 0.5, 0);
                 torchGroup.add(light);
 
                 this.lights.push({
