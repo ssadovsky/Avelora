@@ -363,7 +363,7 @@
                 if (z > this.ZCLIP - 2.0) continue;
                 const smp = this._caveSample(x, z); if (!smp) continue;
                 if (smp.s > -1.2 || smp.C < 5.5) continue;
-                const down = rnd() < 0.7;
+                const down = true;                                 // конусы с пола убраны — остаются только сталактиты на своде
                 const h = 0.6 + rnd() * (down ? 1.8 : 0.9), r = 0.22 + rnd() * 0.34;
                 if (!down && smp.s > -2.2) continue;            // сталагмиты — только вдали от хода
                 const y = down ? smp.C + 0.05 - h * 0.5 + 0.0 : smp.F - 0.05 + h * 0.5;
@@ -410,15 +410,16 @@
 
         _buildPassage() {
             // Размеры коридора
-            const length = 28.0;      // z от -3.5 до +24.5
+            const length = 23.5;      // z от -3.5 до +20.0 (4 секции подпорок)
             const width = 4.8;        // от x = -2.4 до x = +2.4
             const height = 5.4;       // высота стен
             const zStart = -3.5;
-            const zEnd = 24.5;
+            const zEnd = 20.0;
+            this.ZEND = zEnd;
             const zCenter = (zStart + zEnd) * 0.5;
 
             // 1. Каменный пол (строго на Y=0.0 вровень со ступнями героя)
-            const floorGeo = new THREE.PlaneGeometry(width, length, 12, 28);
+            const floorGeo = new THREE.PlaneGeometry(width, length, 12, 24);
             floorGeo.rotateX(-Math.PI / 2);
             const floorMesh = new THREE.Mesh(floorGeo, this.floorMat);
             floorMesh.position.set(0, 0.0, zCenter);
@@ -506,7 +507,8 @@
             this.group.add(shellMesh);
 
             // 5. Каменные колонны и стрельчатые арки вдоль коридора
-            const archSteps = [0.0, 5.0, 10.0, 15.0, 20.0, zEnd];
+            const archSteps = [0.0, 5.0, 10.0, 15.0, zEnd];
+            this._pillarZ = archSteps.slice();
             const pillarGeo = new THREE.BoxGeometry(0.7, height, 0.7);
             const archBeamGeo = new THREE.BoxGeometry(width + 0.2, 0.5, 0.6);
             this.geometries.push(pillarGeo, archBeamGeo);
@@ -577,7 +579,7 @@
 
         _buildTorches() {
             // Расстановка парных факелов на стенах
-            const torchZs = [1.5, 7.5, 13.5, 19.5];
+            const torchZs = [2.5, 7.5, 12.5, 17.5];
             const torchX = 2.15; // отступ от центра к стенам
             const torchY = 2.2;  // комфортная высота на уровне взгляда героя
 
@@ -636,7 +638,15 @@
         // Проходимо только: внутри пещеры (с запасом от стен), внутри склепа и в проёме арки.
         // Сетку навигации пишем напрямую (всё остальное в локации — камень).
         _corridorWalk(x, z, m) {
-            if (z >= this.ZCLIP + 0.75 - 0.05 && z <= 24.0 - m) return Math.abs(x) <= 1.55 - m * 0.2;
+            if (z >= this.ZCLIP + 0.75 - 0.05 && z <= this.ZEND - 0.5 - m) {
+                if (Math.abs(x) > 2.05 - m * 0.2) return false;
+                // деревянные подпорки (x ≈ ±2.15, ширина 0.7): препятствие только у самих подпорок, к стене между ними можно подойти
+                if (Math.abs(x) > 1.55) {
+                    const P = this._pillarZ || [];
+                    for (let i = 0; i < P.length; i++) if (Math.abs(z - P[i]) < 0.7 + m * 0.3) return false;
+                }
+                return true;
+            }
             return false;
         }
 
@@ -672,7 +682,10 @@
         // Точка камеры допустима, если она в пустоте пещеры, в склепе или в проёме арки.
         _camValid(x, y, z) {
             // склеп (внутренняя коробка с запасом от стен и свода)
-            if (z >= this.ZCLIP + 0.1 && z <= 24.0 && Math.abs(x) <= 2.05 && y >= 0.6 && y <= 4.9) return true;
+            if (z >= this.ZCLIP + 0.1 && z <= this.ZEND - 0.5 && Math.abs(x) <= 2.05 && y >= 0.6 && y <= 4.9) {
+                if (Math.abs(x) > 1.5 && this._pillarZ) for (let i = 0; i < this._pillarZ.length; i++) if (Math.abs(z - this._pillarZ[i]) < 0.55) return false;
+                return true;
+            }
             // проём арки
             if (Math.abs(x) <= 1.3 && z > this.ZCLIP - 0.2 && z < this.ZCLIP + 0.95 && y >= 0.6 && y <= 3.9) return true;
             if (z < this.ZCLIP - 0.05) {
