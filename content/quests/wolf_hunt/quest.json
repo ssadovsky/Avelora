@@ -2,7 +2,7 @@
   "id": "wolf_hunt",
   "name": "Серый хищник",
   "giver": "lirael",
-  "requires": "portal_boar",
+  "requires": "boar_hunt",
   "summary": "Выследи и убей серого волка в лесной глуши за озером.",
   "objective": {
     "type": "kill",

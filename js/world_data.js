@@ -297,7 +297,6 @@ window.LOCATIONS = {
         creatures: [
             // Тестовые новые звери: медведь и волк агрессивные, лисы мирные
             { id: 'bear_1', type: 'bear', x: 103.0, z: -60.0, r: 0 },
-            { id: 'wolf_1', type: 'wolf', x: 55.0, z: -60.0, r: 0 },
             // Яша (Sailback Fury): сильнее медведя; пока не агрессивный (behavior: 'retaliate' в content/creatures/yasha)
             { id: 'yasha_1', type: 'yasha', x: 0.0, z: 60.0, r: -2.89 },
             // Громовой Коготь (Thunderclaw): гигантский теропод-босс, мирный пока не ударишь (content/creatures/thunderclaw); в ~31 м от Яши
@@ -338,7 +337,19 @@ window.LOCATIONS = {
             { id: 'badger_14', type: 'badger', x: 51.0, z: 75.8, r: 2.43 },
             { id: 'badger_15', type: 'badger', x: 80.4, z: 63.1, r: 4.51 },
             { id: 'waterfall_fawn', type: 'fawn', x: 110.0, z: 12.0, r: 2.8 },
-            { id: 'portal_boar', type: 'boar', x: -118.0, z: 8.0,  r: 1.57 },
+            // Рунный вепрь-страж у портала в Озёрный край (перенесён из Озёрного края); респавнится как обычный зверь
+            { id: 'portal_rune_boar', type: 'rune_boar', x: -118.0, z: 8.0, r: 1.57 },
+            // 10 обычных вепрей на северо-востоке долины, за лисицами по направлению к медведю (≈ x 38..82, z -62..-32): рассредоточены (≥12 м друг от друга), не вплотную к медведю (квест boar_hunt)
+            { id: 'boar_1', type: 'boar', x: 66.0, z: -58.0, r: 1.20 },
+            { id: 'boar_2', type: 'boar', x: 52.0, z: -62.0, r: 4.00 },
+            { id: 'boar_3', type: 'boar', x: 78.0, z: -48.0, r: 2.50 },
+            { id: 'boar_4', type: 'boar', x: 54.0, z: -48.0, r: 0.60 },
+            { id: 'boar_5', type: 'boar', x: 66.0, z: -44.0, r: 5.10 },
+            { id: 'boar_6', type: 'boar', x: 42.0, z: -56.0, r: 3.30 },
+            { id: 'boar_7', type: 'boar', x: 64.0, z: -32.0, r: 1.90 },
+            { id: 'boar_8', type: 'boar', x: 52.0, z: -36.0, r: 4.40 },
+            { id: 'boar_9', type: 'boar', x: 38.0, z: -44.0, r: 2.80 },
+            { id: 'boar_10', type: 'boar', x: 82.0, z: -62.0, r: 0.30 },
             // Оленёнок перемещён на сушу юго-восточнее пруда (раньше стоял в воде)
             { id: 'stump_fawn',  type: 'fawn', x: 4.0,    z: -7.0,  r: 1.2 },
             // Красная панда за водопадом: танцует 3 танца по очереди, при нападении защищается боксом
@@ -693,9 +704,8 @@ window.LOCATIONS = {
             { id: 'south_forest',     type: 'forest', x: -6.0, z: 50.0,  rx: 32.0, rz: 8.0,  count: 16, seed: 122 }
         ],
 
-        creatures: [
-            { id: 'lake_rune_boar', type: 'rune_boar', x: 25.0, z: 12.0, r: 2.1 }
-        ],
+        // Рунный вепрь переехал к порталу в долине (forestEdge, portal_rune_boar)
+        creatures: [],
 
         // Объекты, расставленные вручную
         decorations: {
