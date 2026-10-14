@@ -201,7 +201,7 @@ window.LOCATIONS = {
             { id: 'south_rim_forest', type: 'forest', x: 0.0,    z: 78.0,  rx: 110.0, rz: 14.0, count: 45, seed: 14 },
             // (восточный горный массив включён в единый северо-восточный бор ниже)
             { id: 'east_south_forest',type: 'forest', x: 116.0,  z: 48.0,  rx: 14.0,  rz: 24.0, count: 18, spacing: 10.0, seed: 16 },
-            { id: 'west_north_forest',type: 'forest', x: -117.0, z: -56.0, rx: 20.0,  rz: 26.0, count: 26, seed: 17, types: ['fir_a', 'fir_b', 'fir_c'] },
+            { id: 'west_north_forest',type: 'forest', x: -115.0, z: -56.0, rx: 24.0,  rz: 31.0, count: 42, seed: 17, types: ['evergreen', 'fir_a', 'evergreen', 'fir_b', 'evergreen', 'fir_c'] },
             { id: 'west_south_forest',type: 'forest', x: -125.0, z: 62.0,  rx: 16.0,  rz: 28.0, count: 20, seed: 18 },
 
             // Лесочек вокруг поляны барсуков (без подлеска — папоротники здесь не растут)
@@ -408,24 +408,17 @@ window.LOCATIONS = {
                 // === ВЫСТАВКА ДЕРЕВЬЕВ У ОЗЕРА (~ -65, 20) ===
                 // Центральное эталонное дерево с пышными листьями
                 { id: 'tree_showcase_leaves', x: -65.0, z: 20.0, s: 1.0, r: 0.0, treeType: 'tree' },
-                // Новые деревья без листьев
-                { id: 'tree_showcase_birch', x: -58.0, z: 20.0, s: 1.0, r: 0.8, treeType: 'birch' },
-                { id: 'tree_showcase_sentinel', x: -58.0, z: 12.0, s: 1.0, r: 2.1, treeType: 'sentinel' },
-                { id: 'tree_showcase_twisted', x: -72.0, z: 12.0, s: 1.0, r: 0.5, treeType: 'twisted' },
-                { id: 'tree_showcase_silent', x: -65.0, z: 12.0, s: 1.0, r: 3.0, treeType: 'silent' },
-                { id: 'tree_showcase_winter_a', x: -58.0, z: 28.0, s: 1.0, r: 1.1, treeType: 'winter_a' },
-                { id: 'tree_showcase_winter_b', x: -72.0, z: 28.0, s: 1.0, r: 2.6, treeType: 'winter_b' },
-                { id: 'tree_showcase_winter_solitude', x: -65.0, z: 28.0, s: 1.0, r: 0.4, treeType: 'winter_solitude' },
+                // Безлистное дерево (Withered Sentinel, пересобрано из оригинала 14.10)
+                { id: 'tree_showcase_sentinel', x: -72.0, z: 30.0, s: 2.0, r: 2.1, treeType: 'sentinel' },
 
                 // === НОВЫЕ ДЕРЕВЬЯ С ПЫШНЫМИ РОДНЫМИ ЛИСТЬЯМИ (Poly Haven) ===
-                { id: 'tree_showcase_oak_wide', x: -65.0, z: 4.0, s: 1.0, r: 0.5, treeType: 'oak_wide' },
-                { id: 'tree_showcase_oak_tall', x: -58.0, z: 4.0, s: 1.0, r: 1.2, treeType: 'oak_tall' },
-                { id: 'tree_showcase_elm',      x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' },
+                { id: 'tree_showcase_oak_wide', x: -65.0, z: 4.0, s: 1.5, r: 0.5, treeType: 'oak_wide' },
+                { id: 'tree_showcase_oak_tall', x: -58.0, z: 4.0, s: 1.5, r: 1.2, treeType: 'oak_tall' },
+                { id: 'tree_showcase_elm', x: -72.0, z: 4.0, s: 1.0, r: 2.3, treeType: 'elm' },
                 { id: 'tree_showcase_sakura',   x: -75.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'sakura' },
-                { id: 'tree_showcase_poplar',   x: -56.0, z: -10.0, s: 1.0, r: 0.0, treeType: 'poplar' },
-                // Яблоня и Вечнозеленое дерево возле озера
-                { id: 'tree_showcase_apple',     x: -48.0, z: -6.0, s: 1.0, r: 0.7, treeType: 'apple' },
-                { id: 'tree_showcase_evergreen', x: -44.0, z: -16.0, s: 1.0, r: 1.4, treeType: 'evergreen' }
+                { id: 'tree_showcase_poplar',   x: -56.0, z: -10.0, s: 1.5, r: 0.0, treeType: 'poplar' },
+                // Яблоня возле озера (вечнозелёное дерево перенесено в северо-западный ельник)
+                { id: 'tree_showcase_apple',     x: -48.0, z: -6.0, s: 1.0, r: 0.7, treeType: 'apple' }
             ],
             // 6 замшелых валунов для добычи камня и железа вдоль тропы под восточными горами к водопаду
             ores: [
