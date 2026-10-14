@@ -42,6 +42,7 @@
         const cd = `Перезарядка ${def.cooldown || 0} с`;
         const mana = def.mana ? ` · Мана ${def.mana}` : '';
         if (def.type === 'teleport') return `Каст ${def.castTime || 0} с · ${cd}`;
+        if (def.type === 'nova') return `${cd} · Радиус ${(def.vfx && def.vfx.impactRadius) || 0} м` + mana;
         if (def.type === 'buff') return cd + (def.buff && def.buff.duration ? ` · Длительность ${def.buff.duration} с` : '') + mana;
         return `${cd} · Дальность ${def.range || 0} м` + mana;
     }

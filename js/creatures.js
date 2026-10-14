@@ -529,6 +529,7 @@
             const reach = (def.attackRange || 0.8) + (def.hitRadius || 0.4) + PLAYER_RADIUS;
             rec.speed = 0;
             if (rec.staggerT > 0) rec.staggerT = Math.max(0, rec.staggerT - dt);
+            if (rec.kbT > 0) { this.stepKnockback(rec, dt); return; }   // being pushed back: no AI until it ends
 
             // Attack in progress: runs to completion (the hit lands at hitAt)
             if (rec.attackT >= 0) {
@@ -869,6 +870,39 @@
             });
         }
 
+        /**
+         * Knockback (skill.json `knockback: {distance, duration}`): pushes the creature away from (fromX, fromZ)
+         * with a velocity that decays to 0 over `duration`. creature.json `knockbackResist` 0..1 shortens it
+         * (1 = immune). Cuts a running attack; walls / water stop the slide (see stepKnockback).
+         */
+        knockback(rec, fromX, fromZ, kb) {
+            if (!kb || !this.isAlive(rec)) return;
+            const resist = Math.max(0, Math.min(1, rec.def.knockbackResist || 0));
+            const dist = (kb.distance || 0) * (1 - resist);
+            if (!(dist > 0.05)) return;
+            let dx = rec.x - fromX, dz = rec.z - fromZ, d = Math.hypot(dx, dz);
+            if (d < 0.05) { const a = Math.random() * Math.PI * 2; dx = Math.cos(a); dz = Math.sin(a); d = 1; }
+            const dur = Math.max(0.1, kb.duration || 0.35);
+            rec.kbDx = dx / d; rec.kbDz = dz / d;
+            rec.kbT = rec.kbDur = dur;
+            rec.kbV0 = 2 * dist / dur;          // linear slow-down: travelled distance = v0 * dur / 2
+            rec.attackT = -1; rec.path = null; rec.lastPath = -99;
+            rec.staggerT = Math.max(rec.staggerT, dur + 0.15);
+            if (this.hasClip(rec, 'Hit')) this.play(rec, 'Hit', 0.06, true);
+        }
+
+        stepKnockback(rec, dt) {
+            const t0 = rec.kbT;
+            rec.kbT = Math.max(0, t0 - dt);
+            const step = rec.kbV0 * ((t0 + rec.kbT) * 0.5 / rec.kbDur) * Math.min(dt, t0);   // trapezoid: exact total distance
+            const nx = rec.x + rec.kbDx * step, nz = rec.z + rec.kbDz * step;
+            if (this.isWalkable(nx, nz) || !this.isWalkable(rec.x, rec.z)) { rec.x = nx; rec.z = nz; }   // standing on a blocked nav cell (tree margin): do not get stuck
+            else if (this.isWalkable(nx, rec.z)) rec.x = nx;      // slide along a wall
+            else if (this.isWalkable(rec.x, nz)) rec.z = nz;
+            else rec.kbT = 0;                                     // blocked
+            rec.y = this.terrain.getHeightAt(rec.x, rec.z);
+        }
+
         /** Spark impact hook (window 'game:skillImpact'): damage every creature whose body is within the radius. */
         applySplash(detail) {
             if (!detail || !detail.point || !(detail.amount > 0) || this.disposed) return;
@@ -877,7 +911,10 @@
                 const rec = this.list[i];
                 if (!this.isAlive(rec)) continue;
                 const d = Math.hypot(rec.x - pt.x, rec.z - pt.z) - (rec.def.hitRadius || 0.4);
-                if (d <= R && pt.y <= rec.y + rec.height + R) this.damage(rec, detail.amount, 'spark');
+                if (d <= R && pt.y <= rec.y + rec.height + R) {
+                    const dealt = this.damage(rec, detail.amount, 'spark');
+                    if (dealt > 0 && detail.knockback) this.knockback(rec, pt.x, pt.z, detail.knockback);
+                }
             }
         }
 

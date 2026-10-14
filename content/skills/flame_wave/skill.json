@@ -1,0 +1,29 @@
+{
+  "id": "flame_wave",
+  "name": "Огненная волна",
+  "description": "Кольцо пламени расходится от мага во все стороны, обжигает всех врагов вокруг и отбрасывает их.",
+  "type": "nova",
+  "cooldown": 7,
+  "castTime": 0.35,
+  "damage": {
+    "min": 22,
+    "max": 32,
+    "type": "fire"
+  },
+  "knockback": {
+    "distance": 8,
+    "duration": 0.6
+  },
+  "vfx": {
+    "color": "#ff7a1a",
+    "core": "#ffd27a",
+    "size": 1.2,
+    "impactSparks": 70,
+    "impactRadius": 5,
+    "nova": true,
+    "arcs": false
+  },
+  "mana": 22,
+  "requiresLevel": 7,
+  "price": 70
+}

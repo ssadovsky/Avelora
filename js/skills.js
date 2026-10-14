@@ -321,6 +321,7 @@
             if (def.type === 'teleport') return this.startTeleport(def);
             if (def.type === 'blink') return this.startBlink(def);
             if (def.type === 'buff') return this.startBuff(def);
+            if (def.type === 'nova') return this.startNova(def);
 
             if (def.type === 'projectile') {
                 const range = (def.range || 12) + 2;
@@ -518,6 +519,43 @@
             c.teleport(nx, nz, Math.atan2(dir.x, dir.z) + Math.PI);
             this.playBurst(def, nx, nz, 'arrival', 1.1, false);
             return 'ok';
+        }
+
+        /**
+         * type "nova" (Огненная волна): a ring of damage around the hero, no target needed.
+         * `castTime` = wind-up (hero stops, cast pose), then the burst: every creature within vfx.impactRadius
+         * takes the rolled damage (game:skillImpact, same hook as projectiles). No knockback yet.
+         */
+        startNova(def) {
+            const g = this.game, c = g.character;
+            if (!c || !g.terrain || !g.hero || !g.hero.state) return 'unavailable';
+            if (!this.payMana(def)) return 'mana';
+            if (c.isMoving) c.stopMovement();
+            if (g.worldObjects) g.worldObjects.cancelPending();
+            this.startCooldown(def);
+            const castDur = Math.max(0, def.castTime || 0);
+            this.casting = { def, target: null, nova: true, t: castDur };
+            this.ensureResources();
+            if (c.playCast) c.playCast(castDur || 0.6);
+            else c.startSwing(castDur || 0.6);
+            return 'ok';
+        }
+
+        fireNova(def) {
+            const g = this.game, c = g.character;
+            if (!c || (g.combat && g.combat.isDead)) return;
+            const vfx = def.vfx || {};
+            const pos = this._v1.set(c.position.x, c.position.y + 0.05, c.position.z);
+            this._novaColor = this._novaColor || new THREE.Color();
+            this._novaColor.set(vfx.color || '#ff7a1a');
+            this.ensureResources();
+            this.spawnImpact(def, pos, this._novaColor, true);
+            const dmg = def.damage || null;
+            const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
+                ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (g.hero ? g.hero.skillMult(def) : 1))) : 0;
+            window.dispatchEvent(new CustomEvent('game:skillImpact', {
+                detail: { skillId: def.id, point: { x: pos.x, y: pos.y, z: pos.z }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null }
+            }));
         }
 
         // Translucent bubble around the hero while an effect with `shield: true` is active
@@ -806,6 +844,19 @@
 
             // Sparks burst: mostly up and outward, biased away from the incoming direction
             const count = Math.max(0, vfx.impactSparks | 0);
+            if (vfx.nova) {
+                // Ring wave: no flash over the caster, sparks fly flat outward and reach the radius together with the ground ring
+                m.flash.visible = m.bloom.visible = m.arcs.visible = false;
+                const NR = vfx.impactRadius || 5, life = 0.6;
+                for (let i = 0; i < count; i++) {
+                    const a = (i / count) * Math.PI * 2 + Math.random() * 0.12;
+                    const sp = (NR / life) * (0.85 + Math.random() * 0.3);
+                    this.addSpark(point.x, point.y + 0.15, point.z,
+                        Math.cos(a) * sp, 0.5 + Math.random() * 1.3, Math.sin(a) * sp,
+                        life * (0.8 + Math.random() * 0.4), 0.11 + Math.random() * 0.1, color, 0.2);
+                }
+                return;
+            }
             for (let i = 0; i < count; i++) {
                 const a = Math.random() * Math.PI * 2;
                 const up = onGround ? 0.35 + Math.random() * 0.9 : Math.random() * 2 - 1;
@@ -840,7 +891,10 @@
                 if (this.casting.t <= 0) {
                     const cst = this.casting;
                     this.casting = null;
-                    if (this.game.character && this.game.terrain) this.spawnProjectile(cst.def, cst.target);
+                    if (this.game.character && this.game.terrain) {
+                        if (cst.nova) this.fireNova(cst.def);
+                        else this.spawnProjectile(cst.def, cst.target);
+                    }
                 }
             }
 
@@ -986,7 +1040,7 @@
                     skillId: def.id,
                     point: { x: p.pos.x, y: p.pos.y, z: p.pos.z },
                     radius: (def.vfx && def.vfx.impactRadius) || 1,
-                    damage: dmg, amount
+                    damage: dmg, amount, knockback: def.knockback || null
                 }
             }));
         }
@@ -995,6 +1049,7 @@
             m.age += delta;
             const vfx = m.def.vfx || {};
             const R = vfx.impactRadius || 1.4;
+            const nova = !!vfx.nova;   // ring wave: no flash/bloom/decal over the caster, slower ring
             const size = vfx.size || 0.55;
             const a = m.age;
             if (a >= IMPACT_LIFE) {
@@ -1004,17 +1059,17 @@
             }
             // Flash: fast expand, fade by 0.25 s
             const fT = Math.min(1, a / 0.25);
-            m.flash.visible = fT < 1;
+            m.flash.visible = !nova && fT < 1;
             m.flash.scale.setScalar(size * (1.6 + 5.6 * (1 - (1 - fT) * (1 - fT))));
             m.flash.material.opacity = (1 - fT) * (1 - fT);
             // Colored bloom: slightly slower
             const bT = Math.min(1, a / 0.35);
-            m.bloom.visible = bT < 1;
+            m.bloom.visible = !nova && bT < 1;
             m.bloom.scale.setScalar(R * (1.2 + 1.4 * bT));
             m.bloom.material.opacity = 0.7 * (1 - bT);
             // Ground ring: expands to impactRadius, fades out
             if (m.onGround) {
-                const rT = Math.min(1, a / 0.45);
+                const rT = Math.min(1, a / (nova ? 0.6 : 0.45));
                 const ease = 1 - Math.pow(1 - rT, 3);
                 const d = 2 * R * (0.15 + 0.85 * ease);
                 m.ring.scale.set(d, 1, d);
@@ -1023,11 +1078,11 @@
                 const gT = Math.min(1, a / 0.65);
                 m.decal.scale.set(R * 2.6, 1, R * 2.6);
                 m.decal.material.opacity = 0.75 * (1 - gT) * (1 - gT);
-                m.decal.visible = gT < 1;
+                m.decal.visible = !nova && gT < 1;
                 // Scorch: appears instantly, lingers, then fades over the rest of IMPACT_LIFE
                 const sT = a / IMPACT_LIFE;
                 m.scorch.scale.set(R * 2.1, 1, R * 2.1);
-                m.scorch.material.opacity = 0.62 * Math.min(1, (1 - sT) * 2.2);
+                m.scorch.material.opacity = (nova ? 0.3 : 0.62) * Math.min(1, (1 - sT) * 2.2);
             }
             // Short lightning arcs, re-jittered while they last
             if (a < 0.2) {

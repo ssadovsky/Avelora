@@ -131,6 +131,20 @@ content/
 после касания пальцем или если под курсором нет земли — прямо вперёд на всю
 дальность. Снаряд разбивается о землю, деревья, валуны, кусты и props.
 
+## Типы навыков (`type`) и общие поля
+
+| `type` | Что делает | Особые поля |
+|---|---|---|
+| `projectile` | снаряд в цель | `range`, `speed`, `castTime`, `damage`, `vfx.*` |
+| `teleport` | канал + переход в другую локацию (возврат домой) | `castTime`, `destination` |
+| `blink` | мгновенный прыжок вперёд (куда смотрит герой, не к курсору), останавливается перед препятствием | `range`, `minRange`, `mana` |
+| `buff` | временный эффект на герое (иконка под полоской маны) | `buff: {id, kind, duration, manaPerDamage, shield}` — щит маны; повторное нажатие снимает |
+| `nova` | кольцо урона вокруг героя, цель не нужна | `castTime`, `damage`, `vfx.impactRadius` = радиус, `vfx.nova: true` |
+
+Общие необязательные поля: `mana`, `cooldown`, `requiresLevel`, `price`.
+`knockback: {"distance": 3, "duration": 0.35}` — отбрасывает поражённых существ (работает у `projectile` и `nova`);
+в `creature.json` поле `knockbackResist` (0..1) укорачивает отброс, 1 = не отбрасывается.
+
 ## characters/<id>/skills.json
 
 ```json
