@@ -5,8 +5,8 @@
   "type": "teleport",
   "destination": "homeCamp",
   "spawn": "default",
-  "cooldown": 30,
-  "castTime": 4,
+  "cooldown": 10,
+  "castTime": 1,
   "vfx": {
     "color": "#ffc94d",
     "core": "#fff3c4",

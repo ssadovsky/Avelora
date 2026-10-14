@@ -37,6 +37,15 @@
         return h % 360;
     }
 
+    /** One-line stats of a skill for the skills panel / tooltip, by skill type. */
+    function skillMeta(def) {
+        const cd = `Перезарядка ${def.cooldown || 0} с`;
+        const mana = def.mana ? ` · Мана ${def.mana}` : '';
+        if (def.type === 'teleport') return `Каст ${def.castTime || 0} с · ${cd}`;
+        if (def.type === 'buff') return cd + (def.buff && def.buff.duration ? ` · Длительность ${def.buff.duration} с` : '') + mana;
+        return `${cd} · Дальность ${def.range || 0} м` + mana;
+    }
+
     /** Icon element for an item/skill def: its icon.png, or a styled first-letter tile. */
     function makeIcon(def) {
         if (def && def.iconData) {
@@ -422,9 +431,7 @@
                 desc.textContent = lab.description || '';
                 const meta = document.createElement('div');
                 meta.className = 'skill-entry-meta';
-                meta.textContent = def.type === 'teleport'
-                    ? `Каст ${def.castTime || 0} с · Перезарядка ${def.cooldown || 0} с`
-                    : `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м` + (def.mana ? ` · Мана ${def.mana}` : '');
+                meta.textContent = skillMeta(def);
                 text.append(name, desc, meta);
                 row.append(iconWrap, text);
                 this.skillsList.appendChild(row);
@@ -1574,7 +1581,7 @@
             let def = null, meta = '';
             if (kind === 'skill') {
                 def = this.game.skills.get(id);
-                if (def) meta = `Перезарядка ${def.cooldown || 0} с · Дальность ${def.range || 0} м` + (def.mana ? ` · Мана ${def.mana}` : '');
+                if (def) meta = skillMeta(def);
             } else {
                 def = window.AveloraItems.get(id);
                 if (def) {

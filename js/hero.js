@@ -53,6 +53,11 @@
             this.xpBar = document.getElementById('xp-bar');
             this.xpFill = document.getElementById('xp-fill');
             this.xpText = document.getElementById('xp-text');
+            // Buffs / debuffs of the player (icons under the mana bar, #status-bar)
+            this.effects = new Map();
+            this.statusBar = document.getElementById('status-bar');
+            this._fxKey = '';
+            this._fxAcc = 0;
             window.addEventListener('game:creatureKilled', (e) => this.onKilled(e.detail));
         }
 
@@ -62,6 +67,7 @@
         /** New character in play (main.js). Full mana, health is set by combat.bindCharacter. */
         bind(state, charConfig) {
             this.state = state;
+            this.clearEffects();
             this.charId = charConfig ? charConfig.id : null;
             this.baseHp = (charConfig && charConfig.maxHp) || 100;
             this.refresh(false);
@@ -240,6 +246,129 @@
                 this.mana = Math.min(this.maxMana, this.mana + this.manaRegen * delta);
                 this.renderBars();
             }
+            if (this.effects.size) this.updateEffects(delta);
+        }
+
+        // -----------------------------------------------------------
+        // Buffs / debuffs (player). Effect = { id, kind:'buff'|'debuff', name, desc, icon, dur, t, ... }
+        // dur 0 = until removed. Extra fields are read by whoever owns the effect
+        // (e.g. manaPerDamage for the mana shield, see absorbDamage()).
+        // The HUD row (#status-bar) is rebuilt only when the set of effects changes;
+        // the timers are refreshed ~4 times a second.
+        // -----------------------------------------------------------
+        addEffect(def) {
+            if (!def || !def.id) return null;
+            const dur = Math.max(0, Number(def.dur) || 0);
+            const e = Object.assign({}, def, { kind: def.kind === 'debuff' ? 'debuff' : 'buff', dur, t: dur });
+            this.effects.set(e.id, e);
+            this.renderEffects(true);
+            return e;
+        }
+
+        hasEffect(id) { return this.effects.has(id); }
+
+        getEffect(id) { return this.effects.get(id) || null; }
+
+        removeEffect(id) {
+            if (!this.effects.delete(id)) return false;
+            this.renderEffects(true);
+            window.dispatchEvent(new CustomEvent('game:effectEnded', { detail: { id } }));
+            return true;
+        }
+
+        clearEffects() {
+            if (!this.effects || !this.effects.size) return;
+            this.effects.clear();
+            this.renderEffects(true);
+        }
+
+        updateEffects(delta) {
+            let ended = null;
+            this.effects.forEach(e => {
+                if (e.dur > 0) {
+                    e.t -= delta;
+                    if (e.t <= 0) (ended || (ended = [])).push(e.id);
+                }
+            });
+            if (ended) {
+                ended.forEach(id => this.removeEffect(id));
+                return;
+            }
+            this._fxAcc += delta;
+            if (this._fxAcc >= 0.25) { this._fxAcc = 0; this.renderEffects(false); }
+        }
+
+        /**
+         * Mana shield and friends: an effect with `manaPerDamage` turns incoming damage into mana loss.
+         * Returns the damage that still reaches the health bar (0 = fully absorbed).
+         * When the mana runs out the shield breaks and the rest goes through.
+         */
+        absorbDamage(amount) {
+            if (!(amount > 0) || !this.effects.size) return amount;
+            let shield = null;
+            this.effects.forEach(e => { if (!shield && e.manaPerDamage > 0) shield = e; });
+            if (!shield) return amount;
+            const k = shield.manaPerDamage;
+            const need = amount * k;
+            if (this.mana + 1e-6 >= need) {
+                this.mana = Math.max(0, this.mana - need);
+                this.renderBars();
+                return 0;
+            }
+            const covered = this.mana / k;
+            this.mana = 0;
+            this.renderBars();
+            this.removeEffect(shield.id);
+            const ui = this.game.ui;
+            if (ui && ui.floatText) ui.floatText(`${shield.name}: разрушен`, 'warn');
+            return Math.max(0, amount - covered);
+        }
+
+        renderEffects(force) {
+            const bar = this.statusBar;
+            if (!bar) return;
+            const list = Array.from(this.effects.values());
+            const key = list.map(e => e.id).join('|');
+            if (force || key !== this._fxKey) {
+                this._fxKey = key;
+                bar.textContent = '';
+                list.forEach(e => {
+                    const el = document.createElement('div');
+                    el.className = `status-fx ${e.kind}`;
+                    el.dataset.fx = e.id;
+                    if (e.icon) {
+                        const img = document.createElement('img');
+                        img.className = 'status-fx-icon';
+                        img.src = e.icon;
+                        img.alt = '';
+                        img.draggable = false;
+                        el.appendChild(img);
+                    } else {
+                        const g = document.createElement('span');
+                        g.className = 'status-fx-icon status-fx-glyph';
+                        g.textContent = (e.name || e.id).charAt(0).toUpperCase();
+                        el.appendChild(g);
+                    }
+                    const tm = document.createElement('span'); tm.className = 'status-fx-time';
+                    const br = document.createElement('span'); br.className = 'status-fx-bar';
+                    el.append(tm, br);
+                    e._el = el; e._tm = tm; e._br = br; e._shown = '';
+                    bar.appendChild(el);
+                });
+                bar.style.display = list.length ? '' : 'none';
+            }
+            list.forEach(e => {
+                if (!e._el) return;
+                const left = e.dur > 0 ? Math.max(0, e.t) : 0;
+                const txt = e.dur > 0 ? (left >= 60 ? `${Math.ceil(left / 60)}м` : `${Math.ceil(left)}`) : '';
+                if (txt !== e._shown) {
+                    e._shown = txt;
+                    e._tm.textContent = txt;
+                    e._el.title = `${e.name || e.id}${e.desc ? '\n' + e.desc : ''}${e.dur > 0 ? `\nОсталось: ${Math.ceil(left)} с` : ''}`;
+                }
+                if (e._br) e._br.style.width = (e.dur > 0 ? Math.max(0, Math.min(1, left / e.dur)) * 100 : 100).toFixed(0) + '%';
+                e._el.classList.toggle('ending', e.dur > 0 && left <= 5);
+            });
         }
 
         renderBars(force) {

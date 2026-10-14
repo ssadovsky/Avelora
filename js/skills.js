@@ -310,10 +310,17 @@
             if (!def || !g.character || !charCfg || !this.hasSkill(charCfg.id, skillId)) return 'unavailable';
             if (!g.isReady || g.isPaused || g.isTransitioning || !g.terrain) return 'unavailable';
             if (this.casting || this.channel) return 'busy';
+            // Re-using an active buff (mana shield) switches it off — no cost, not blocked by the cooldown
+            if (def.type === 'buff' && def.buff && g.hero && g.hero.removeEffect(def.buff.id || def.id)) {
+                if (g.ui && g.ui.floatText) g.ui.floatText(this.labelOf(def).name + ': снят', 'info');
+                return 'ok';
+            }
             if (this.cooldownRemaining(skillId) > 0) return 'cooldown';
             if (g.combat && g.combat.isDead) return 'unavailable';
 
             if (def.type === 'teleport') return this.startTeleport(def);
+            if (def.type === 'blink') return this.startBlink(def);
+            if (def.type === 'buff') return this.startBuff(def);
 
             if (def.type === 'projectile') {
                 const range = (def.range || 12) + 2;
@@ -434,6 +441,120 @@
             fxSys.start(c.position.x, c.position.z, { mode: 'arrival', duration: 1.8, radius: vfx.radius, color: vfx.color, core: vfx.core });
         }
 
+        // ---------------------------------------------------------------
+        // Self skills: blink (instant jump) and buff (timed effect on the hero, see hero.addEffect)
+        // ---------------------------------------------------------------
+        /** Short rune burst (recall_fx.js) at a point; never blocks anything. */
+        playBurst(def, x, z, mode, duration, follow) {
+            try {
+                const fxSys = this.getRecallFx();
+                if (!fxSys) return;
+                const vfx = def.vfx || {};
+                fxSys.start(x, z, { mode, duration, radius: vfx.radius || 1.2, follow: !!follow, color: vfx.color, core: vfx.core });
+            } catch (e) { console.warn('skill fx', e); }
+        }
+
+        /** Mana is paid only after the skill is certain to happen. Returns false (message shown) when short of mana. */
+        payMana(def) {
+            const g = this.game;
+            if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
+                if (g.ui && g.ui.floatText) g.ui.floatText('Не хватает маны', 'warn');
+                return false;
+            }
+            return true;
+        }
+
+        startBuff(def) {
+            const g = this.game, hero = g.hero, c = g.character;
+            const b = def.buff || {};
+            if (!hero || !hero.state || !c) return 'unavailable';
+            if (!this.payMana(def)) return 'mana';
+            this.startCooldown(def);
+            hero.addEffect({
+                id: b.id || def.id, kind: b.kind || 'buff', name: this.labelOf(def).name, desc: def.description,
+                icon: def.iconData || null, dur: b.duration || 0,
+                manaPerDamage: b.manaPerDamage || 0, shield: !!b.shield, color: (def.vfx && def.vfx.color) || null
+            });
+            this.playBurst(def, c.position.x, c.position.z, 'levelup', 1.1, true);
+            if (g.ui && g.ui.floatText) g.ui.floatText(this.labelOf(def).name, 'info');
+            return 'ok';
+        }
+
+        /**
+         * Blink direction = where the hero faces / walks (never the cursor: a click on the hotbar would aim at the panel).
+         * Heading convention: rotation = atan2(dx, dz) + PI; in first person the camera decides (as in combat.findBestTarget).
+         */
+        blinkDir(range) {
+            const g = this.game, c = g.character;
+            const r = (g.viewMode === 'first') ? g.cameraAngle : c.currentRotation;
+            return { x: -Math.sin(r), z: -Math.cos(r), dist: range };
+        }
+
+        startBlink(def) {
+            const g = this.game, c = g.character, pf = g.pathfinder, p = c.position;
+            if (!g.terrain) return 'unavailable';
+            const range = def.range || 9, minRange = def.minRange || 1.5;
+            const dir = this.blinkDir(range);
+            // Walk the ray in half-cell steps: the jump ends at the last walkable point before water / rocks / walls.
+            const step = 0.5;
+            let best = 0;
+            for (let d = step; ; d += step) {
+                const dd = Math.min(d, dir.dist);
+                if (pf && !pf.isWalkableWorld(p.x + dir.x * dd, p.z + dir.z * dd)) break;
+                best = dd;
+                if (dd >= dir.dist) break;
+            }
+            if (best < minRange) {
+                if (g.ui && g.ui.floatText) g.ui.floatText('Сюда не переместиться', 'warn');
+                return 'blocked';
+            }
+            if (!this.payMana(def)) return 'mana';
+            const nx = p.x + dir.x * best, nz = p.z + dir.z * best;
+            this.startCooldown(def);
+            if (c.isMoving) c.stopMovement();
+            if (g.worldObjects) g.worldObjects.cancelPending();
+            if (g.combat) g.combat.cancel();
+            this.playBurst(def, p.x, p.z, 'arrival', 0.9, false);
+            c.teleport(nx, nz, Math.atan2(dir.x, dir.z) + Math.PI);
+            this.playBurst(def, nx, nz, 'arrival', 1.1, false);
+            return 'ok';
+        }
+
+        // Translucent bubble around the hero while an effect with `shield: true` is active
+        ensureShield() {
+            if (this.shieldMesh) return this.shieldMesh;
+            const mat = new THREE.ShaderMaterial({
+                transparent: true, depthWrite: false,
+                uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color('#5aa9ff') }, uAlpha: { value: 1 } },
+                vertexShader: 'varying vec3 vN; varying vec3 vV; void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+                fragmentShader: 'uniform vec3 uColor; uniform float uTime; uniform float uAlpha; varying vec3 vN; varying vec3 vV; void main() { float f = 1.0 - abs(dot(normalize(vN), normalize(vV))); float rim = pow(f, 2.2); float pulse = 0.85 + 0.15 * sin(uTime * 2.5); gl_FragColor = vec4(mix(uColor, vec3(0.9, 0.96, 1.0), rim * 0.6), (0.10 + 0.55 * rim) * pulse * uAlpha); }'
+            });
+            const m = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mat);
+            m.scale.set(0.85, 1.05, 0.85);
+            m.renderOrder = 20;
+            m.frustumCulled = false;
+            m.visible = false;
+            m.name = 'mana-shield-fx';
+            this.game.scene.add(m);
+            this.shieldMesh = m;
+            return m;
+        }
+
+        updateShieldFx() {
+            const g = this.game, hero = g.hero, c = g.character;
+            let e = null;
+            if (hero && hero.effects && hero.effects.size) hero.effects.forEach(x => { if (x.shield) e = x; });
+            const m = this.shieldMesh;
+            if (!e || !c || (g.combat && g.combat.isDead)) { if (m && m.visible) m.visible = false; return; }
+            const mesh = this.ensureShield();
+            mesh.visible = true;
+            mesh.position.set(c.position.x, c.position.y + 0.98, c.position.z);
+            const u = mesh.material.uniforms;
+            u.uTime.value = g.gameTime;
+            if (mesh.userData.col !== e.color) { mesh.userData.col = e.color; u.uColor.value.set(e.color || '#5aa9ff'); }
+            u.uAlpha.value = (e.dur > 0 && e.t < 4) ? 0.55 + 0.45 * Math.sin(g.gameTime * 10) : 1;   // blinks when about to expire
+        }
+
         startCooldown(def) {
             const cd = Math.max(0, def.cooldown || 0);
             this.readyAt[def.id] = this.game.gameTime + cd;
@@ -477,7 +598,7 @@
 
             // --- Priority 2: creature under the mouse (no selectedTarget) ---
             let creature = null;
-            if (lp && lp.type === 'mouse' && lp.valid && cr) {
+            if (lp && lp.type === 'mouse' && lp.valid && !lp.overUI && cr) {
                 this._mouse.set((lp.x / window.innerWidth) * 2 - 1, -(lp.y / window.innerHeight) * 2 + 1);
                 g.raycaster.setFromCamera(this._mouse, g.camera);
                 creature = cr.pickAt(g.raycaster);
@@ -500,7 +621,7 @@
             }
 
             // --- Priority 3: ground under the mouse ---
-            if (lp && lp.type === 'mouse' && lp.valid && g.terrain && g.terrain.mesh) {
+            if (lp && lp.type === 'mouse' && lp.valid && !lp.overUI && g.terrain && g.terrain.mesh) {
                 this._mouse.set((lp.x / window.innerWidth) * 2 - 1, -(lp.y / window.innerHeight) * 2 + 1);
                 g.raycaster.setFromCamera(this._mouse, g.camera);
                 const hit = g.raycaster.intersectObject(g.terrain.mesh)[0];
@@ -711,6 +832,7 @@
         update(delta) {
             if (this.channel) this.updateChannel(delta);
             if (this.recallFx) this.recallFx.update(delta);
+            this.updateShieldFx();
 
             // Cast in progress: spawn when castTime elapses (game time)
             if (this.casting) {

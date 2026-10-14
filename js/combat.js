@@ -358,6 +358,14 @@
                     return;
                 }
                 amount = Math.max(1, Math.round(amount * (1 - hero.mitigation())));
+                // Mana shield (buff): the rest of the hit is paid with mana
+                const before = amount;
+                amount = Math.round(hero.absorbDamage(amount));
+                if (amount <= 0) {
+                    this.lastCombatAt = g.gameTime;
+                    if (g.ui && g.ui.floatAt && c0) g.ui.floatAt('Поглощено ' + before, 'info', c0.position.x, c0.position.y + 2.0, c0.position.z);
+                    return;
+                }
             }
             this.hp = Math.max(0, this.hp - amount);
             this.lastCombatAt = g.gameTime;
@@ -380,6 +388,7 @@
             this.isDead = true;
             this.hp = 0;
             this.cancel();
+            if (g.hero) g.hero.clearEffects();
             if (g.worldObjects) g.worldObjects.cancelPending();
             if (g.skills) g.skills.casting = null;
             if (g.character) g.character.startDeathFall();

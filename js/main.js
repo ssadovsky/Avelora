@@ -77,7 +77,7 @@ class AveloraGame {
         this.map = null;           // map.js: location mini-map (M key)
         // Last pointer position over the WORLD (not over HUD) — skills aim here.
         // type 'touch' -> skills fire straight ahead instead (see skills.js).
-        this.lastPointer = { x: 0, y: 0, type: 'none', valid: false };
+        this.lastPointer = { x: 0, y: 0, type: 'none', valid: false, overUI: false };   // overUI: cursor is on a HUD element right now (hotbar click) -> no cursor aiming
 
         // Current location
         this.location = null;
@@ -1290,6 +1290,9 @@ class AveloraGame {
                 this.lastPointer.y = e.clientY;
                 this.lastPointer.type = 'mouse';
                 this.lastPointer.valid = true;
+                this.lastPointer.overUI = false;
+            } else {
+                this.lastPointer.overUI = true;
             }
             this.syncMouseButtons(e);
             if (this.isPaused) return;
@@ -1907,7 +1910,7 @@ class AveloraGame {
         document.body.classList.toggle('aim-center', touchAim);   // crosshair is shown only for touch aiming
         if (!touchAim) return;                                    // mouse: the real cursor aims
         const lp = this.lastPointer;
-        lp.x = window.innerWidth / 2; lp.y = window.innerHeight / 2; lp.type = 'mouse'; lp.valid = true;
+        lp.x = window.innerWidth / 2; lp.y = window.innerHeight / 2; lp.type = 'mouse'; lp.valid = true; lp.overUI = false;
         this._hoverT = (this._hoverT || 0) - delta;
         if (this._hoverT <= 0) {
             this._hoverT = 0.1;
