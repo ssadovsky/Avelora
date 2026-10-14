@@ -1580,6 +1580,18 @@
         .tt-req { font-size: 0.78rem; color: #8f9c9a; margin-top: 4px; }
         .tt-req.bad { color: #e0806c; }
         .dlg-empty { color: #7e8a89; font-style: italic; padding: 8px; }
+        /* Quest reward / tools window (dialog.js renderReward) */
+        .dlg-rewards { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+        .dlg-reward-line { font-size: 0.92rem; color: #efcf7a; padding: 3px 6px; }
+        .dlg-reward-line .coin { vertical-align: -3px; }
+        .dlg-note { font-size: 0.8rem; color: #b9ad92; font-style: italic; margin-top: 6px; }
+        .dlg-tag { font-size: 0.72rem; color: #a9d68c; white-space: nowrap; }
+        .dlg-reward-item { cursor: default; }
+        .tt-cmp-head { font-size: 0.74rem; color: #efcf7a; margin-top: 7px; padding-top: 5px; border-top: 1px solid rgba(195, 160, 95, 0.3); }
+        .tt-cmp { font-size: 0.76rem; margin-top: 2px; }
+        .tt-cmp.up { color: #a9d68c; }
+        .tt-cmp.down { color: #e0806c; }
+        .tt-cmp.same { color: #8f9c9a; }
         @media (max-width: 720px) { .dlg-side { flex-basis: 76px; } .dlg-portrait { width: 76px; height: 76px; } }
 
         /* Chest panel (opens left of the bag) */
@@ -3944,3 +3956,6 @@
                 display: flex !important;
             }
         }
+
+/* Единый тонкий скролл в стиле игры (вместо системного с стрелками) */
+* { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transparent; }

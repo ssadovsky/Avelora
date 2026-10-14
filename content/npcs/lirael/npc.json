@@ -77,6 +77,8 @@
   "height": 1.75,
   "quests": [
     "fern_gathering",
+    "log_gathering",
+    "stone_gathering",
     "bee_hunt",
     "rat_hunt",
     "badger_hunt",

@@ -1491,7 +1491,82 @@
             if (def.armor) parts.push(`Броня +${def.armor}`);
             if (def.stats) ['str', 'dex', 'int'].forEach(k => { if (def.stats[k]) parts.push(`${nm[k] || k} +${def.stats[k]}`); });
             if (def.weapon && def.weapon.damage) parts.push(`Урон ${def.weapon.damage[0]}–${def.weapon.damage[1]}`);
+            if (def.weapon && def.weapon.chop > 0) parts.push('Рубит деревья');
+            if (def.weapon && def.weapon.mine > 0) parts.push('Добывает руду');
             return parts.join(' · ');
+        }
+
+        /** Damage multiplier the hero would get from this weapon (stat scaling differs for staff / bow / melee). */
+        weaponMult(w) {
+            const h = this.game.hero;
+            if (!w || !h || !h.state) return 1;
+            if (w.style === 'staff') return h.skillMult({ damage: { type: 'lightning' } });
+            if (w.style === 'bow') return h.skillMult({ damage: { type: 'physical' } });
+            return h.meleeMult(w);
+        }
+
+        /** Rows { cls: 'up'|'down'|'same', text } comparing `def` (candidate) with `cur` (worn in the same slot). */
+        compareRows(def, cur) {
+            const rows = [];
+            const nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+            const fmt = v => String(Math.round(v * 10) / 10);
+            const add = (label, a, b, higherBetter, unit) => {
+                if (!a && !b) return;
+                const d = a - b, same = Math.abs(d) < 1e-9;
+                const cls = same ? 'same' : ((d > 0) === (higherBetter !== false) ? 'up' : 'down');
+                const u = unit || '';
+                rows.push({ cls, text: `${label}: ${fmt(b)}${u} → ${fmt(a)}${u}` + (same ? '' : ` (${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}${u})`) });
+            };
+            add('Броня', def.armor || 0, cur.armor || 0);
+            ['str', 'dex', 'int'].forEach(k => add(nm[k] || k, (def.stats && def.stats[k]) || 0, (cur.stats && cur.stats[k]) || 0));
+            if (def.weapon || cur.weapon) {
+                const eff = w => (w && w.damage) ? (w.damage[0] + w.damage[1]) / 2 * this.weaponMult(w) : 0;
+                add('Средний урон (с характеристиками)', eff(def.weapon), eff(cur.weapon));
+                if (def.weapon && cur.weapon) {
+                    add('Дальность', def.weapon.range || 0, cur.weapon.range || 0, true, ' м');
+                    add('Перезарядка', def.weapon.cooldown || 0, cur.weapon.cooldown || 0, false, ' с');
+                }
+            }
+            return rows;
+        }
+
+        /**
+         * Tooltip of an item with a comparison against what is worn in the same slot
+         * (quest reward / tool windows in dialog.js). Not interactive; hideTooltip() closes it.
+         */
+        showCompareTooltip(el, itemId) {
+            if (!this.tooltip) return;
+            const Items = window.AveloraItems, def = Items.get(itemId), st = this.state;
+            if (!def) return;
+            const t = this.tooltip;
+            t.innerHTML = '';
+            t.classList.remove('warn', 'interactive');
+            const mk = (cls, txt, color) => { const d = document.createElement('div'); d.className = cls; d.textContent = txt; if (color) d.style.color = color; t.appendChild(d); return d; };
+            const SLOT = { right: 'правая рука', head: 'голова', cloak: 'плащ', body: 'тело', hands: 'руки', ring: 'кольцо', feet: 'ноги' };
+            const equippable = Items.isEquippable(itemId);
+            mk('tt-name', def.name);
+            mk('tt-desc', def.description || '');
+            mk('tt-meta', equippable ? `снаряжение · ${SLOT[Items.equipSlot(itemId)] || ''}` : (def.use ? 'действие' : 'материал'));
+            const sl = this.itemStatsLine(def);
+            if (sl) mk('tt-req', sl, '#a9d68c');
+            if (def.requires) {
+                const rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+                const parts = [];
+                if (rq.level) parts.push(`${rq.level}-й уровень`);
+                ['str', 'dex', 'int'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
+                mk('tt-req' + (this.unmetRequirement(def) ? ' bad' : ''), 'Требуется: ' + parts.join(', '));
+            }
+            if (equippable && st) {
+                const slot = Items.equipSlot(itemId), curId = st.equipped[slot];
+                if (curId === itemId) mk('tt-cmp-head', 'Сейчас надето');
+                else if (!curId) mk('tt-cmp-head', 'Слот свободен — это будет первая вещь');
+                else {
+                    const cur = Items.get(curId);
+                    mk('tt-cmp-head', `Сейчас надето: ${cur ? cur.name : curId}`);
+                    if (cur) this.compareRows(def, cur).forEach(r => mk('tt-cmp ' + r.cls, r.text));
+                }
+            }
+            this.placeTooltip(el);
         }
 
         /** Bag -> right hand. Returns true on success. */

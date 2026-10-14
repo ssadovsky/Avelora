@@ -467,7 +467,8 @@ class LakesideEnvironment {
                 // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
                 list.forEach(p => {
                     const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : (typeKey === 'tree' ? 0.22 : 0.35)));
-                    this.pathfinder.addObstacle(p.x, p.z, r * (p.s || 1.0));
+                    // Навигационная сетка 0.75 м: радиус < ~0.4 м может не накрыть ни одной клетки, и дерево превращается в «камыш» (проходимо). Минимум 0.55.
+                    this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, r * (p.s || 1.0)));
                 });
             });
         });

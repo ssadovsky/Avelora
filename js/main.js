@@ -1836,10 +1836,11 @@ class AveloraGame {
         const knob = document.getElementById('joy-knob');
         if (!zone || !base || !knob) return;
         const checkTouch = () => {
-            if ((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
-                'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || window.innerWidth <= 840) {
-                document.body.classList.add('touch-ui');
-            }
+            // Класс ставится и СНИМАЕТСЯ по текущим условиям: при сужении окна <= 840 включается мобильный HUD,
+            // при расширении обратно (на устройстве без касаний) возвращается десктопный.
+            const hwTouch = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+                'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || this.inputTouch;
+            document.body.classList.toggle('touch-ui', !!(hwTouch || window.innerWidth <= 840));
         };
         checkTouch();
         window.addEventListener('resize', checkTouch);

@@ -33,7 +33,8 @@
             this.panel = document.getElementById('dialog-panel');
             this.npc = null;
             this.nodeId = null;
-            this.mode = 'talk';      // 'talk' | 'buy' | 'sell'
+            this.mode = 'talk';      // 'talk' | 'buy' | 'sell' | 'teach' | 'reward' (quest tools / reward window)
+            this.reward = null;      // { text, gold, xp, items: [{item, count, tag}], note } while mode === 'reward'
             if (this.panel) {
                 this.portrait = this.panel.querySelector('.dlg-portrait');
                 this.nameEl = this.panel.querySelector('.dlg-name');
@@ -57,7 +58,7 @@
 
         get state() { return this.game.gameState; }
         isOpen() { return !!this.npc; }
-        isShopOpen() { return !!this.npc && this.mode !== 'talk' && !!(this.npc.shop && this.npc.shop.sell); }
+        isShopOpen() { return !!this.npc && this.mode !== 'talk' && this.mode !== 'reward' && !!(this.npc.shop && this.npc.shop.sell); }
 
         /** Price this NPC pays for one piece of an item (0 = not for sale). */
         sellPriceOf(itemId) {
@@ -101,6 +102,8 @@
         close() {
             this.npc = null;
             this.mode = 'talk';
+            this.reward = null;
+            if (this.ui && this.ui.hideTooltip) this.ui.hideTooltip();
             this.nodeId = null;
             if (this.panel) {
                 if (document.activeElement && this.panel.contains(document.activeElement)) {
@@ -130,9 +133,10 @@
             if (!this.npc || !this.body) return;
             this.body.innerHTML = '';
             if (this.panel) {
-                this.panel.classList.toggle('shop-mode', this.mode !== 'talk');
+                this.panel.classList.toggle('shop-mode', this.mode !== 'talk' && this.mode !== 'reward');
             }
             if (this.mode === 'talk') this.renderTalk();
+            else if (this.mode === 'reward') this.renderReward();
             else if (this.mode === 'teach') this.renderTeach();
             else this.renderShop();
         }
@@ -245,7 +249,7 @@
             const q = this.questDef(id), st = this.state;
             if (!q || !st) return { text: '…', options: [{ text: 'Назад', next: 'start' }] };
             const status = st.questStatus(id), d = q.dialog || {};
-            if (!status) return { text: d.offer, options: [{ text: d.accept, action: 'questAccept', quest: id }, { text: d.decline || 'Позже', next: 'start' }] };
+            if (!status) return { text: d.offer, items: this.questTools(q).length ? { label: d.toolsOffer || 'Для этого задания тебе дадут инструмент:', list: this.questTools(q).map(t => ({ item: t.item, count: t.count || 1 })) } : null, options: [{ text: d.accept, action: 'questAccept', quest: id }, { text: d.decline || 'Позже', next: 'start' }] };
             const p = this.questProgress(q);
             if (status === 'active' && p.ready) return { text: d.ready || d.progress, options: [{ text: d.turnIn || 'Сдать', action: 'questTurnIn', quest: id }, { text: 'Назад', next: 'start' }] };
             if (status === 'active') return { text: d.progress, options: [{ text: 'Назад', next: 'start' }] };
@@ -272,6 +276,16 @@
             text.className = 'dlg-text';
             text.textContent = node ? node.text : '…';
             this.body.appendChild(text);
+            if (node && node.items && node.items.list && node.items.list.length) {
+                const lab = document.createElement('div');
+                lab.className = 'dlg-note';
+                lab.textContent = node.items.label;
+                this.body.appendChild(lab);
+                const box = document.createElement('div');
+                box.className = 'dlg-rewards';
+                node.items.list.forEach(it => box.appendChild(this.itemRowEl(it.item, { count: it.count, equip: false })));
+                this.body.appendChild(box);
+            }
             const opts = document.createElement('div');
             opts.className = 'dlg-options';
             ((node && node.options) || [{ text: 'До встречи', action: 'close' }]).forEach(o => {
@@ -289,7 +303,20 @@
             if (o.action === 'close') {
                 this.close();
             } else if (o.action === 'questAccept') {
-                if (this.state.startQuest(o.quest)) this.ui.floatText('Новое задание', 'good');
+                const aq = this.questDef(o.quest);
+                if (this.state.startQuest(o.quest)) {
+                    this.ui.floatText('Новое задание', 'good');
+                    // Tools the quest hands out (axe for logs, pickaxe for ore): given now, shown in a window with "Надеть"
+                    const tools = aq ? this.questTools(aq) : [];
+                    if (tools.length) {
+                        const given = this.grantItems(tools);
+                        const ad = (aq && aq.dialog) || {};
+                        this.reward = { text: ad.tools || 'Держи инструмент для этой работы:', gold: 0, xp: 0, items: given.map(g => ({ item: g.item, count: g.count })), note: '' };
+                        this.mode = 'reward';
+                        this.render();
+                        return;
+                    }
+                }
                 this.nodeId = this.npc.start || 'start';
                 this.render();
             } else if (o.action === 'questTurnIn') {
@@ -298,9 +325,16 @@
                     if (q.objective.type === 'collect') st.inventory.remove(q.objective.item, q.objective.count);
                     if (q.reward && q.reward.gold) st.addGold(q.reward.gold);
                     if (q.reward && q.reward.xp && this.game.hero) this.game.hero.addXp(q.reward.xp);
-                    this.giveClassRewards(q);
+                    const gave = this.giveClassRewards(q).concat(q.reward && q.reward.items ? this.grantItems(q.reward.items) : []);
                     st.completeQuest(o.quest);
                     this.ui.floatText('Задание выполнено' + (q.reward && q.reward.gold ? ` · +${q.reward.gold} зол.` : ''), 'good');
+                    // Reward window: gold, xp, items with "Надеть" and a comparison tooltip; tools stay with the hero
+                    const qd = q.dialog || {};
+                    const kept = (q.tools || []).filter(t => t && t.item && st.ownedCount(t.item) > 0).map(t => ({ item: t.item, count: 1, tag: 'остаётся у тебя' }));
+                    this.reward = { text: qd.reward || `Награда за задание «${q.name}»:`, gold: (q.reward && q.reward.gold) || 0, xp: (q.reward && q.reward.xp) || 0, items: gave.map(g => ({ item: g.item, count: g.count })).concat(kept), note: qd.keep || '' };
+                    this.mode = 'reward';
+                    this.render();
+                    return;
                 }
                 this.nodeId = this.npc.start || 'start';
                 this.render();
@@ -320,11 +354,24 @@
         /** reward.classItems = { <characterId>: [{item, count}] } — e.g. the first weapon (staff for the mage, bow for the archer). */
         giveClassRewards(q) {
             const ci = q.reward && q.reward.classItems;
-            const cfg = this.game.currentCharacterConfig, st = this.state;
+            const cfg = this.game.currentCharacterConfig;
             const list = ci && cfg && ci[cfg.id];
-            if (!list || !st || !st.inventory) return;
+            return list ? this.grantItems(list) : [];
+        }
+
+        /** Item ids of q.tools the hero does not own yet: shown in the offer, handed out on accept. */
+        questTools(q) {
+            const st = this.state;
+            return ((q && q.tools) || []).filter(t => t && t.item && window.AveloraItems.get(t.item) && !(st && st.ownedCount(t.item) > 0));
+        }
+
+        /** Puts [{item, count}] into the bag (the rest drops at the hero's feet). Returns what was handed out. */
+        grantItems(list) {
+            const st = this.state, given = [];
+            if (!list || !st || !st.inventory) return given;
             const defs = window.AveloraItems;
             list.forEach(r => {
+                given.push({ item: r.item, count: r.count || 1 });
                 const added = st.inventory.add(r.item, r.count || 1);
                 const def = defs ? defs.get(r.item) : null;
                 const name = def ? def.name : r.item;
@@ -335,6 +382,92 @@
                     this.ui.floatText('Сумка полна — награда брошена на землю', 'warn', 0.8);
                 }
             });
+            return given;
+        }
+
+        /** One item line (icon, name, stats, optional "Надеть" button); hover / tap shows the comparison tooltip. */
+        itemRowEl(id, opts) {
+            opts = opts || {};
+            const def = window.AveloraItems.get(id), st = this.state, ui = this.ui;
+            const row = document.createElement('div');
+            row.className = 'dlg-row dlg-reward-item';
+            row.appendChild(makeIconEl(def));
+            const n = document.createElement('div');
+            n.className = 'dlg-row-name';
+            const nm = document.createElement('div');
+            nm.textContent = (def ? def.name : id) + (opts.count > 1 ? ` ×${opts.count}` : '');
+            const ds = document.createElement('div');
+            ds.className = 'dlg-row-desc';
+            ds.textContent = (ui && ui.itemStatsLine && def) ? ui.itemStatsLine(def) : '';
+            n.append(nm, ds);
+            row.appendChild(n);
+            if (opts.tag) {
+                const tg = document.createElement('div');
+                tg.className = 'dlg-tag';
+                tg.textContent = opts.tag;
+                row.appendChild(tg);
+            }
+            if (opts.equip && def && def.use && def.use.type === 'equip') {
+                const worn = !!(st && st.equippedSlotOf(id));
+                const have = !!(st && st.inventory.count(id) > 0);
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'dlg-buy' + ((worn || !have) ? ' disabled' : '');
+                b.textContent = worn ? 'Надето' : (have ? 'Надеть' : 'Нет в сумке');
+                b.disabled = worn || !have;
+                b.addEventListener('click', (e) => { e.stopPropagation(); if (ui.equip(id)) this.render(); });
+                row.appendChild(b);
+            }
+            if (ui && ui.showCompareTooltip) {
+                row.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') ui.showCompareTooltip(row, id); });
+                row.addEventListener('pointerleave', () => ui.hideTooltip());
+                row.addEventListener('click', (e) => {   // tap (phones): show the card for a few seconds
+                    if (e.target.closest('button')) return;
+                    ui.showCompareTooltip(row, id);
+                    clearTimeout(ui.tooltipTimer);
+                    ui.tooltipTimer = setTimeout(() => ui.hideTooltip(), 5000);
+                });
+            }
+            return row;
+        }
+
+        /** Window shown after accepting a quest with tools, and after turning one in (gold, xp, items). */
+        renderReward() {
+            const r = this.reward || {}, ui = this.ui;
+            if (ui && ui.hideTooltip) ui.hideTooltip();
+            const text = document.createElement('div');
+            text.className = 'dlg-text';
+            text.textContent = r.text || '';
+            this.body.appendChild(text);
+            const box = document.createElement('div');
+            box.className = 'dlg-rewards';
+            const line = (html) => { const d = document.createElement('div'); d.className = 'dlg-reward-line'; d.innerHTML = html; box.appendChild(d); };
+            if (r.gold) line(`<span class="coin"></span> +${r.gold} золота`);
+            if (r.xp) line(`✦ +${r.xp} опыта`);
+            (r.items || []).forEach(it => box.appendChild(this.itemRowEl(it.item, { count: it.count, equip: true, tag: it.tag })));
+            this.body.appendChild(box);
+            if (r.note) {
+                const nt = document.createElement('div');
+                nt.className = 'dlg-note';
+                nt.textContent = r.note;
+                this.body.appendChild(nt);
+            }
+            const opts = document.createElement('div');
+            opts.className = 'dlg-options';
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'dlg-opt';
+            b.textContent = 'Хорошо';
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mode = 'talk';
+                this.reward = null;
+                this.nodeId = this.npc.start || 'start';
+                if (ui && ui.hideTooltip) ui.hideTooltip();
+                this.render();
+            });
+            opts.appendChild(b);
+            this.body.appendChild(opts);
         }
 
         // -----------------------------------------------------------
