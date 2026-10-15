@@ -1358,6 +1358,38 @@ window.GAME_CONTENT = {
    "level": 4,
    "modelKey": "creatures/boar"
   },
+  "cave_lion": {
+   "id": "cave_lion",
+   "name": "Пещерный лев",
+   "hp": 140,
+   "damage": [
+    10,
+    16
+   ],
+   "attackRange": 1.8,
+   "attackCooldown": 1.6,
+   "walkSpeed": 1.4,
+   "runSpeed": 6.5,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 16,
+   "wanderRadius": 6,
+   "respawnMinutes": 6,
+   "hitRadius": 1.4,
+   "scale": 1.0,
+   "gold": [
+    4,
+    8
+   ],
+   "xp": 70,
+   "level": 7,
+   "tiltSpan": [
+    -0.5,
+    0.5,
+    0.2
+   ],
+   "modelKey": "creatures/cave_lion"
+  },
   "dragonfly": {
    "id": "dragonfly",
    "name": "Янтарная стрекоза",
@@ -1511,6 +1543,33 @@ window.GAME_CONTENT = {
    "xp": 8,
    "level": 1
   },
+  "hyena": {
+   "id": "hyena",
+   "name": "Гиена",
+   "hp": 55,
+   "damage": [
+    4,
+    7
+   ],
+   "attackRange": 1.2,
+   "attackCooldown": 1.3,
+   "walkSpeed": 1.2,
+   "runSpeed": 5.5,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 12,
+   "wanderRadius": 5,
+   "respawnMinutes": 4,
+   "hitRadius": 1.0,
+   "scale": 1.0,
+   "gold": [
+    1,
+    3
+   ],
+   "xp": 25,
+   "level": 3,
+   "modelKey": "creatures/hyena"
+  },
   "kobold": {
    "id": "kobold",
    "name": "Кобольд-рудокоп",
@@ -1547,6 +1606,92 @@ window.GAME_CONTENT = {
     100
    ],
    "modelKey": "creatures/kobold"
+  },
+  "komodo": {
+   "id": "komodo",
+   "name": "Варан",
+   "hp": 110,
+   "damage": [
+    8,
+    13
+   ],
+   "attackRange": 1.8,
+   "attackCooldown": 1.5,
+   "walkSpeed": 0.9,
+   "runSpeed": 4.0,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.3,
+   "scale": 1.0,
+   "gold": [
+    3,
+    6
+   ],
+   "xp": 55,
+   "level": 6,
+   "tiltSpan": [
+    -0.35,
+    0.35,
+    0.25
+   ],
+   "modelKey": "creatures/komodo"
+  },
+  "lizard": {
+   "id": "lizard",
+   "name": "Ящер-командир",
+   "hp": 150,
+   "damage": [
+    12,
+    18
+   ],
+   "attackRange": 1.7,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 6,
+   "hitRadius": 1.2,
+   "gold": [
+    5,
+    9
+   ],
+   "xp": 80,
+   "level": 8,
+   "attackCooldown": 1.5,
+   "walkSpeed": 1.2,
+   "runSpeed": 4.8,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/lizard"
+  },
+  "lizard_soldier": {
+   "id": "lizard_soldier",
+   "name": "Ящер-солдат",
+   "hp": 80,
+   "damage": [
+    6,
+    10
+   ],
+   "attackRange": 1.6,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.1,
+   "gold": [
+    2,
+    5
+   ],
+   "xp": 40,
+   "level": 4,
+   "attackCooldown": 1.5,
+   "walkSpeed": 1.2,
+   "runSpeed": 4.8,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/lizard_soldier"
   },
   "minotaur": {
    "id": "minotaur",

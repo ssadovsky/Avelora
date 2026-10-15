@@ -1,0 +1,26 @@
+{
+  "id": "lizard_soldier",
+  "name": "Ящер-солдат",
+  "hp": 80,
+  "damage": [
+    6,
+    10
+  ],
+  "attackRange": 1.6,
+  "leashRadius": 14,
+  "wanderRadius": 5,
+  "respawnMinutes": 5,
+  "hitRadius": 1.1,
+  "gold": [
+    2,
+    5
+  ],
+  "xp": 40,
+  "level": 4,
+  "attackCooldown": 1.5,
+  "walkSpeed": 1.2,
+  "runSpeed": 4.8,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "scale": 1.0
+}
