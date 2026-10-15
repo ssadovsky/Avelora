@@ -554,7 +554,7 @@
             const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
                 ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (g.hero ? g.hero.skillMult(def) : 1))) : 0;
             window.dispatchEvent(new CustomEvent('game:skillImpact', {
-                detail: { skillId: def.id, point: { x: pos.x, y: pos.y, z: pos.z }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null }
+                detail: { skillId: def.id, point: { x: pos.x, y: pos.y, z: pos.z }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null, slow: def.slow || null }
             }));
         }
 
@@ -919,7 +919,7 @@
             const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
                 ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (g.hero ? g.hero.skillMult(def) : 1))) : 0;
             window.dispatchEvent(new CustomEvent('game:skillImpact', {
-                detail: { skillId: def.id, point: { x: m.tx, y: m.ty + 0.05, z: m.tz }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null }
+                detail: { skillId: def.id, point: { x: m.tx, y: m.ty + 0.05, z: m.tz }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null, slow: def.slow || null }
             }));
         }
 
@@ -1150,7 +1150,7 @@
                     skillId: def.id,
                     point: { x: p.pos.x, y: p.pos.y, z: p.pos.z },
                     radius: (def.vfx && def.vfx.impactRadius) || 1,
-                    damage: dmg, amount, knockback: def.knockback || null
+                    damage: dmg, amount, knockback: def.knockback || null, slow: def.slow || null
                 }
             }));
         }

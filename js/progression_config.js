@@ -60,7 +60,7 @@ window.AVELORA_PROGRESSION = {
     },
 
     // Какая характеристика усиливает урон по типу урона навыка
-    damageStat: { physical: 'dex', fire: 'int', lightning: 'int', default: 'int' },
+    damageStat: { physical: 'dex', fire: 'int', ice: 'int', lightning: 'int', default: 'int' },
 
     statNames: { str: 'Сила', dex: 'Ловкость', int: 'Интеллект' }
 };

@@ -1,0 +1,33 @@
+{
+  "id": "ice_arrow",
+  "name": "Ледяная стрела",
+  "description": "Стрела из льда. Ранит цель и сковывает её холодом: враги в радиусе взрыва на несколько секунд двигаются и бьют вдвое медленнее.",
+  "type": "projectile",
+  "category": "attack",
+  "cooldown": 5,
+  "range": 20,
+  "speed": 24,
+  "castTime": 0.35,
+  "damage": {
+    "min": 12,
+    "max": 20,
+    "type": "ice"
+  },
+  "slow": {
+    "factor": 0.5,
+    "duration": 4
+  },
+  "vfx": {
+    "color": "#8fe3ff",
+    "core": "#ffffff",
+    "size": 0.7,
+    "trail": 22,
+    "impactSparks": 44,
+    "impactRadius": 1.9,
+    "filaments": false,
+    "arcs": false
+  },
+  "mana": 16,
+  "requiresLevel": 5,
+  "price": 45
+}

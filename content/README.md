@@ -149,6 +149,10 @@ content/
 `knockback: {"distance": 3, "duration": 0.35}` — отбрасывает поражённых существ (работает у `projectile` и `nova`);
 в `creature.json` поле `knockbackResist` (0..1) укорачивает отброс, 1 = не отбрасывается.
 
+`slow: {"factor": 0.5, "duration": 4}` — замедляет поражённых существ: шаг, анимации и замах атаки идут с долей `factor` скорости 
+на `duration` секунд (у `projectile` и `nova`, только если урон нанесён). Замедленное существо подсвечивается синим. 
+В `creature.json` поле `slowResist` (0..1) ослабляет замедление, 1 = иммунитет. Пример — `ice_arrow`.
+
 ## characters/<id>/skills.json
 
 ```json

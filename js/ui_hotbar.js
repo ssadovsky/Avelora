@@ -45,7 +45,8 @@
         if (def.type === 'nova') return `${cd} · Радиус ${(def.vfx && def.vfx.impactRadius) || 0} м` + mana;
         if (def.type === 'rain') return `${cd} · Дальность ${def.range || 0} м · Радиус ${(def.rain && def.rain.radius) || 0} м` + mana;
         if (def.type === 'buff') return cd + (def.buff && def.buff.duration ? ` · Длительность ${def.buff.duration} с` : '') + mana;
-        return `${cd} · Дальность ${def.range || 0} м` + mana;
+        const slow = (def.slow && def.slow.factor < 1) ? ` · Замедление −${Math.round((1 - def.slow.factor) * 100)} % на ${def.slow.duration} с` : '';
+        return `${cd} · Дальность ${def.range || 0} м` + slow + mana;
     }
 
     /** Icon element for an item/skill def: its icon.png, or a styled first-letter tile. */

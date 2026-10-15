@@ -168,7 +168,7 @@
                 timer: 0, goal: { x: sp.x, z: sp.z }, path: null, pathIdx: 0, lastPath: -99, losT: 0, los: false,
                 pathGoal: { x: NaN, z: NaN },
                 attackT: -1, attackHitDone: false, nextAttack: 0, attackDur: 0.6, hitAt: 0.3,
-                staggerT: 0, lastHitClip: -99, flashT: 0, lastDamaged: -99, aggro: false,
+                staggerT: 0, slowT: 0, slowF: 1, iceOn: false, lastHitClip: -99, flashT: 0, lastDamaged: -99, aggro: false,
                 deadT: 0, growT: 0, speed: 0, moveAnim: 0,
                 hpEl: null, hpFill: null, hpShown: false, hpFrac: -1
             };
@@ -294,7 +294,7 @@
                 rec.hoverT = Math.random() * Math.PI * 2;
                 rec.state = 'idle';
                 rec.timer = 1 + Math.random() * 3;
-                rec.aggro = false; rec.attackT = -1; rec.staggerT = 0; rec.flashT = 0; rec.path = null;
+                rec.aggro = false; rec.attackT = -1; rec.staggerT = 0; rec.flashT = 0; rec.path = null; rec.slowT = 0; rec.iceOn = false;
                 rec.deadT = 0; rec.lastDamaged = -99;
                 rec.growT = grow ? 0 : SPAWN_GROW;
                 group.position.set(rec.x, rec.y, rec.z);
@@ -518,7 +518,27 @@
                     }
                 }
 
-                if (rec.mixer) rec.mixer.update(delta);
+                // Ледяной оттенок, пока существо замедлено (вспышка попадания сильнее и перекрывает его)
+                if (rec.flashT <= 0) {
+                    if (rec.slowT > 0) {
+                        const k = Math.min(1, rec.slowT / 0.6) * 0.6;
+                        for (let j = 0; j < rec.materials.length; j++) {
+                            const m = rec.materials[j];
+                            m.emissive.copy(m.userData.baseEmissive).lerp(AveloraCreatures.ICE_COLOR, k);
+                            m.emissiveIntensity = Math.max(m.userData.baseEmissiveIntensity, k * 1.1);
+                        }
+                        rec.iceOn = true;
+                    } else if (rec.iceOn) {
+                        for (let j = 0; j < rec.materials.length; j++) {
+                            const m = rec.materials[j];
+                            m.emissive.copy(m.userData.baseEmissive);
+                            m.emissiveIntensity = m.userData.baseEmissiveIntensity;
+                        }
+                        rec.iceOn = false;
+                    }
+                }
+
+                if (rec.mixer) rec.mixer.update(delta * (rec.slowT > 0 ? rec.slowF : 1));
                 this.proceduralPose(rec, delta);
                 if (rec.def.flyHeight) {
                     const groundY = this.terrain.getHeightAt(rec.x, rec.z);
@@ -548,6 +568,8 @@
             const leash = rec.rallied ? 400 : (def.leashRadius || 14);   // rallied dungeon mobs chase across the whole dungeon
             const reach = (def.attackRange || 0.8) + (def.hitRadius || 0.4) + PLAYER_RADIUS;
             rec.speed = 0;
+            // Замедление (skill.json `slow`): весь ИИ идёт в slowF раз медленнее — шаг, замах атаки, оглушение (анимации см. mixer.update)
+            if (rec.slowT > 0) { rec.slowT = Math.max(0, rec.slowT - dt); dt *= rec.slowF; }
             if (rec.staggerT > 0) rec.staggerT = Math.max(0, rec.staggerT - dt);
             if (rec.kbT > 0) { this.stepKnockback(rec, dt); return; }   // being pushed back: no AI until it ends
 
@@ -674,7 +696,7 @@
         startAttack(rec, now) {
             rec.attackT = 0;
             rec.attackHitDone = false;
-            rec.nextAttack = now + Math.max(0.4, rec.def.attackCooldown || 1.2);
+            rec.nextAttack = now + Math.max(0.4, rec.def.attackCooldown || 1.2) / (rec.slowT > 0 ? rec.slowF : 1);
             this.play(rec, 'Attack', 0.08, true);
         }
 
@@ -915,6 +937,21 @@
             if (this.hasClip(rec, 'Hit')) this.play(rec, 'Hit', 0.06, true);
         }
 
+        /**
+         * Slow (skill.json `slow: {factor, duration}`): movement, attacks and animations run at `factor` (0.1..1) speed
+         * for `duration` s. creature.json `slowResist` 0..1 weakens it (1 = immune). A stronger/longer slow is not overwritten by a weaker one.
+         */
+        slow(rec, sl) {
+            if (!sl || !this.isAlive(rec)) return;
+            const resist = Math.max(0, Math.min(1, rec.def.slowResist || 0));
+            const f0 = Math.max(0.1, Math.min(1, sl.factor || 0.5));
+            const f = 1 - (1 - f0) * (1 - resist);
+            const dur = Math.max(0, sl.duration || 3) * (1 - resist * 0.5);
+            if (!(dur > 0) || f >= 0.999) return;
+            rec.slowF = rec.slowT > 0 ? Math.min(rec.slowF, f) : f;
+            rec.slowT = Math.max(rec.slowT, dur);
+        }
+
         stepKnockback(rec, dt) {
             const t0 = rec.kbT;
             rec.kbT = Math.max(0, t0 - dt);
@@ -938,6 +975,7 @@
                 if (d <= R && pt.y <= rec.y + rec.height + R) {
                     const dealt = this.damage(rec, detail.amount, 'spark');
                     if (dealt > 0 && detail.knockback) this.knockback(rec, pt.x, pt.z, detail.knockback);
+                    if (dealt > 0 && detail.slow) this.slow(rec, detail.slow);
                 }
             }
         }
@@ -968,6 +1006,7 @@
                 rec.aggro = false;
                 rec.attackT = -1;
                 rec.staggerT = 0;
+                rec.slowT = 0;
                 rec.hp = rec.maxHp;
                 rec.x = rec.home.x; rec.z = rec.home.z;
                 rec.y = this.terrain.getHeightAt(rec.x, rec.z);
@@ -1101,6 +1140,7 @@
     }
 
     AveloraCreatures.FLASH_COLOR = new THREE.Color(1.0, 0.12, 0.05);
+    AveloraCreatures.ICE_COLOR = new THREE.Color(0.25, 0.62, 1.0);
     AveloraCreatures.cloneSkinned = cloneSkinned;
     window.AveloraCreatures = AveloraCreatures;
 })();
