@@ -38,6 +38,7 @@ window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the wo
 // "never use setInterval for gameplay timing" rule (CLAUDE.md §Pause Rule) —
 // saving is harmless whether or not the game happens to be paused.
 const AUTOSAVE_INTERVAL_MS = 20000;
+const PORTAL_LABEL_DIST = 14;   // portal captions are shown only this close (m)
 
 // Sun offset relative to the camera target (keeps shadow direction stable anywhere on the map)
 const SUN_OFFSET = new THREE.Vector3(38, 48, 32);
@@ -602,6 +603,12 @@ class AveloraGame {
     /** Releases everything that belongs to the current location. */
     teardownLocation() {
         this.hideObjectTooltip();
+        // leaving a dungeon whose boss is dead (any portal / death): the reset countdown starts now
+        const od = this.location && this.location.dungeon;
+        if (od && od.bossId && this.gameState && this.gameState.getKilled(this.location.id, od.bossId) !== null
+            && this.gameState.getKilled(this.location.id, '__exit') === null) {
+            this.gameState.setKilled(this.location.id, '__exit', Math.floor(Date.now() / 1000));
+        }
         this.exits.forEach(e => { if (e.labelEl) e.labelEl.remove(); });
         this.exits = [];
 
@@ -810,6 +817,7 @@ class AveloraGame {
         const p = this.character.position;
 
         for (const ex of this.exits) {
+            if (ex.disabled) continue;
             // Pulse (game time => frozen on pause)
             ex.pillarMat.uniforms.uTime.value = this.gameTime;
             ex.ring.material.opacity = 0.45 + Math.sin(this.gameTime * 2.4) * 0.15;
@@ -826,15 +834,58 @@ class AveloraGame {
         }
     }
 
+    /** True while the dungeon `locId` is cooling down: its boss was killed less than dungeon.resetSeconds (played time) ago. */
+    dungeonCooling(locId) {
+        const L = window.LOCATIONS && window.LOCATIONS[locId];
+        const d = L && L.dungeon, st = this.gameState;
+        if (!d || !d.bossId || !st) return false;
+        // the clock starts when the hero LEAVES the dungeon after the boss kill (killed['__exit'] = wall-clock seconds;
+        // it runs while the game is closed; a clock set back counts as elapsed)
+        const t = st.getKilled(locId, '__exit');
+        if (st.getKilled(locId, d.bossId) === null || st.getKilled(locId, '__cleared') === null || t === null) return false;
+        const el = Date.now() / 1000 - t;
+        return el >= 0 && el < (d.resetSeconds || 60);
+    }
+
+    /**
+     * Boss killed: the entrance portal on the surface goes out and an exit portal opens where the boss stood;
+     * when the dungeon resets (boss respawned) the exit closes and the entrance is back.
+     */
+    updateDungeonPortals() {
+        const loc = this.location;
+        if (!loc || !this.gameState) return;
+        for (const ex of this.exits) {
+            const target = window.LOCATIONS && window.LOCATIONS[ex.data.to];
+            if (!target || !target.dungeon || !target.dungeon.bossId) continue;
+            const off = this.dungeonCooling(ex.data.to);
+            if (!!ex.disabled !== off) { ex.disabled = off; ex.group.visible = !off; ex.armed = false; }
+        }
+        const d = loc.dungeon;
+        if (d && d.bossId && d.bossExit) {
+            const cooling = this.gameState.getKilled(loc.id, d.bossId) !== null && this.gameState.getKilled(loc.id, '__cleared') !== null;   // boss dead -> exit portal open
+            const i = this.exits.findIndex(e => e.data.id === d.bossExit.id);
+            if (cooling && i < 0) this.buildExits({ exits: [Object.assign({}, d.bossExit)] });
+            else if (!cooling && i >= 0) {
+                const e = this.exits[i];
+                if (e.group && e.group.parent) e.group.parent.remove(e.group);
+                if (e.labelEl) e.labelEl.remove();
+                this.exits.splice(i, 1);
+            }
+        }
+    }
+
     updateWorldLabels() {
         if (!this.exits.length) return;
         const w = window.innerWidth, h = window.innerHeight;
         const v = new THREE.Vector3();
+        const pp = this.character ? this.character.position : null;
         for (const ex of this.exits) {
             if (!ex.labelEl) continue;
             const pHeight = (ex.data.height !== undefined) ? ex.data.height : 3.2;
             v.set(ex.data.x, ex.y + pHeight + 0.35, ex.data.z).project(this.camera);
-            const visible = v.z > -1 && v.z < 1 && v.x > -1.1 && v.x < 1.1 && v.y > -1.1 && v.y < 1.1;
+            // portal captions only close up (not across the whole location)
+            const near = pp && Math.hypot(pp.x - ex.data.x, pp.z - ex.data.z) < PORTAL_LABEL_DIST;
+            const visible = !ex.disabled && near && v.z > -1 && v.z < 1 && v.x > -1.1 && v.x < 1.1 && v.y > -1.1 && v.y < 1.1;
             ex.labelEl.style.display = visible ? 'block' : 'none';
             if (visible) {
                 ex.labelEl.style.transform =
@@ -2421,6 +2472,7 @@ class AveloraGame {
         }
 
         // Location exits (may start a location change)
+        this.updateDungeonPortals();
         this.updateExits(delta);
 
         // Update camera and HUD

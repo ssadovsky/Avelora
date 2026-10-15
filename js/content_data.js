@@ -41,6 +41,7 @@ window.GAME_CONTENT = {
     "boar_hunt",
     "wolf_hunt",
     "dragonfly_hunt",
+    "spider_hunt",
     "portal_boar"
    ]
   },
@@ -1251,6 +1252,40 @@ window.GAME_CONTENT = {
    "level": 2,
    "modelKey": "creatures/bee"
   },
+  "blue_spider": {
+   "id": "blue_spider",
+   "name": "Синий паук",
+   "hp": 60,
+   "damage": [
+    5,
+    9
+   ],
+   "attackRange": 0.85,
+   "attackCooldown": 1.2,
+   "walkSpeed": 1.1,
+   "runSpeed": 3.8,
+   "behavior": "aggressive",
+   "aggroRadius": 9,
+   "leashRadius": 20,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 0.9,
+   "scale": 0.95,
+   "modelKey": "creatures/spider",
+   "drops": [
+    {
+     "item": "meat",
+     "count": 1
+    }
+   ],
+   "gold": [
+    6,
+    10
+   ],
+   "xp": 34,
+   "level": 4,
+   "textureKey": "creatures/blue_spider"
+  },
   "boar": {
    "id": "boar",
    "name": "Вепрь",
@@ -1472,6 +1507,10 @@ window.GAME_CONTENT = {
    ],
    "xp": 18,
    "level": 3,
+   "gold": [
+    100,
+    100
+   ],
    "modelKey": "creatures/kobold"
   },
   "minotaur": {
@@ -1490,7 +1529,7 @@ window.GAME_CONTENT = {
    "aggroRadius": 0,
    "leashRadius": 18,
    "wanderRadius": 6,
-   "respawnMinutes": 8,
+   "respawnMinutes": 600,
    "hitRadius": 1.5,
    "scale": 1.4,
    "drops": [
@@ -1504,6 +1543,10 @@ window.GAME_CONTENT = {
    "idlePause": [
     4,
     10
+   ],
+   "gold": [
+    200,
+    200
    ],
    "modelKey": "creatures/minotaur"
   },
@@ -1653,6 +1696,10 @@ window.GAME_CONTENT = {
    ],
    "xp": 14,
    "level": 2,
+   "gold": [
+    25,
+    25
+   ],
    "modelKey": "creatures/spider"
   },
   "spotted_fawn": {
@@ -2169,7 +2216,7 @@ window.GAME_CONTENT = {
    "id": "portal_boar",
    "name": "Рунный вепрь у портала",
    "giver": "doe_druid",
-   "requires": "dragonfly_hunt",
+   "requires": "spider_hunt",
    "summary": "Убей рунного вепря-стража у портала в Озёрный край (дальний запад долины). Он возрождается со временем.",
    "objective": {
     "type": "kill",
@@ -2182,7 +2229,7 @@ window.GAME_CONTENT = {
     "xp": 260
    },
    "dialog": {
-    "offer": "У входа в горный каньон, у портала в Озёрный край, стоит рунный вепрь: рунные камни в его шкуре делают его заметно крепче обычного. Ты уже одолел вепрей, волка и стрекоз, самое время. Убей его, и портал станет безопаснее.",
+    "offer": "У входа в горный каньон, у портала в Озёрный край, стоит рунный вепрь: рунные камни в его шкуре делают его заметно крепче обычного. Ты уже одолел вепрей, волка, стрекоз и пауков, самое время. Убей его, и портал станет безопаснее.",
     "accept": "Я одолею рунного вепря",
     "decline": "Позже",
     "progress": "Рунный вепрь всё ещё у портала, на дальнем западе долины. Он гораздо сильнее обычных, будь осторожен.",
@@ -2239,6 +2286,31 @@ window.GAME_CONTENT = {
     "ready": "Стало заметно тише. Вот твоя награда.",
     "turnIn": "Доложить о петухах",
     "done": "На поляне снова тихо, а мои посевы целы. Спасибо."
+   }
+  },
+  "spider_hunt": {
+   "id": "spider_hunt",
+   "name": "Синие пауки",
+   "giver": "doe_druid",
+   "requires": "dragonfly_hunt",
+   "summary": "Убей 5 синих пауков на юго-западе долины.",
+   "objective": {
+    "type": "kill",
+    "creature": "blue_spider",
+    "count": 5
+   },
+   "reward": {
+    "gold": 36,
+    "xp": 260
+   },
+   "dialog": {
+    "offer": "На юго-западе долины, в траве между лесами, поселились тёмно-синие пауки. Они нападают на каждого, кто подойдёт близко, и плетут сети на тропах зверей. Убей пятерых, и юго-запад снова станет безопасным.",
+    "accept": "Я займусь пауками",
+    "decline": "Позже",
+    "progress": "Синие пауки всё ещё таятся на юго-западе долины. Нужно убить пятерых. Они нападают первыми, будь готов к бою.",
+    "ready": "Юго-запад дышит свободнее. Вот твоя награда.",
+    "turnIn": "Доложить о синих пауках",
+    "done": "Синие пауки больше не тревожат тропы. Благодарю."
    }
   },
   "stone_gathering": {

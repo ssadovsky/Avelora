@@ -105,6 +105,24 @@
             window.addEventListener('game:skillImpact', this.onSkillImpact);
 
             const jobs = [];
+            // Dungeon reset: the boss was killed and the hero LEFT the dungeon (killed['__exit'] = playTime of leaving,
+            // set in main.js teardownLocation) more than resetSeconds ago => every kill is forgotten, boss included.
+            const dg = location.dungeon;
+            if (dg && dg.bossId && this.state) {
+                // a boss kill without the '__cleared' mark is a leftover of an older version/test run: forget it
+                if (this.state.getKilled(location.id, dg.bossId) !== null && this.state.getKilled(location.id, '__cleared') === null) {
+                    this.state.clearKilled(location.id, dg.bossId);
+                    this.state.clearKilled(location.id, '__exit');
+                }
+                const bt = this.state.getKilled(location.id, dg.bossId);
+                const lt = this.state.getKilled(location.id, '__exit');
+                const el = Date.now() / 1000 - lt;   // wall-clock seconds since the hero left (also while the game was closed)
+                if (bt !== null && lt !== null && (el < 0 || el >= (dg.resetSeconds || 60))) {
+                    (location.creatures || []).forEach(sp => this.state.clearKilled(location.id, sp.id));
+                    this.state.clearKilled(location.id, '__exit');
+                    this.state.clearKilled(location.id, '__cleared');
+                }
+            }
             (location.creatures || []).forEach(sp => {
                 const def = this.def(sp.type);
                 if (!def || !sp.id) {
@@ -446,6 +464,8 @@
             const playerAlive = !!(c && combat && !combat.isDead);
             const now = g.gameTime;
 
+            this.updateRally(playerAlive);
+
             this.respawnTimer -= delta;
             if (this.respawnTimer <= 0) {
                 this.respawnTimer = RESPAWN_CHECK;
@@ -525,7 +545,7 @@
             const dxp = p ? p.x - rec.x : 0, dzp = p ? p.z - rec.z : 0;
             const distP = p ? Math.sqrt(dxp * dxp + dzp * dzp) : Infinity;
             const distHome = Math.hypot(rec.x - rec.home.x, rec.z - rec.home.z);
-            const leash = def.leashRadius || 14;
+            const leash = rec.rallied ? 400 : (def.leashRadius || 14);   // rallied dungeon mobs chase across the whole dungeon
             const reach = (def.attackRange || 0.8) + (def.hitRadius || 0.4) + PLAYER_RADIUS;
             rec.speed = 0;
             if (rec.staggerT > 0) rec.staggerT = Math.max(0, rec.staggerT - dt);
@@ -660,6 +680,7 @@
 
         startReturn(rec) {
             rec.aggro = false;
+            rec.rallied = false;
             rec.state = 'return';
             rec.attackT = -1;
             rec.lastPath = -99;
@@ -837,6 +858,7 @@
             rec.deadT = 0;
             rec.attackT = -1;
             rec.aggro = false;
+            rec.rallied = false;
             rec.staggerT = 0;
             const i = this.proxies.indexOf(rec.proxy);
             if (i >= 0) this.proxies.splice(i, 1);
@@ -844,6 +866,8 @@
             if (this.hovered === rec) this.hovered = null;
             this.hideHpBar(rec);
             if (this.state) this.state.setKilled(this.location.id, rec.id, this.playTime);
+            const bd = this.location.dungeon;
+            if (this.state && bd && bd.bossId === rec.id) this.state.setKilled(this.location.id, '__cleared', Math.floor(Date.now() / 1000));   // boss killed under the dungeon-reset rules
             this.dropLoot(rec);
             window.dispatchEvent(new CustomEvent('game:creatureKilled', { detail: { id: rec.id, type: rec.type } }));
         }
@@ -952,6 +976,29 @@
                 rec.path = null;
                 this.play(rec, 'Idle', 0.1);
             });
+        }
+
+        /**
+         * location.dungeon.rally = { triggerId, radius, types }: when the hero comes within `radius` of the trigger
+         * creature's home (the kobold room) every living creature of those types in the dungeon (rats, spiders)
+         * aggroes and runs to attack, ignoring its leash.
+         */
+        updateRally(playerAlive) {
+            const rl = this.location.dungeon && this.location.dungeon.rally;
+            const c = this.game.character;
+            if (!rl || !c || !playerAlive) { this._rallyIn = false; return; }
+            const trig = this.list.find(r => r.id === rl.triggerId);
+            if (!trig) return;
+            const inside = Math.hypot(c.position.x - trig.home.x, c.position.z - trig.home.z) < (rl.radius || 16);
+            if (inside && !this._rallyIn) {
+                this.list.forEach(r => {
+                    if (!r.group || r.state === 'dead' || r.state === 'gone' || r.state === 'spawning') return;
+                    if (!(rl.types || []).includes(r.type) || r.aggro) return;
+                    r.rallied = true;
+                    r.aggro = true;
+                });
+            }
+            this._rallyIn = inside;
         }
 
         // -----------------------------------------------------------

@@ -192,6 +192,7 @@ window.LOCATIONS = {
             { x: 129.0, z: 19.5, radius: 6.0 },
             { x: 72.0, z: 55.0, radius: 12.0 },  // открытая поляна барсуков
             { x: 30.0, z: 51.0, radius: 18.0 },  // поляна петухов (к западу от барсуков)
+            { x: -78.0, z: 49.0, radius: 28.0 }, // юго-западная поляна синих пауков
             { x: 72.0, z: 72.0, radius: 11.0 }, { x: 55.0, z: 64.0, radius: 8.0 }, { x: 90.0, z: 64.0, radius: 8.0 },
             { x: 107.0, z: 67.5, radius: 6.5 }   // стартовый лагерь: пень с топором, брёвна, камни, посох
         ],
@@ -369,6 +370,17 @@ window.LOCATIONS = {
             { id: 'waterfall_red_panda', type: 'red_panda', x: 127.0, z: -9.0, r: -1.57 },
             // Олениха-друид теперь NPC (проп forestEdge.doe_druid у большого дерева), рядом с ней оленёнок
             { id: 'doe_fawn', type: 'spotted_fawn', x: 8.0, z: 7.5, r: -2.30 },
+            // Синие пауки (тёмно-синий рескин): 10 штук на юго-западе долины, агрессивные (квест «Синие пауки»)
+            { id: 'blue_spider_1', type: 'blue_spider', x: -100.0, z: 40.0, r: 0.00 },
+            { id: 'blue_spider_2', type: 'blue_spider', x: -88.0, z: 38.0, r: 1.90 },
+            { id: 'blue_spider_3', type: 'blue_spider', x: -76.0, z: 42.0, r: 3.80 },
+            { id: 'blue_spider_4', type: 'blue_spider', x: -64.0, z: 40.0, r: 5.70 },
+            { id: 'blue_spider_5', type: 'blue_spider', x: -54.0, z: 47.0, r: 1.32 },
+            { id: 'blue_spider_6', type: 'blue_spider', x: -96.0, z: 51.0, r: 3.22 },
+            { id: 'blue_spider_7', type: 'blue_spider', x: -82.0, z: 52.0, r: 5.12 },
+            { id: 'blue_spider_8', type: 'blue_spider', x: -68.0, z: 55.0, r: 0.74 },
+            { id: 'blue_spider_9', type: 'blue_spider', x: -57.0, z: 59.0, r: 2.64 },
+            { id: 'blue_spider_10', type: 'blue_spider', x: -91.0, z: 60.0, r: 4.54 },
             // Рыжие петухи: 10 штук на поляне к западу от барсучьего луга (квест «Петушиный двор»)
             { id: 'rooster_1', type: 'rooster', x: 18.0, z: 44.0, r: 0.00 },
             { id: 'rooster_2', type: 'rooster', x: 28.0, z: 41.0, r: 1.70 },
@@ -950,13 +962,20 @@ window.LOCATIONS = {
         ],
 
         dungeon: {
-            id: 'crypt_passage'
+            id: 'crypt_passage',
+            // Босс убит -> на его месте открывается портал выхода, входной портал на поверхности гаснет;
+            // через resetSeconds (настенные часы) данж откатывается полностью (босс и все мобы возрождаются)
+            bossId: 'catacombs_minotaur_1',
+            resetSeconds: 60,   // (секунды по настенным часам; для боя поставить 7200) откат начинается, когда герой ВЫШЕЛ из данжа после убийства босса
+            // подход к кобольду: все оставшиеся живыми крысы и пауки бегут в атаку
+            rally: { triggerId: 'catacombs_kobold_1', radius: 16, types: ['rat', 'spider'] },
+            bossExit: { id: 'bossExit', x: 0.0, z: 42.0, y: 0.02, radius: 1.3, height: 2.2, color: 0x6e8fff, to: 'forestEdge', spawn: 'fromDungeon', label: 'Выход из подземелья' }
         },
 
         creatures: [
             // Чёрные крысы в гротах и коридоре подземелья (6 шт., агрессивные, раздвинуты просторнее)
             { id: 'catacombs_rat_1', type: 'rat', x: -9.5, z: -30.0, r: 1.0, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_2', type: 'rat', x: -5.5, z: -32.5, r: 4.2, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_2', type: 'rat', x: -6.0, z: -26.0, r: 4.2, behavior: 'aggressive', aggroRadius: 8.0 },
             { id: 'catacombs_rat_3', type: 'rat', x: -1.3, z: -15.5, r: 0.5, behavior: 'aggressive', aggroRadius: 8.0 },
             { id: 'catacombs_rat_4', type: 'rat', x: 1.3,  z: -13.0, r: 3.7, behavior: 'aggressive', aggroRadius: 8.0 },
             { id: 'catacombs_rat_5', type: 'rat', x: -1.1, z: -1.5,  r: 1.8, behavior: 'aggressive', aggroRadius: 8.0 },

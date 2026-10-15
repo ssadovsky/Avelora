@@ -1,0 +1,33 @@
+{
+  "id": "blue_spider",
+  "name": "Синий паук",
+  "hp": 60,
+  "damage": [
+    5,
+    9
+  ],
+  "attackRange": 0.85,
+  "attackCooldown": 1.2,
+  "walkSpeed": 1.1,
+  "runSpeed": 3.8,
+  "behavior": "aggressive",
+  "aggroRadius": 9,
+  "leashRadius": 20,
+  "wanderRadius": 5,
+  "respawnMinutes": 5,
+  "hitRadius": 0.9,
+  "scale": 0.95,
+  "modelKey": "creatures/spider",
+  "drops": [
+    {
+      "item": "meat",
+      "count": 1
+    }
+  ],
+  "gold": [
+    6,
+    10
+  ],
+  "xp": 34,
+  "level": 4
+}
