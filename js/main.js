@@ -2164,7 +2164,8 @@ class AveloraGame {
                 this.camera.position.set(cx, cy, cz);
             } else {
                 // Быстрее подтягиваем камеру, если она упирается в стену (без «проезда» сквозь камень)
-                this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.12);
+                if (!this._camLerpTmp) this._camLerpTmp = new THREE.Vector3();
+                this.camera.position.lerp(this._camLerpTmp.set(cx, cy, cz), 0.12);
                 if (dng || outdoor) {
                     const cp = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
                     if (dng) dng.constrainCamera(cp, headPt); else this.constrainCameraOutdoor(cp, headPt);
@@ -2264,33 +2265,157 @@ class AveloraGame {
         if (obj && !this.cameraBlockers.includes(obj)) this.cameraBlockers.push(obj);
     }
 
-    // Расстояние от origin до ближайшей поверхности модели по лучу или null.
-    // Описанная сфера (пересчитывается при смещении модели) отсекает почти все вызовы; внутри — raycast
-    // с временно двусторонними материалами, чтобы внутренние грани тоже считались.
+    // Расстояние от origin до ближайшей поверхности модели по лучу (двусторонне) или null.
+    // Шаг 51: вместо перебора всех треугольников модели (скалы водопада ~40k, грот ~47k → ~2.4 мс на луч)
+    // один раз строится сетка-индекс треугольников в мировых координатах; луч идёт по ячейкам сетки (3D DDA)
+    // и проверяет только треугольники в них (обычно десятки–сотни). Точность прежняя — это та же геометрия.
+    // Индекс пересобирается, если модель сдвинули/масштабировали.
     _modelRayLimit(model, origin, dir, maxDist) {
-        let c = model.userData._cb;
         const e = model.matrixWorld.elements;
-        const key = e[12].toFixed(2) + ',' + e[13].toFixed(2) + ',' + e[14].toFixed(2) + ',' + e[0].toFixed(3) + ',' + e[5].toFixed(3);
+        const key = e[12].toFixed(2) + ',' + e[13].toFixed(2) + ',' + e[14].toFixed(2) + ',' + e[0].toFixed(3) + ',' + e[5].toFixed(3) + ',' + e[2].toFixed(3);
+        let c = model.userData._cb;
         if (!c || c.key !== key) {
-            model.updateWorldMatrix(true, true);
-            const box = new THREE.Box3().setFromObject(model);
-            if (box.isEmpty()) return null;
-            const mats = [];
-            model.traverse((o) => { if (o.isMesh && o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => mats.push(m)); });
-            c = model.userData._cb = { key, sphere: box.getBoundingSphere(new THREE.Sphere()), mats, ray: new THREE.Raycaster() };
+            c = model.userData._cb = this._buildRayIndex(model);
+            c.key = key;
         }
-        const s = c.sphere;
-        const ox = s.center.x - origin.x, oy = s.center.y - origin.y, oz = s.center.z - origin.z;
-        const tp = Math.max(0, Math.min(maxDist, ox * dir.x + oy * dir.y + oz * dir.z));
-        const px = origin.x + dir.x * tp - s.center.x, py = origin.y + dir.y * tp - s.center.y, pz = origin.z + dir.z * tp - s.center.z;
-        if (px * px + py * py + pz * pz > s.radius * s.radius) return null;
-        c.ray.set(new THREE.Vector3(origin.x, origin.y, origin.z), new THREE.Vector3(dir.x, dir.y, dir.z));
-        c.ray.far = maxDist + 0.5;
-        const saved = c.mats.map(m => m.side);
-        c.mats.forEach(m => { m.side = THREE.DoubleSide; });
-        const hits = c.ray.intersectObject(model, true);
-        c.mats.forEach((m, i) => { m.side = saved[i]; });
-        return hits.length ? hits[0].distance : null;
+        if (!c.nTri) return null;
+        return this._rayIndexHit(c, origin.x, origin.y, origin.z, dir.x, dir.y, dir.z, maxDist + 0.5);
+    }
+
+    _buildRayIndex(model) {
+        model.updateWorldMatrix(true, true);
+        const parts = [];
+        let nTri = 0;
+        const v = new THREE.Vector3();
+        model.traverse((o) => {
+            if (!o.isMesh || o.isInstancedMesh || !o.geometry || !o.geometry.attributes.position) return;
+            const pos = o.geometry.attributes.position, idx = o.geometry.index;
+            const wv = new Float32Array(pos.count * 3);
+            for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+                wv[i * 3] = v.x; wv[i * 3 + 1] = v.y; wv[i * 3 + 2] = v.z;
+            }
+            const n = Math.floor((idx ? idx.count : pos.count) / 3);
+            parts.push({ wv, idx, n });
+            nTri += n;
+        });
+        const T = new Float32Array(nTri * 9);
+        let minX = Infinity, minY = Infinity, minZ = Infinity, maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        let w = 0;
+        for (const p of parts) {
+            for (let t = 0; t < p.n; t++) {
+                for (let k = 0; k < 3; k++) {
+                    const vi = p.idx ? p.idx.getX(t * 3 + k) : t * 3 + k;
+                    const x = p.wv[vi * 3], y = p.wv[vi * 3 + 1], z = p.wv[vi * 3 + 2];
+                    T[w++] = x; T[w++] = y; T[w++] = z;
+                    if (x < minX) minX = x; if (x > maxX) maxX = x;
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+                }
+            }
+        }
+        if (!nTri) return { nTri: 0 };
+        const ext = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
+        const cs = Math.max(0.75, ext / 64);
+        const nx = Math.max(1, Math.ceil((maxX - minX) / cs) + 1);
+        const ny = Math.max(1, Math.ceil((maxY - minY) / cs) + 1);
+        const nz = Math.max(1, Math.ceil((maxZ - minZ) / cs) + 1);
+        const nCells = nx * ny * nz;
+        const cellOf = (x, mn, n) => Math.max(0, Math.min(n - 1, Math.floor((x - mn) / cs)));
+        const counts = new Uint32Array(nCells + 1);
+        const range = new Int32Array(nTri * 6);
+        for (let t = 0; t < nTri; t++) {
+            const b = t * 9;
+            const x0 = Math.min(T[b], T[b + 3], T[b + 6]), x1 = Math.max(T[b], T[b + 3], T[b + 6]);
+            const y0 = Math.min(T[b + 1], T[b + 4], T[b + 7]), y1 = Math.max(T[b + 1], T[b + 4], T[b + 7]);
+            const z0 = Math.min(T[b + 2], T[b + 5], T[b + 8]), z1 = Math.max(T[b + 2], T[b + 5], T[b + 8]);
+            const r = t * 6;
+            range[r] = cellOf(x0, minX, nx); range[r + 1] = cellOf(x1, minX, nx);
+            range[r + 2] = cellOf(y0, minY, ny); range[r + 3] = cellOf(y1, minY, ny);
+            range[r + 4] = cellOf(z0, minZ, nz); range[r + 5] = cellOf(z1, minZ, nz);
+            for (let k = range[r + 4]; k <= range[r + 5]; k++)
+                for (let j = range[r + 2]; j <= range[r + 3]; j++)
+                    for (let i = range[r]; i <= range[r + 1]; i++) counts[(k * ny + j) * nx + i + 1]++;
+        }
+        for (let i = 0; i < nCells; i++) counts[i + 1] += counts[i];
+        const start = counts;                       // start[cell]..start[cell+1]
+        const fill = new Uint32Array(nCells);
+        const items = new Uint32Array(start[nCells]);
+        for (let t = 0; t < nTri; t++) {
+            const r = t * 6;
+            for (let k = range[r + 4]; k <= range[r + 5]; k++)
+                for (let j = range[r + 2]; j <= range[r + 3]; j++)
+                    for (let i = range[r]; i <= range[r + 1]; i++) {
+                        const cell = (k * ny + j) * nx + i;
+                        items[start[cell] + fill[cell]++] = t;
+                    }
+        }
+        return {
+            nTri, T, start, items, cs, nx, ny, nz,
+            minX, minY, minZ, maxX: minX + nx * cs, maxY: minY + ny * cs, maxZ: minZ + nz * cs,
+            stamp: new Uint32Array(nTri), query: 0
+        };
+    }
+
+    // Ближайшее пересечение луча (dir — единичный) с треугольниками индекса на [0, maxT] или null.
+    _rayIndexHit(c, ox, oy, oz, dx, dy, dz, maxT) {
+        // отсечение по коробке сетки
+        let t0 = 0, t1 = maxT;
+        const slab = (o, d, mn, mx) => {
+            if (Math.abs(d) < 1e-12) return o >= mn && o <= mx;
+            let a = (mn - o) / d, b = (mx - o) / d;
+            if (a > b) { const s = a; a = b; b = s; }
+            if (a > t0) t0 = a; if (b < t1) t1 = b;
+            return t0 <= t1;
+        };
+        if (!slab(ox, dx, c.minX, c.maxX) || !slab(oy, dy, c.minY, c.maxY) || !slab(oz, dz, c.minZ, c.maxZ)) return null;
+        const cs = c.cs, nx = c.nx, ny = c.ny, nz = c.nz, T = c.T;
+        const ts = t0 + 1e-6;
+        let i = Math.max(0, Math.min(nx - 1, Math.floor((ox + dx * ts - c.minX) / cs)));
+        let j = Math.max(0, Math.min(ny - 1, Math.floor((oy + dy * ts - c.minY) / cs)));
+        let k = Math.max(0, Math.min(nz - 1, Math.floor((oz + dz * ts - c.minZ) / cs)));
+        const sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
+        const INF = Infinity;
+        let tMx = Math.abs(dx) < 1e-12 ? INF : (c.minX + (i + (dx > 0 ? 1 : 0)) * cs - ox) / dx;
+        let tMy = Math.abs(dy) < 1e-12 ? INF : (c.minY + (j + (dy > 0 ? 1 : 0)) * cs - oy) / dy;
+        let tMz = Math.abs(dz) < 1e-12 ? INF : (c.minZ + (k + (dz > 0 ? 1 : 0)) * cs - oz) / dz;
+        const tDx = Math.abs(dx) < 1e-12 ? INF : cs / Math.abs(dx);
+        const tDy = Math.abs(dy) < 1e-12 ? INF : cs / Math.abs(dy);
+        const tDz = Math.abs(dz) < 1e-12 ? INF : cs / Math.abs(dz);
+        const q = ++c.query;
+        if (q >= 0xfffffff0) { c.stamp.fill(0); c.query = 1; }
+        const qq = c.query;
+        let best = INF;
+        for (let guard = 0; guard < 4096; guard++) {
+            const cell = (k * ny + j) * nx + i;
+            for (let p = c.start[cell], pe = c.start[cell + 1]; p < pe; p++) {
+                const t = c.items[p];
+                if (c.stamp[t] === qq) continue;
+                c.stamp[t] = qq;
+                const b = t * 9;
+                const ax = T[b], ay = T[b + 1], az = T[b + 2];
+                const e1x = T[b + 3] - ax, e1y = T[b + 4] - ay, e1z = T[b + 5] - az;
+                const e2x = T[b + 6] - ax, e2y = T[b + 7] - ay, e2z = T[b + 8] - az;
+                const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
+                const det = e1x * px + e1y * py + e1z * pz;
+                if (det > -1e-12 && det < 1e-12) continue;
+                const inv = 1 / det;
+                const s0 = ox - ax, s1 = oy - ay, s2 = oz - az;
+                const u = (s0 * px + s1 * py + s2 * pz) * inv;
+                if (u < 0 || u > 1) continue;
+                const qx = s1 * e1z - s2 * e1y, qy = s2 * e1x - s0 * e1z, qz = s0 * e1y - s1 * e1x;
+                const vv = (dx * qx + dy * qy + dz * qz) * inv;
+                if (vv < 0 || u + vv > 1) continue;
+                const tt = (e2x * qx + e2y * qy + e2z * qz) * inv;
+                if (tt > 1e-6 && tt < best && tt <= maxT) best = tt;
+            }
+            const tExit = Math.min(tMx, tMy, tMz);
+            if (best <= tExit || tExit > t1) break;
+            if (tMx <= tMy && tMx <= tMz) { i += sx; if (i < 0 || i >= nx) break; tMx += tDx; }
+            else if (tMy <= tMz) { j += sy; if (j < 0 || j >= ny) break; tMy += tDy; }
+            else { k += sz; if (k < 0 || k >= nz) break; tMz += tDz; }
+        }
+        return best < INF ? best : null;
     }
 
     updateHUD() {
