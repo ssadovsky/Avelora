@@ -2,7 +2,7 @@
   "id": "boar_hunt",
   "name": "Кабаны в долине",
   "giver": "lirael",
-  "requires": "fox_hunt",
+  "requires": "minotaur_hunt",
   "summary": "Убей 5 вепрей на лугу у северного подножия гор. Доложи об этом олене-друиду — она ждёт у озера, в тени большого дерева.",
   "objective": {
     "type": "kill",
