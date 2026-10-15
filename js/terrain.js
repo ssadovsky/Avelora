@@ -154,7 +154,31 @@ class LakesideTerrain {
         return h;
     }
 
+    /**
+     * Raw ground height + flat spots (locTerrain.flatSpots: [{x, z, radius, blend}]): inside radius the ground is levelled
+     * to the height at the centre, over the next `blend` metres it eases back to the natural relief (smoothstep, no steps).
+     * Used for portal pads. Everything (mesh, characters, grass, trees, pathfinding) reads the same function.
+     */
     getRawHeightAt(x, z) {
+        const h = this._getRawHeightBase(x, z);
+        const fs = this.locTerrain.flatSpots;
+        if (!fs || !fs.length) return h;
+        if (!this._flatH) this._flatH = [];
+        let out = h;
+        for (let i = 0; i < fs.length; i++) {
+            const f = fs[i];
+            const bl = (f.blend !== undefined) ? f.blend : 5.0;
+            const d = Math.hypot(x - f.x, z - f.z);
+            if (d >= f.radius + bl) continue;
+            if (this._flatH[i] === undefined) this._flatH[i] = this._getRawHeightBase(f.x, f.z);
+            const t = d <= f.radius ? 1.0 : 1.0 - (d - f.radius) / bl;
+            const w = t * t * (3.0 - 2.0 * t);
+            out += (this._flatH[i] - out) * w;
+        }
+        return out;
+    }
+
+    _getRawHeightBase(x, z) {
         if (this.locTerrain.flat) {
             return (this.locTerrain.baseHeight !== undefined) ? this.locTerrain.baseHeight : 0.0;
         }
@@ -297,16 +321,20 @@ class LakesideTerrain {
                 const passes = this.locTerrain.mountainPasses || [];
                 for (let i = 0; i < passes.length; i++) {
                     const pass = passes[i];
-                    // Pass cuts from valley into the mountain up to the portal at pass.x (-138)
-                    // Behind the portal (x < pass.x), the canyon terminates into a solid mountain wall
-                    const minPassX = (pass.minX !== undefined) ? pass.minX : -141.0;
-                    if (x >= minPassX && x <= (pass.x + 12.0)) {
+                    // Проход режет гору от долины до тупика (pass.x). Портал стоит ПЕРЕД тупиком, дно прохода ровное.
+                    // side:'east' — зеркально для восточного края (тупик: pass.x, конец стены: pass.maxX); по умолчанию — западный.
+                    const east = pass.side === 'east';
+                    const ax = east ? -x : x;                                   // ось прохода: растёт от тупика к долине
+                    const deadX = east ? -pass.x : pass.x;
+                    const minPassX = east ? -((pass.maxX !== undefined) ? pass.maxX : (this.halfX + 1.0))
+                                          : ((pass.minX !== undefined) ? pass.minX : -141.0);
+                    if (ax >= minPassX && ax <= (deadX + 12.0)) {
                         const dz = Math.abs(z - pass.z);
                         const pRadius = pass.radius || 14.0;
                         if (dz < pRadius) {
                             const passFactor = Math.cos((dz / pRadius) * (Math.PI / 2));
-                            // Taper off behind the portal so canyon ends in a dramatic rock wall
-                            const depthFactor = (x < pass.x) ? Math.max(0.0, (x - minPassX) / (pass.x - minPassX)) : 1.0;
+                            // За тупиком стена круто поднимается до полной высоты горы
+                            const depthFactor = (ax < deadX) ? Math.max(0.0, (ax - minPassX) / (deadX - minPassX)) : 1.0;
                             mHeight *= (1.0 - Math.pow(passFactor * depthFactor, 1.8));
                         }
                     }

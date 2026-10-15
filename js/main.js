@@ -38,7 +38,7 @@ window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the wo
 // "never use setInterval for gameplay timing" rule (CLAUDE.md §Pause Rule) —
 // saving is harmless whether or not the game happens to be paused.
 const AUTOSAVE_INTERVAL_MS = 20000;
-const PORTAL_LABEL_DIST = 14;   // portal captions are shown only this close (m)
+const PORTAL_LABEL_DIST = 30;   // portal captions are shown only this close (m) — читаемо издалека, но не на всю локацию
 
 // Sun offset relative to the camera target (keeps shadow direction stable anywhere on the map)
 const SUN_OFFSET = new THREE.Vector3(38, 48, 32);
@@ -757,8 +757,16 @@ class AveloraGame {
             const group = new THREE.Group();
             group.position.set(ex.x, y, ex.z);
 
-            const ringGeo = new THREE.RingGeometry(radius * 0.82, radius, 48);
+            const ringGeo = new THREE.RingGeometry(radius * 0.82, radius, 64, 1);
             ringGeo.rotateX(-Math.PI / 2);
+            // на открытой местности кольцо повторяет рельеф (иначе на неровной земле видна только «подкова»);
+            // у порталов с явным Y (грот, подземелье) пол ровный — оставляем плоским
+            const conform = (ex.y === undefined) && this.terrain && this.terrain.getHeightAt;
+            if (conform) {
+                const rp = ringGeo.attributes.position;
+                for (let i = 0; i < rp.count; i++) rp.setY(i, this.terrain.getHeightAt(ex.x + rp.getX(i), ex.z + rp.getZ(i)) + 0.08 - y);
+                rp.needsUpdate = true;
+            }
             const ringMat = new THREE.MeshBasicMaterial({
                 color: colorHex, transparent: true, opacity: 0.55,
                 depthWrite: false, blending: THREE.AdditiveBlending
@@ -767,14 +775,16 @@ class AveloraGame {
             group.add(ring);
 
             // Soft vertical light column (fades upward)
-            const pillarGeo = new THREE.CylinderGeometry(radius * 0.9, radius * 0.9, pHeight, 40, 1, true);
-            pillarGeo.translate(0, pHeight * 0.5, 0);
+            // столб уходит на 1.2 м под землю (на склоне нижний край не висит в воздухе); шейдер зажимает высоту
+            const pDown = conform ? 1.2 : 0.0;
+            const pillarGeo = new THREE.CylinderGeometry(radius * 0.9, radius * 0.9, pHeight + pDown, 40, 1, true);
+            pillarGeo.translate(0, (pHeight - pDown) * 0.5, 0);
             const pillarMat = new THREE.ShaderMaterial({
                 uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(colorHex) } },
                 vertexShader: `
                     varying float vH;
                     void main() {
-                        vH = position.y / ${pHeight.toFixed(2)};
+                        vH = clamp(position.y / ${pHeight.toFixed(2)}, 0.0, 1.0);
                         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
                     }`,
                 fragmentShader: `

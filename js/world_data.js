@@ -78,9 +78,9 @@ window.LOCATIONS = {
             // Естественный горный барьер по периметру (высота 6м, пики до 9м)
             mountainRim: { width: 16.0, height: 6.0 },
             // Горный перевал (ущелье) на запад к Озерному краю
-            mountainPasses: [
-                { x: -136.0, z: 8.0, radius: 14.0 }
-            ],
+            mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
+            // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
+            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }],
             // Арочный вырез в восточном горном барьере для грота (севернее водопада)
             caves: [
                 { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
@@ -127,7 +127,7 @@ window.LOCATIONS = {
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
             camp:      { x: 6.0,    z: 12.0 },
-            fromLake:  { x: -126.0, z: 8.0, r: 4.71 },  // персонаж выходит из ущелья в долину
+            fromLake:  { x: -120.0, z: 8.0, r: 4.71 },  // персонаж выходит из портала в долину
             waterfall: { x: 104.0,  z: 6.0, r: 4.71 },  // с видом на восточный каскадный водопад
             fromDungeon: { x: 135.0, z: -18.0, r: 1.57 } // площадка перед входом в пещеру (лицом на запад к долине)
         },
@@ -158,7 +158,7 @@ window.LOCATIONS = {
 
         exits: [
             // Проход в Озерный край через горный каньон на западе
-            { id: 'toLake', x: -138.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' },
+            { id: 'toLake', x: -128.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' },
             // Тайный рунический портал в глубине пещеры (переход в подземелье)
             {
                 id: 'toDungeon',
@@ -686,6 +686,9 @@ window.LOCATIONS = {
                 depth: -1.6         // Глубина водоема
             },
 
+            // Ровная площадка под порталом (радиус 4 м, дальше 5 м плавно возвращается к рельефу)
+            flatSpots: [{ x: 40.0, z: 6.0, radius: 4.0, blend: 5.0 }],
+
             hills: { amplitude: 1.4, inclineX: 0.8, inclineZ: 0.4 }
         },
 
@@ -694,15 +697,15 @@ window.LOCATIONS = {
 
         spawns: {
             default:    { x: 15.0, z: 8.0 },
-            fromForest: { x: 45.0, z: 6.0, r: 1.57 }
+            fromForest: { x: 33.0, z: 6.0, r: 1.57 }
         },
 
         exits: [
-            { id: 'toForest', x: 54.0, z: 6.0, radius: 3.0, to: 'forestEdge', spawn: 'fromLake', label: 'Лесная опушка' }
+            { id: 'toForest', x: 40.0, z: 6.0, radius: 3.0, to: 'forestEdge', spawn: 'fromLake', label: 'Лесная опушка' }
         ],
 
         clearings: [
-            { x: 46.0, z: 6.0, radius: 2.5 }
+            { x: 37.0, z: 6.0, radius: 5.0 }
         ],
 
         groups: [
