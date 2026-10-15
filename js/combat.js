@@ -44,6 +44,7 @@
     // Target indicator: flat ring drawn under the selected creature's feet
     const TARGET_RING_SEGS = 40;
     const TARGET_RING_COLOR = 0xffdd44;
+    const TARGET_RING_COLOR_AGGRO = 0xff2a1a;   // creatures that attack on sight
 
     function makeTargetRing() {
         const geo = new THREE.RingGeometry(0.82, 1.08, TARGET_RING_SEGS);
@@ -463,6 +464,7 @@
                 this._ringAge += delta;
                 const pulse = 0.65 + 0.35 * Math.sin(this._ringAge * 3.5);
                 ring.material.opacity = 0.75 * pulse;
+                ring.material.color.setHex(sel.def.behavior === 'aggressive' ? TARGET_RING_COLOR_AGGRO : TARGET_RING_COLOR);
                 const gy = g.terrain ? g.terrain.getHeightAt(sel.x, sel.z) : sel.y;
                 ring.position.set(sel.x, gy + 0.06, sel.z);
                 const r = Math.max(0.55, (sel.def.hitRadius || 0.4) * 1.15);

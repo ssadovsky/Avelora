@@ -163,6 +163,14 @@
             return `${name}: ${p.have}/${p.need}`;
         }
 
+        /** Who hands the quest out / who takes the report (q.turnInNpc: report to another NPC than the giver). */
+        questIsGiver(q) { return !q.giver || q.giver === this.npc.id; }
+        questIsTurnIn(q) { return (q.turnInNpc || q.giver || this.npc.id) === this.npc.id; }
+        turnInName(q) {
+            const n = window.GAME_CONTENT && window.GAME_CONTENT.npcs && window.GAME_CONTENT.npcs[q.turnInNpc || q.giver];
+            return n ? n.name : '';
+        }
+
         questAvailable(q) {
             const st = this.state;
             return !!st && (!q.requires || st.questStatus(q.requires) === 'done');
@@ -241,7 +249,7 @@
         }
 
         giverName(q) {
-            const n = window.GAME_CONTENT && window.GAME_CONTENT.npcs && window.GAME_CONTENT.npcs[q.giver];
+            const n = window.GAME_CONTENT && window.GAME_CONTENT.npcs && window.GAME_CONTENT.npcs[q.turnInNpc || q.giver];
             return n ? n.name : '';
         }
 
@@ -251,6 +259,7 @@
             const status = st.questStatus(id), d = q.dialog || {};
             if (!status) return { text: d.offer, items: this.questTools(q).length ? { label: d.toolsOffer || 'Для этого задания тебе дадут инструмент:', list: this.questTools(q).map(t => ({ item: t.item, count: t.count || 1 })) } : null, options: [{ text: d.accept, action: 'questAccept', quest: id }, { text: d.decline || 'Позже', next: 'start' }] };
             const p = this.questProgress(q);
+            if (status === 'active' && !this.questIsTurnIn(q)) return { text: d.away || d.progress, options: [{ text: 'Назад', next: 'start' }] };
             if (status === 'active' && p.ready) return { text: d.ready || d.progress, options: [{ text: d.turnIn || 'Сдать', action: 'questTurnIn', quest: id }, { text: 'Назад', next: 'start' }] };
             if (status === 'active') return { text: d.progress, options: [{ text: 'Назад', next: 'start' }] };
             return { text: d.done, options: [{ text: 'Назад', next: 'start' }] };
@@ -267,8 +276,12 @@
                     if (!q || !st || !this.questAvailable(q)) return;
                     const status = st.questStatus(qid);
                     if (status === 'done') return;
+                    const giver = this.questIsGiver(q), turnIn = this.questIsTurnIn(q);
+                    if (!status && !giver) return;                    // only the giver offers a quest
+                    if (status === 'active' && !giver && !turnIn) return;
                     const p = this.questProgress(q);
-                    extra.push({ text: q.name + (status === 'active' ? (p.ready ? ' — сдать' : ` (${p.have}/${p.need})`) : ''), next: 'quest:' + qid, quest: true, ready: p.ready });
+                    const away = status === 'active' && !turnIn;     // the report goes to another NPC
+                    extra.push({ text: q.name + (status === 'active' ? (away ? ` (${p.have}/${p.need}) — доложить: ${this.turnInName(q)}` : (p.ready ? ' — сдать' : ` (${p.have}/${p.need})`)) : ''), next: 'quest:' + qid, quest: true, ready: p.ready && !away });
                 });
                 node = Object.assign({}, node, { options: extra.concat(node.options || []) });
             }

@@ -1,0 +1,6 @@
+{
+  "id": "npc_doe_druid",
+  "name": "Олениха-друид",
+  "obstacle": 0.7,
+  "npc": "doe_druid"
+}

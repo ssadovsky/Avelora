@@ -121,10 +121,12 @@
 
             const available = !q.requires || st.questStatus(q.requires) === 'done';
             if (!available) continue;
+            const isGiver = !q.giver || q.giver === npc.id;
+            const isTurnIn = (q.turnInNpc || q.giver || npc.id) === npc.id;
 
             if (!status) {
-                hasAvailable = true;
-            } else if (status === 'active') {
+                if (isGiver) hasAvailable = true;
+            } else if (status === 'active' && isTurnIn) {
                 const o = q.objective || {};
                 let have = 0;
                 if (o.type === 'collect') have = (st.inventory ? st.inventory.count(o.item) : 0);
@@ -348,6 +350,8 @@
                     const k = target / height;
                     const holder = new THREE.Group();
                     model.scale.setScalar(k);
+                    // creature-style models face -Z / +Z differently: npc.facingOffset turns the model inside the holder
+                    if (rec.npc.facingOffset) model.rotation.y = rec.npc.facingOffset;
                     model.traverse(o => {
                         if (o.isMesh) {
                             o.castShadow = true;
@@ -356,7 +360,8 @@
                             if (o.material) {
                                 const mats = Array.isArray(o.material) ? o.material : [o.material];
                                 mats.forEach(m => {
-                                    if (m.map) m.map.encoding = THREE.LinearEncoding;
+                                    // Lirael's rig needs linear maps; creature-style models (no 'Talk' clip) keep sRGB like the creatures
+                                    if (m.map && (gltf.animations || []).some(a => a.name === 'Talk')) m.map.encoding = THREE.LinearEncoding;
                                 });
                             }
                         }
@@ -404,7 +409,24 @@
             // Talk = playing; when the talk ends it plays on (faster) to the loop
             // point first, so the arms never snap. No cross-fades (they twisted the rig).
             const act = rec.actions && rec.actions.Talk;
-            if (!act) return;
+            if (!act) {
+                // creature-style rig (e.g. the doe druid): looping 'Idle', one 'Greeting' when the dialog opens
+                const idle = rec.actions && rec.actions.Idle;
+                if (!idle) return;
+                const greet = rec.actions.Greeting;
+                if (!rec.playing) { idle.reset().play(); rec.playing = true; rec.cur = 'Idle'; }
+                const talk = name === 'Talk';
+                if (talk && !rec.talkWas && greet && rec.cur !== 'Greeting') {
+                    greet.reset(); greet.setLoop(THREE.LoopOnce, 1); greet.clampWhenFinished = true;
+                    greet.play(); greet.crossFadeFrom(idle, 0.25, false);
+                    rec.cur = 'Greeting';
+                } else if (rec.cur === 'Greeting' && !greet.isRunning()) {
+                    idle.reset().play(); idle.crossFadeFrom(greet, 0.25, false);
+                    rec.cur = 'Idle';
+                }
+                rec.talkWas = talk;
+                return;
+            }
             if (!rec.playing) { act.reset().play(); act.time = 0; act.timeScale = 0; rec.playing = true; }
             name = 'Idle'; // the talk gesture clip bends the rig badly in-game: she just stands (breathing sway only)
             rec.want = name;

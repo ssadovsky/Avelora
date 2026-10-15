@@ -1,0 +1,24 @@
+{
+  "id": "dragonfly",
+  "name": "Янтарная стрекоза",
+  "hp": 55,
+  "damage": [
+    4,
+    8
+  ],
+  "attackRange": 1.2,
+  "attackCooldown": 1.4,
+  "walkSpeed": 1.6,
+  "runSpeed": 4.8,
+  "behavior": "aggressive",
+  "aggroRadius": 8,
+  "leashRadius": 22,
+  "wanderRadius": 9,
+  "respawnMinutes": 5,
+  "hitRadius": 0.85,
+  "scale": 1.0,
+  "flyHeight": 1.25,
+  "drops": [],
+  "xp": 30,
+  "level": 4
+}

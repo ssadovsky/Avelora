@@ -191,6 +191,7 @@ window.LOCATIONS = {
             { x: 124.0, z: 44.0, radius: 5.0 }, { x: 127.0, z: 33.0, radius: 5.0 }, { x: 128.0, z: 25.0, radius: 6.0 },
             { x: 129.0, z: 19.5, radius: 6.0 },
             { x: 72.0, z: 55.0, radius: 12.0 },  // открытая поляна барсуков
+            { x: 30.0, z: 51.0, radius: 18.0 },  // поляна петухов (к западу от барсуков)
             { x: 72.0, z: 72.0, radius: 11.0 }, { x: 55.0, z: 64.0, radius: 8.0 }, { x: 90.0, z: 64.0, radius: 8.0 },
             { x: 107.0, z: 67.5, radius: 6.5 }   // стартовый лагерь: пень с топором, брёвна, камни, посох
         ],
@@ -308,7 +309,19 @@ window.LOCATIONS = {
             { id: 'fox_4', type: 'fire_fox', x: 81.0, z: -33.0, r: 2.2 },
             { id: 'fox_5', type: 'fire_fox', x: 100.0, z: -43.0, r: 4.1 },
             // Серый волк в лесной глуши за озером (квест Лираэль)
-            { id: 'forest_wolf', type: 'wolf', x: -60.0, z: -35.0, r: 1.8 },
+            // Серый волк по центру севера долины у горной гряды (квест Лираэль)
+            { id: 'forest_wolf', type: 'wolf', x: 0.0, z: -72.0, r: 0.0 },
+            // 10 янтарных стрекоз на северо-западе: летают над лугом между озером и западным ельником
+            { id: 'dragonfly_1', type: 'dragonfly', x: -66.0, z: -58.0, r: 1.70 },
+            { id: 'dragonfly_2', type: 'dragonfly', x: -48.1, z: -54.5, r: 3.40 },
+            { id: 'dragonfly_3', type: 'dragonfly', x: -76.2, z: -37.3, r: 5.10 },
+            { id: 'dragonfly_4', type: 'dragonfly', x: -83.0, z: -54.0, r: 0.60 },
+            { id: 'dragonfly_5', type: 'dragonfly', x: -57.7, z: -41.0, r: 2.30 },
+            { id: 'dragonfly_6', type: 'dragonfly', x: -86.3, z: -28.4, r: 4.00 },
+            { id: 'dragonfly_7', type: 'dragonfly', x: -57.2, z: -64.4, r: 5.70 },
+            { id: 'dragonfly_8', type: 'dragonfly', x: -79.4, z: -64.5, r: 1.20 },
+            { id: 'dragonfly_9', type: 'dragonfly', x: -36.4, z: -62.1, r: 2.90 },
+            { id: 'dragonfly_10', type: 'dragonfly', x: -69.0, z: -46.5, r: 4.60 },
             // 10 лесных пчел на поляне (расширенная зона клевера X: 76..103, Z: 12..31)
             { id: 'bee_1',  type: 'bee', x: 80.0, z: 22.0, r: 0.4 },
             { id: 'bee_2',  type: 'bee', x: 86.5, z: 15.5, r: 2.1 },
@@ -354,17 +367,19 @@ window.LOCATIONS = {
             { id: 'stump_fawn',  type: 'fawn', x: 4.0,    z: -7.0,  r: 1.2 },
             // Красная панда за водопадом: танцует 3 танца по очереди, при нападении защищается боксом
             { id: 'waterfall_red_panda', type: 'red_panda', x: 127.0, z: -9.0, r: -1.57 },
-            // Олениха-друид (Forest Doe Enchantress): мирно гуляет по каменной дороге от водопада к озеру
-            { id: 'forest_doe_1', type: 'forest_doe', x: 120.0, z: 4.0, r: -1.57,
-              patrol: [
-                { x: 120.0, z: 4.0 },
-                { x: 98.0, z: 5.0 },
-                { x: 75.0, z: 7.5 },
-                { x: 52.0, z: 5.0 },
-                { x: 30.0, z: 1.0 },
-                { x: 15.0, z: -2.0 }
-              ]
-            },
+            // Олениха-друид теперь NPC (проп forestEdge.doe_druid у большого дерева), рядом с ней оленёнок
+            { id: 'doe_fawn', type: 'spotted_fawn', x: 8.0, z: 7.5, r: -2.30 },
+            // Рыжие петухи: 10 штук на поляне к западу от барсучьего луга (квест «Петушиный двор»)
+            { id: 'rooster_1', type: 'rooster', x: 18.0, z: 44.0, r: 0.00 },
+            { id: 'rooster_2', type: 'rooster', x: 28.0, z: 41.0, r: 1.70 },
+            { id: 'rooster_3', type: 'rooster', x: 38.0, z: 45.0, r: 3.40 },
+            { id: 'rooster_4', type: 'rooster', x: 22.0, z: 52.0, r: 5.10 },
+            { id: 'rooster_5', type: 'rooster', x: 32.0, z: 50.0, r: 0.52 },
+            { id: 'rooster_6', type: 'rooster', x: 42.0, z: 53.0, r: 2.22 },
+            { id: 'rooster_7', type: 'rooster', x: 17.0, z: 60.0, r: 3.92 },
+            { id: 'rooster_8', type: 'rooster', x: 26.0, z: 58.0, r: 5.62 },
+            { id: 'rooster_9', type: 'rooster', x: 35.0, z: 59.0, r: 1.04 },
+            { id: 'rooster_10', type: 'rooster', x: 44.0, z: 41.0, r: 2.74 },
             // Серые крысы у скал к северу от водопада (распределены свободно от скал до 117 -43)
             { id: 'grey_rat_1',  type: 'grey_rat', x: 131.0, z: -27.5, r: 1.2 },
             { id: 'grey_rat_2',  type: 'grey_rat', x: 128.5, z: -32.5, r: 3.4 },
@@ -390,6 +405,8 @@ window.LOCATIONS = {
             { id: 'start_stump', prop: 'stump', x: 107.0, z: 68.0, r: 0.4, s: 1.0 },
             // Лираэль, Хранительница Каменного Дозора (NPC у водопада)
             { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 },
+            // Олениха-друид (NPC): в тени одинокого большого дерева (14, 8.5), берёт отчёты по заданиям от Лираэль
+            { id: 'forestEdge.doe_druid', prop: 'npc_doe_druid', x: 10.0, z: 5.0, r: 1.57 },
 
             // Декоративные поваленные стволы в северном лесу (проходимые, персонаж переступает)
             { id: 'ne_log_1', prop: 'fallen_log', x: 106.0, z: -18.0, r: 0.8, s: 2.8, noObstacle: true },

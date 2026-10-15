@@ -82,9 +82,8 @@
     "bee_hunt",
     "rat_hunt",
     "badger_hunt",
+    "rooster_hunt",
     "fox_hunt",
-    "boar_hunt",
-    "wolf_hunt",
-    "portal_boar"
+    "boar_hunt"
   ]
-}
+}

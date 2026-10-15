@@ -1,0 +1,32 @@
+{
+  "id": "rooster",
+  "name": "Рыжий петух",
+  "hp": 24,
+  "damage": [
+    2,
+    4
+  ],
+  "attackRange": 0.7,
+  "attackCooldown": 1.4,
+  "walkSpeed": 0.6,
+  "runSpeed": 1.4,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 14,
+  "wanderRadius": 7,
+  "respawnMinutes": 4,
+  "hitRadius": 0.7,
+  "scale": 1.5,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 1
+    }
+  ],
+  "gold": [
+    1,
+    2
+  ],
+  "xp": 18,
+  "level": 2
+}

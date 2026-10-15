@@ -218,3 +218,17 @@ content/
 2. `python temp_work/build_assets.py`.
 3. Поставьте его в `world_data.js` → `props`:
    `{ id: 'my_stump', prop: '<id>', x: 3, z: 4, r: 0.5, s: 1.0 }`.
+
+## quests/<id>/quest.json — выдача и сдача у разных NPC
+
+`giver` — NPC, который выдаёт задание (список `quests` в его `npc.json`). Необязательное `turnInNpc` — NPC, которому
+нужно доложить (по умолчанию тот же, что и `giver`). Пока задание активно, выдавший NPC говорит `dialog.away`
+(«найди её у озера…»), а `progress` / `ready` / `turnIn` / награда показываются у `turnInNpc`; сам `turnInNpc`
+должен содержать id задания в своём `quests`. Маркер «?» над NPC появляется только у того, кому сдают.
+Пример: `boar_hunt` (giver `lirael`, turnInNpc `doe_druid`).
+
+## npcs/<id>/npc.json — NPC с моделью существа
+
+Если рядом с `npc.json` нет `model.glb`, можно задать `modelKey` готовой модели (например `creatures/forest_doe`),
+`height` (м), `facingOffset` (радианы, если модель смотрит в -Z; у оленихи 3.14159). Для такой модели играются клипы
+`Idle` (цикл) и `Greeting` (один раз при начале разговора). NPC ставится через проп `npc_<id>` в `world_data.js → props`.
