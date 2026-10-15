@@ -3,6 +3,7 @@
   "name": "Огненный шар",
   "description": "Огромный шар пламени. Взрывается на большой площади и сжигает всё вокруг.",
   "type": "projectile",
+  "category": "attack",
   "cooldown": 12,
   "range": 20,
   "speed": 15,
@@ -25,4 +26,4 @@
   "mana": 30,
   "requiresLevel": 6,
   "price": 60
-}
+}

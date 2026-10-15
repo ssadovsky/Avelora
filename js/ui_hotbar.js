@@ -43,6 +43,7 @@
         const mana = def.mana ? ` · Мана ${def.mana}` : '';
         if (def.type === 'teleport') return `Каст ${def.castTime || 0} с · ${cd}`;
         if (def.type === 'nova') return `${cd} · Радиус ${(def.vfx && def.vfx.impactRadius) || 0} м` + mana;
+        if (def.type === 'rain') return `${cd} · Дальность ${def.range || 0} м · Радиус ${(def.rain && def.rain.radius) || 0} м` + mana;
         if (def.type === 'buff') return cd + (def.buff && def.buff.duration ? ` · Длительность ${def.buff.duration} с` : '') + mana;
         return `${cd} · Дальность ${def.range || 0} м` + mana;
     }
@@ -411,10 +412,54 @@
             });
         }
 
+        /** Skills panel: accordion by def.category (skill.json). */
         renderSkills() {
             if (!this.skillsList) return;
             this.skillsList.innerHTML = '';
+            const GROUPS = [['attack', 'Атака'], ['defense', 'Защита'], ['travel', 'Перемещение'], ['other', 'Прочее']];
+            const byGroup = {};
             this.characterSkills().forEach(def => {
+                const k = GROUPS.some(g => g[0] === def.category) ? def.category : 'other';
+                (byGroup[k] = byGroup[k] || []).push(def);
+            });
+            // All three main groups are always listed (an empty one says so); "Прочее" only when something lands there
+            const shown = GROUPS.filter(g => byGroup[g[0]] || g[0] !== 'other');
+            const firstFull = shown.find(g => byGroup[g[0]]);
+            if (this.skillsOpenGroup === undefined || (this.skillsOpenGroup && !shown.some(g => g[0] === this.skillsOpenGroup))) this.skillsOpenGroup = firstFull ? firstFull[0] : null;
+            shown.forEach(([key, title]) => {
+                const sec = document.createElement('div');
+                sec.className = 'skill-group' + (this.skillsOpenGroup === key ? ' open' : '');
+                const head = document.createElement('button');
+                head.type = 'button';
+                head.className = 'skill-group-head';
+                head.setAttribute('aria-expanded', this.skillsOpenGroup === key ? 'true' : 'false');
+                head.innerHTML = '<span class="skill-group-chev">▸</span><span class="skill-group-title"></span><span class="skill-group-count"></span>';
+                head.querySelector('.skill-group-title').textContent = title;
+                head.querySelector('.skill-group-count').textContent = String((byGroup[key] || []).length);
+                head.addEventListener('click', () => {
+                    const open = !sec.classList.contains('open');
+                    this.skillsOpenGroup = open ? key : null;
+                    this.skillsList.querySelectorAll('.skill-group').forEach(s => {
+                        s.classList.remove('open');
+                        s.querySelector('.skill-group-head').setAttribute('aria-expanded', 'false');
+                    });
+                    if (open) { sec.classList.add('open'); head.setAttribute('aria-expanded', 'true'); }
+                });
+                const body = document.createElement('div');
+                body.className = 'skill-group-body';
+                sec.append(head, body);
+                this.skillsList.appendChild(sec);
+                if (!byGroup[key]) {
+                    const empty = document.createElement('div');
+                    empty.className = 'skill-group-empty';
+                    empty.textContent = 'Пока нет навыков';
+                    body.appendChild(empty);
+                } else byGroup[key].forEach(def => body.appendChild(this.skillEntryEl(def)));
+            });
+        }
+
+        skillEntryEl(def) {
+            {
                 const row = document.createElement('div');
                 row.className = 'skill-entry';
                 row.dataset.skill = def.id;
@@ -435,8 +480,8 @@
                 meta.textContent = skillMeta(def);
                 text.append(name, desc, meta);
                 row.append(iconWrap, text);
-                this.skillsList.appendChild(row);
-            });
+                return row;
+            }
         }
 
         setupCraftingTabs() {

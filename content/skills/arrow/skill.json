@@ -3,6 +3,7 @@
   "name": "Меткий выстрел",
   "description": "Быстрая стрела летит в указанную точку и поражает цель.",
   "type": "projectile",
+  "category": "attack",
   "cooldown": 0.9,
   "range": 22,
   "speed": 34,
@@ -25,4 +26,4 @@
   "mana": 4,
   "requiresLevel": 1,
   "price": 1
-}
+}

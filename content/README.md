@@ -100,6 +100,7 @@ content/
   "name": "Искра",
   "description": "Сгусток магии летит к указанной точке и разлетается снопом искр.",
   "type": "projectile",
+  "category": "attack",
   "cooldown": 0.8,
   "range": 18,
   "speed": 22,
@@ -111,6 +112,8 @@ content/
   }
 }
 ```
+
+`category` — группа в панели навыков (аккордеон): `attack` (Атака), `defense` (Защита), `travel` (Перемещение; сейчас там возвращение домой, прыжок — в защите); без поля или другое значение — «Прочее».
 
 | Поле | Значение |
 |---|---|
@@ -139,6 +142,7 @@ content/
 | `teleport` | канал + переход в другую локацию (возврат домой) | `castTime`, `destination` |
 | `blink` | мгновенный прыжок вперёд (куда смотрит герой, не к курсору), останавливается перед препятствием | `range`, `minRange`, `mana` |
 | `buff` | временный эффект на герое (иконка под полоской маны) | `buff: {id, kind, duration, manaPerDamage, shield}` — щит маны; повторное нажатие снимает |
+| `rain` | град метеоров на цель (нужна цель, как у `projectile`): после каста `rain.count` метеоров за `rain.duration` с падают в круге `rain.radius` вокруг цели, каждый наносит `damage` в радиусе `vfx.impactRadius` | `castTime`, `damage`, `rain{radius,count,duration,fallTime,height}`, `vfx` |
 | `nova` | кольцо урона вокруг героя, цель не нужна | `castTime`, `damage`, `vfx.impactRadius` = радиус, `vfx.nova: true` |
 
 Общие необязательные поля: `mana`, `cooldown`, `requiresLevel`, `price`.

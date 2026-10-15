@@ -1,0 +1,33 @@
+{
+  "id": "fire_rain",
+  "name": "Огненный дождь",
+  "description": "С неба на цель и вокруг неё обрушивается град огненных метеоров. Каждый взрывается и жжёт всех поблизости.",
+  "type": "rain",
+  "category": "attack",
+  "cooldown": 18,
+  "range": 20,
+  "castTime": 0.8,
+  "damage": {
+    "min": 14,
+    "max": 20,
+    "type": "fire"
+  },
+  "rain": {
+    "radius": 5,
+    "count": 16,
+    "duration": 3.6,
+    "fallTime": 0.55,
+    "height": 24
+  },
+  "vfx": {
+    "color": "#ff5a14",
+    "core": "#ffe08a",
+    "size": 0.95,
+    "impactSparks": 28,
+    "impactRadius": 2.2,
+    "arcs": false
+  },
+  "mana": 45,
+  "requiresLevel": 8,
+  "price": 90
+}

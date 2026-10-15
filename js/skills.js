@@ -50,9 +50,9 @@
     'use strict';
 
     const MAX_PROJECTILES = 6;
-    const MAX_IMPACTS = 6;
+    const MAX_IMPACTS = 9;      // + meteors of the fire rain
     const MAX_SPARKS = 360;
-    const MAX_TRAIL_POINTS = 256;
+    const MAX_TRAIL_POINTS = 640;
     const FILAMENTS = 3, FILAMENT_SEGS = 4;
     const ARCS = 6, ARC_SEGS = 5;
     const GRAVITY = 11.0;
@@ -323,7 +323,7 @@
             if (def.type === 'buff') return this.startBuff(def);
             if (def.type === 'nova') return this.startNova(def);
 
-            if (def.type === 'projectile') {
+            if (def.type === 'projectile' || def.type === 'rain') {   // both need a target; 'rain' lands on it after the cast
                 const range = (def.range || 12) + 2;
                 const tgt = (g.combat && g.combat.findBestTarget) ? g.combat.findBestTarget(range) : (g.combat && g.combat.selectedTarget);
                 if (!tgt || !(g.creatures && g.creatures.isAlive(tgt))) {
@@ -742,7 +742,11 @@
                 grav: new Float32Array(S)
             };
 
-            this.res = { tex, root, trail, sparks, projectiles, impacts, sp };
+            // Fire rain: pulsing danger zone on the ground while the meteors fall
+            const zone = { ring: additivePlane(tex.ring), glow: additivePlane(tex.glow) };
+            root.add(zone.glow, zone.ring);
+
+            this.res = { tex, root, trail, sparks, projectiles, impacts, sp, zone };
             return this.res;
         }
 
@@ -813,6 +817,110 @@
             p.coreSprite.visible = p.glowSprite.visible = p.shadeSprite.visible = true;
             p.filaments.visible = vfx.filaments !== false; // fire / arrows: no lightning crackle
             this.placeProjectileVisuals(p, 0);
+        }
+
+        // ---------------------------------------------------------------
+        // Fire rain ("rain"): meteors fall over `rain.duration` s at random points of a disk around the target
+        // ---------------------------------------------------------------
+        startRain(def, target) {
+            const g = this.game, r = this.ensureResources();
+            const cfg = def.rain || {}, vfx = def.vfx || {};
+            const count = Math.max(1, cfg.count | 0 || 14), dur = Math.max(0.5, cfg.duration || 3.5);
+            const times = [0];
+            for (let i = 1; i < count; i++) times.push(Math.random() * dur);
+            times.sort((a, b) => a - b);
+            this.rain = {
+                def, cx: target.x, cz: target.z, radius: cfg.radius || 5, count, dur, times,
+                fall: Math.max(0.2, cfg.fallTime || 0.55), height: cfg.height || 24,
+                t: 0, spawned: 0, meteors: [], pool: [],
+                color: new THREE.Color(vfx.color || '#ff5a14'), core: new THREE.Color(vfx.core || '#ffe08a')
+            };
+            const z = r.zone;
+            const gy = g.terrain.getHeightAt(target.x, target.z);
+            z.ring.position.set(target.x, gy + 0.07, target.z);
+            z.glow.position.set(target.x, gy + 0.06, target.z);
+            z.ring.material.color.copy(this.rain.color);
+            z.glow.material.color.copy(this.rain.color);
+            z.ring.visible = z.glow.visible = true;
+        }
+
+        updateRain(delta) {
+            const R = this.rain, r = this.res, g = this.game;
+            const def = R.def, vfx = def.vfx || {};
+            const size = vfx.size || 0.9;
+            R.t += delta;
+
+            // New meteors: the first lands exactly on the target, the rest anywhere in the disk
+            while (R.spawned < R.count && R.times[R.spawned] <= R.t) {
+                const first = R.spawned === 0;
+                const a = Math.random() * Math.PI * 2, rr = first ? 0 : R.radius * Math.sqrt(Math.random());
+                const tx = R.cx + Math.cos(a) * rr, tz = R.cz + Math.sin(a) * rr;
+                const ty = g.terrain.getHeightAt(tx, tz);
+                const m = R.pool.pop() || {};
+                m.tx = tx; m.ty = ty; m.tz = tz;
+                m.sx = tx + 7 + Math.random() * 2; m.sy = ty + R.height; m.sz = tz + 4 + Math.random() * 2;
+                m.t = 0; m.T = R.fall * (0.85 + Math.random() * 0.3);
+                const dx = m.tx - m.sx, dy = m.ty - m.sy, dz = m.tz - m.sz, L = Math.hypot(dx, dy, dz);
+                m.dx = dx / L; m.dy = dy / L; m.dz = dz / L; m.len = L;
+                R.meteors.push(m);
+                R.spawned++;
+            }
+
+            // Danger zone on the ground: fades in, pulses, fades out with the last meteors
+            const z = r.zone;
+            const fin = Math.min(1, R.t / 0.35), fout = R.spawned >= R.count ? Math.max(0, 1 - (R.t - R.times[R.count - 1]) / R.fall) : 1;
+            const k = fin * fout, pulse = 0.75 + 0.25 * Math.sin(R.t * 9);
+            z.ring.scale.set(R.radius * 2.15, 1, R.radius * 2.15);
+            z.ring.material.opacity = 0.55 * k * pulse;
+            z.glow.scale.set(R.radius * 2.3, 1, R.radius * 2.3);
+            z.glow.material.opacity = 0.22 * k;
+
+            // Meteors in flight (accelerating fall), trail + head drawn with the shared point batches
+            const tb = r.trail, col = R.color, core = R.core;
+            for (let i = R.meteors.length - 1; i >= 0; i--) {
+                const m = R.meteors[i];
+                m.t += delta;
+                if (m.t >= m.T) {
+                    this.rainImpact(R, m);
+                    R.pool.push(m);
+                    R.meteors[i] = R.meteors[R.meteors.length - 1];
+                    R.meteors.pop();
+                    continue;
+                }
+                const u = m.t / m.T, f = 0.65 * u + 0.35 * u * u;   // slight acceleration
+                const d = f * m.len;
+                const x = m.sx + m.dx * d, y = m.sy + m.dy * d, zz = m.sz + m.dz * d;
+                tb.push(x, y, zz, core.r, core.g, core.b, 0.95, size * 2.0);
+                tb.push(x, y, zz, col.r, col.g, col.b, 0.55, size * 3.4);
+                const N = 9, sp = size * 0.55;
+                for (let n = 1; n <= N; n++) {
+                    const w = 1 - n / (N + 1), hot = w * w * 0.6;
+                    tb.push(x - m.dx * n * sp + (Math.random() - 0.5) * 0.08, y - m.dy * n * sp, zz - m.dz * n * sp + (Math.random() - 0.5) * 0.08,
+                        col.r + (1 - col.r) * hot, col.g + (1 - col.g) * hot, col.b + (1 - col.b) * hot,
+                        Math.pow(w, 1.3) * 0.8, size * (0.3 + 0.7 * w) * 1.1);
+                }
+                if (Math.random() < delta * 40) {
+                    this.addSpark(x, y, zz, (Math.random() - 0.5) * 2 - m.dx * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2 - m.dz * 2,
+                        0.2 + Math.random() * 0.2, 0.04 + Math.random() * 0.04, col, 0.3);
+                }
+            }
+
+            if (R.spawned >= R.count && R.meteors.length === 0) {
+                z.ring.visible = z.glow.visible = false;
+                this.rain = null;
+            }
+        }
+
+        rainImpact(R, m) {
+            const def = R.def, g = this.game, vfx = def.vfx || {};
+            const pos = this._v1.set(m.tx, m.ty + 0.05, m.tz);
+            this.spawnImpact(def, pos, R.color, true);
+            const dmg = def.damage || null;
+            const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
+                ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (g.hero ? g.hero.skillMult(def) : 1))) : 0;
+            window.dispatchEvent(new CustomEvent('game:skillImpact', {
+                detail: { skillId: def.id, point: { x: m.tx, y: m.ty + 0.05, z: m.tz }, radius: vfx.impactRadius || 1, damage: dmg, amount, knockback: def.knockback || null }
+            }));
         }
 
         spawnImpact(def, point, color, onGround) {
@@ -893,6 +1001,7 @@
                     this.casting = null;
                     if (this.game.character && this.game.terrain) {
                         if (cst.nova) this.fireNova(cst.def);
+                        else if (cst.def.type === 'rain') this.startRain(cst.def, cst.target);
                         else this.spawnProjectile(cst.def, cst.target);
                     }
                 }
@@ -900,13 +1009,14 @@
 
             const r = this.res;
             if (!r) return;
-            let busy = r.sp.n > 0;
+            let busy = r.sp.n > 0 || !!this.rain;
             for (let i = 0; i < r.projectiles.length && !busy; i++) busy = r.projectiles[i].active;
             for (let i = 0; i < r.impacts.length && !busy; i++) busy = r.impacts[i].active;
             if (!busy && !r.trail.points.visible && !r.sparks.points.visible) return;
 
             r.trail.begin();
             r.sparks.begin();
+            if (this.rain) this.updateRain(delta);
             for (let i = 0; i < r.projectiles.length; i++) {
                 const p = r.projectiles[i];
                 if (p.active) this.updateProjectile(p, delta);
@@ -1182,6 +1292,7 @@
         clearAll() {
             this.casting = null;
             this.channel = null;
+            this.rain = null;
             if (this.recallFx) this.recallFx.clearAll();
             this._blockers = null;
             this._blockersEnv = null;
@@ -1195,6 +1306,7 @@
                 m.active = false;
                 m.flash.visible = m.bloom.visible = m.ring.visible = m.decal.visible = m.scorch.visible = m.arcs.visible = false;
             });
+            if (r.zone) r.zone.ring.visible = r.zone.glow.visible = false;
             r.sp.n = 0;
             r.trail.begin(); r.trail.end(1);
             r.sparks.begin(); r.sparks.end(1);

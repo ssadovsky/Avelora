@@ -3,6 +3,7 @@
   "name": "Искра",
   "description": "Сгусток магии летит к указанной точке и разлетается снопом искр.",
   "type": "projectile",
+  "category": "attack",
   "cooldown": 0.8,
   "range": 18,
   "speed": 22,
@@ -23,4 +24,4 @@
   "mana": 5,
   "requiresLevel": 1,
   "price": 1
-}
+}

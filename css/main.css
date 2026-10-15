@@ -3646,7 +3646,8 @@
             #chest-panel {
                 left: auto;
                 right: calc(max(env(safe-area-inset-right, 0px), 12px) + 588px);
-                width: 290px;
+                /* Слева от сумки остаётся 100% - 600px: ширина по месту, чтобы сундук не вылезал за левый край */
+                width: clamp(190px, calc(100% - 624px), 290px);
                 max-width: calc(100% - 24px);
                 top: auto;
                 bottom: max(env(safe-area-inset-bottom, 0px), 12px);
@@ -3654,6 +3655,7 @@
                 overflow-y: auto;
                 padding: 10px 12px 10px;
             }
+            @media (max-width: 840px) { .chest-grid { grid-template-columns: repeat(4, 1fr); } }
             /* Mobile NPC Dialog / Shop Panel */
             #dialog-panel {
                 position: fixed !important;
@@ -3958,4 +3960,31 @@
         }
 
 /* Единый тонкий скролл в стиле игры (вместо системного с стрелками) */
-* { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transparent; }
+html { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transparent; }   /* свойства наследуются: правило на корне, не на каждом элементе */
+
+/* Панель навыков: заголовок с крестиком закреплён, прокручивается только список; группы-аккордеон */
+#skills-panel.open { display: flex; flex-direction: column; overflow: hidden !important; }
+#skills-panel .inventory-header { flex: 0 0 auto; }
+#skills-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+#skills-panel .skills-hint { flex: 0 0 auto; }
+.skill-group { margin-bottom: 6px; }
+.skill-group-head {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    font-family: inherit; font-size: 0.9rem; letter-spacing: 0.08rem; text-transform: uppercase; color: #efcf7a;
+    padding: 8px 10px; background: rgba(34, 28, 20, 0.9); border: 1px solid rgba(195, 160, 95, 0.4); border-radius: 3px; cursor: pointer; text-align: left;
+}
+.skill-group-head:hover { border-color: rgba(239, 207, 122, 0.85); }
+.skill-group-chev { display: inline-block; width: 12px; transition: transform 0.15s; color: #b9a47a; }
+.skill-group.open .skill-group-chev { transform: rotate(90deg); }
+.skill-group-title { flex: 1; }
+.skill-group-count { font-size: 0.72rem; color: #8f9c9b; letter-spacing: 0; }
+.skill-group-body { display: none; padding-top: 6px; }
+.skill-group.open .skill-group-body { display: block; }
+.skill-group-body .skill-entry:last-child { margin-bottom: 0; }
+
+/* Размер окна навыков не зависит от раскрытой группы: свёрнутый аккордеон оставляет пустое место внизу */
+#skills-panel.open { height: min(calc(100% - 150px), 760px); }
+@media (max-width: 880px), (max-height: 540px) and (orientation: landscape) {
+    #skills-panel.open { height: calc(100% - 24px); max-height: calc(100% - 24px); }
+}
+.skill-group-empty { font-size: 0.78rem; color: #7e8a89; font-style: italic; padding: 8px 10px; }

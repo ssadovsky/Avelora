@@ -3,6 +3,7 @@
   "name": "Огненная стрела",
   "description": "Пылающая стрела магии. Мощнее искры, взрывается вспышкой пламени.",
   "type": "projectile",
+  "category": "attack",
   "cooldown": 1.6,
   "range": 20,
   "speed": 26,
@@ -25,4 +26,4 @@
   "mana": 12,
   "requiresLevel": 3,
   "price": 20
-}
+}
