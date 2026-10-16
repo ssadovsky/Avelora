@@ -190,7 +190,7 @@
                         let variants = window.AveloraItems.splitVariants(scene);
                         const foliage = !!(def && def.foliage);
                         if (!variants.length) {
-                            variants = [window.AveloraItems.makeFallback(category === 'props' ? (foliage ? 'foliage' : 'prop') : 'ground', id)];
+                            variants = [window.AveloraItems.makeFallback(category === 'props' ? (foliage ? 'foliage' : 'prop') : 'ground', id, def)];
                         }
                         const box = new THREE.Box3();
                         variants.forEach(v => {

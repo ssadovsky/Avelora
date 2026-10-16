@@ -1,0 +1,13 @@
+{
+  "id": "elemental_altar_water",
+  "name": "Алтарь Воды",
+  "obstacle": 1.0,
+  "stub": {
+    "box": [
+      1.7,
+      1.0,
+      1.7
+    ],
+    "color": "#2f7f9a"
+  }
+}

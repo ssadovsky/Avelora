@@ -1,0 +1,13 @@
+{
+  "id": "elemental_altar_air",
+  "name": "Алтарь Воздуха",
+  "obstacle": 1.0,
+  "stub": {
+    "box": [
+      1.7,
+      1.0,
+      1.7
+    ],
+    "color": "#cfd9e0"
+  }
+}

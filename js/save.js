@@ -28,7 +28,8 @@
         if (!data || typeof data !== 'object') return false;
         if (data.version !== SAVE_VERSION) return false;
         if (data.characterId !== characterId) return false;
-        if (typeof data.locationId !== 'string' || !window.LOCATIONS || !window.LOCATIONS[data.locationId]) return false;
+        // Локация могла быть удалена/переименована: это не повод терять героя (см. loadSave: переносим на стартовую точку)
+        if (typeof data.locationId !== 'string') return false;
         if (!Number.isFinite(data.x) || !Number.isFinite(data.z) || !Number.isFinite(data.r)) return false;
         return true;
     }
@@ -52,6 +53,18 @@
         if (!isValidSave(data, characterId)) {
             console.warn('[Avelora] save for "' + characterId + '" failed validation, ignoring');
             return null;
+        }
+        // Сохранённой локации больше нет: героя (сумка, навыки, опыт лежат в avelora_state_<id> и не трогаются)
+        // просто переносим на стартовую точку стартовой локации.
+        if (!window.LOCATIONS || !window.LOCATIONS[data.locationId]) {
+            const sid = window.START_LOCATION;
+            const sl = window.LOCATIONS && window.LOCATIONS[sid];
+            if (!sl) return null;
+            const sp = (sl.spawns && sl.spawns.default) || { x: 0, z: 0 };
+            console.warn('[Avelora] saved location "' + data.locationId + '" no longer exists, moving "' + characterId + '" to the start point of "' + sid + '"');
+            data.locationId = sid;
+            data.x = sp.x; data.z = sp.z; data.r = sp.r || 0;
+            data.relocated = true;
         }
         return data;
     }

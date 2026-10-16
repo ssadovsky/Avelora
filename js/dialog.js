@@ -158,7 +158,7 @@
             const o = q.objective || {};
             const defs = window.GAME_CONTENT || {};
             const name = o.type === 'kill'
-                ? (((defs.creatures || {})[o.creature]) || {}).name || o.creature
+                ? (o.label || (((defs.creatures || {})[o.creature]) || {}).name || o.creature)
                 : (window.AveloraItems.get(o.item) || {}).name || o.item;
             return `${name}: ${p.have}/${p.need}`;
         }
@@ -182,7 +182,8 @@
             if (!st || !detail) return;
             Object.keys(defs).forEach(id => {
                 const q = defs[id], o = q.objective || {};
-                if (st.questStatus(id) !== 'active' || o.type !== 'kill' || o.creature !== detail.type) return;
+                if (st.questStatus(id) !== 'active' || o.type !== 'kill') return;
+                if (Array.isArray(o.creatures) ? o.creatures.indexOf(detail.type) < 0 : o.creature !== detail.type) return;   // creatures: [..] — любой из перечисленных типов
                 if (o.creatureId && o.creatureId !== detail.id) return;
                 if ((st.questKills[id] || 0) < (o.count || 1)) st.addQuestKill(id);
                 if (o.slayForGood && this.game.location) st.slay(this.game.location.id, detail.id);

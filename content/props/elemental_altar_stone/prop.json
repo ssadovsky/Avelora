@@ -1,0 +1,13 @@
+{
+  "id": "elemental_altar_stone",
+  "name": "Алтарь Камня",
+  "obstacle": 1.0,
+  "stub": {
+    "box": [
+      1.7,
+      1.0,
+      1.7
+    ],
+    "color": "#77736b"
+  }
+}

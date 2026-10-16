@@ -382,6 +382,7 @@ class LakesideEnvironment {
             small: 'tree_small',
             quiver: 'quiver_tree',
             sentinel: 'tree_sentinel',
+            twisted: 'tree_twisted',      // колючая кривая акация саванны
             oak_wide: 'tree_oak_wide',
             oak_tall: 'tree_oak_tall',
             elm: 'tree_elm',
@@ -400,6 +401,7 @@ class LakesideEnvironment {
             small: 2.0,    // молодых деревьев до 2
             quiver: 4.8,
             sentinel: 1.0,
+            twisted: 0.8,
             oak_wide: 1.0,
             oak_tall: 1.0,
             elm: 1.0,
@@ -459,7 +461,8 @@ class LakesideEnvironment {
                 this.buildInstanced('trees', parts, list, (p, idx, d) => {
                     const gy = this.terrain.getHeightAt(p.x, p.z);
                     const scale = (p.s || 1.0) * baseScale;
-                    d.position.set(p.x, gy - 0.05, p.z);
+                    // У quiver_tree нижний срез ствола косой (одна сторона на ~0.03 ед. выше): утапливаем пропорционально масштабу, иначе ствол «висит»
+                    d.position.set(p.x, gy - (typeKey === 'quiver' ? 0.04 * scale : 0.05), p.z);
                     d.rotation.y = (p.r !== undefined) ? p.r : 0;
                     d.scale.set(scale, scale, scale);
                 }, (window.AVELORA_WOPT && window.AVELORA_WOPT.trees === 'none') ? { reflect: false } : {});
@@ -855,6 +858,10 @@ class LakesideEnvironment {
             return best ? { a: best, d: bd } : null;
         };
 
+        // location.foliage: { dryGrass: доля соломенных кустиков (0..1), openGap: доля травы, убираемая в открытых местах }
+        const fol = (this.location && this.location.foliage) || {};
+        const dryCut = (fol.dryGrass !== undefined) ? 1 - fol.dryGrass : 0.80;
+        const openGap = (fol.openGap !== undefined) ? fol.openGap : 0.20;
         const out = [];
         placements.forEach((p, i) => {
             const h1 = hash(p.x, p.z), h2 = hash(p.z + 3.7, p.x - 1.3), h3 = hash(p.x * 1.7 + i, p.z * 0.9);
@@ -869,10 +876,10 @@ class LakesideEnvironment {
                     if (this.terrain.getHeightAt(nx, nz) > 0.35) { q.x = nx; q.z = nz; }
                     q.s = (p.s || 1) * (0.85 + h3 * 0.45);
                 }
-            } else if (h1 < 0.20) {
+            } else if (h1 < openGap) {
                 return;   // открытое место: убираем часть травы, остаётся голая подстилка
             }
-            q.dry = h3 > 0.80;
+            q.dry = h3 > dryCut;
             out.push(q);
         });
         // дополнительные островки подлеска у основания деревьев, камней и валежника
@@ -890,7 +897,7 @@ class LakesideEnvironment {
                 if (this.terrain.getHeightAt(nx, nz) <= 0.35) continue;
                 const hh = hash(nx, nz);
                 out.push({ id: `ug:${ai}:${k}`, x: nx, z: nz, s: 0.8 + hh * 0.7, r: hh * 6.28,
-                           grassType: types[Math.floor(hash(nz, nx + 1.1) * 4) % 4], dry: hash(nx * 2.3, nz) > 0.78 });
+                           grassType: types[Math.floor(hash(nz, nx + 1.1) * 4) % 4], dry: hash(nx * 2.3, nz) > (fol.dryGrass !== undefined ? 1 - fol.dryGrass : 0.78) });
                 extra++;
             }
         });

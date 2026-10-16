@@ -483,7 +483,7 @@ class LakesideTerrain {
         // 2: 'grass2' (сплошное тёмное травяное покрытие)
         // 4: 'baseForest' (moss2 как база + лес/трава по реальным деревьям: маска плотности леса uForestMap)
         // 3: 'camp' (homeCamp: сочная зелёная трава на полянке без леса + лесная подстилка в лесу)
-        const groundMode = (this.groundSet === 'baseForest') ? 4 : (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
+        const groundMode = (this.groundSet === 'savanna') ? 5 : (this.groundSet === 'baseForest') ? 4 : (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
         const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
         this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[48] is declared in every variant: always give it 48 entries (empty array crashes the uniform upload)
         const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
@@ -699,6 +699,7 @@ class LakesideTerrain {
                     float dirtEdgeNoise = avNoise(vWorldPosition.xz * 1.3) * 0.35 + sin(vWorldPosition.x * 0.8 + vWorldPosition.z * 0.7) * 0.18;
                     float dirtHalfW = (uDirtWidth * 0.5) + dirtEdgeNoise;
                     float dirtMask = (uDirtCount > 0) ? 1.0 - smoothstep(dirtHalfW - 0.45, dirtHalfW + 0.55, dirtPathD) : 0.0;
+                    if (uGroundMix > 4.5) passTrailMask = 0.0;   // саванна: зашитой в шейдер тропы стартовой локации нет
                     passTrailMask = max(passTrailMask, dirtMask * 0.95 / 0.88);
 
                     // 3) Каменная тропа от водопада (120, 4) до озера в центре (-18, -16) (uStoneSeg)
@@ -727,7 +728,38 @@ class LakesideTerrain {
                     // 1) Для 'camp' (uGroundMix > 2.5): сочная зелёная трава на полянке (где нет леса) + лесная подстилка в лесу
                     // 2) Для 'moss2' (uGroundMix > 0.5): оригинальная лесная подстилка + пятна травы и подлесок
                     vec3 groundCol = colGrass.rgb;
-                    if (uGroundMix > 2.5 && uGroundMix < 3.5) {
+                    if (uGroundMix > 4.5) {
+                        // === GROUND: SAVANNA (golden dry grass, patches of red earth, fresh green near water) ===
+                        vec2 gxz = vWorldPosition.xz;
+                        vec3 sT1 = texture2D(uGrass2Diff, gxz * 0.16 + vec2(0.13, 0.57)).rgb;
+                        vec3 sT2 = texture2D(uGrass2Diff, gxz * 0.043 + vec2(0.71, 0.29)).rgb;   // крупный масштаб: разбивает повтор плитки
+                        vec3 sTex = mix(sT1, sT2, 0.45);
+                        vec3 sGray = vec3(dot(sTex, vec3(0.30, 0.55, 0.15))) * 1.30;   // яркость текстуры без зелёного оттенка
+                        vec3 dryGold  = sGray * vec3(1.05, 0.68, 0.24);
+                        vec3 dryPale  = sGray * vec3(1.25, 0.90, 0.38);
+                        vec3 greenG   = sTex * vec3(0.55, 0.60, 0.22);
+                        vec3 redSoil  = colDirtTrail.rgb * vec3(1.06, 0.60, 0.40);
+                        float sA = avNoise(gxz * 0.030) * 0.65 + avNoise(gxz * 0.085 + 17.0) * 0.35;
+                        groundCol = mix(dryGold, dryPale, smoothstep(0.35, 0.75, sA));
+                        // свежая трава в низинах у воды и островками
+                        float lowW   = 1.0 - smoothstep(0.25, 0.95, vWorldPosition.y);
+                        float patchG = smoothstep(0.64, 0.82, avNoise(gxz * 0.05 + 31.0));
+                        groundCol = mix(groundCol, greenG, clamp(lowW * 0.80 + patchG * 0.22, 0.0, 0.85));
+                        // проплешины красной земли (больше на склонах)
+                        float bare = smoothstep(0.58, 0.80, avNoise(gxz * 0.07 + 9.0) * 0.6 + avNoise(gxz * 0.35) * 0.4 + (1.0 - vWorldNormal.y) * 1.6);
+                        groundCol = mix(groundCol, redSoil, bare * 0.60);
+                        float sv = avNoise(gxz * 0.017 + 3.0) - 0.5;
+                        groundCol *= vec3(1.0 + sv * 0.10, 1.0, 1.0 - sv * 0.14);
+                        float aoMulS = 1.0;
+                        for (int ai = 0; ai < 48; ai++) {
+                            vec4 an = uAO[ai];
+                            if (an.z > 0.0) {
+                                float ad = length(gxz - an.xy) / an.z;
+                                aoMulS *= 1.0 - an.w * 0.40 * (1.0 - smoothstep(0.15, 1.0, ad));
+                            }
+                        }
+                        groundCol *= max(aoMulS, 0.6);
+                    } else if (uGroundMix > 2.5 && uGroundMix < 3.5) {
                         // === BIOME/GROUND: CAMP (Green grass on clearing where NO forest + forest litter in the woods) ===
                         vec2 gxz = vWorldPosition.xz;
                         // Границы лесного массива на карте лагеря:
@@ -817,6 +849,7 @@ class LakesideTerrain {
                     vec3 peakRock = rockTex * rockRelief;
                     peakRock = mix(peakRock, pow(peakRock, vec3(1.18)) * 1.12, peakAltitude * 0.80);
 
+                    if (uGroundMix > 4.5) peakRock = mix(peakRock, peakRock * vec3(1.50, 0.90, 0.62), 0.88);   // саванна: рыжий песчаник вместо серых гор
                     vec3 baseCol = mix(meadowBase, colBeach.rgb, shoreWeight);
                     terrainColor = mix(baseCol, peakRock, totalRock);
                     terrainColor = pow(terrainColor, vec3(1.05));

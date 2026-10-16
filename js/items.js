@@ -132,9 +132,18 @@
          * shaft along +Y (hand-held). Origin follows the same conventions as
          * real models: bottom-center for ground objects, grip point for held ones.
          */
-        makeFallback(kind, id) {
+        makeFallback(kind, id, def) {
             const mat = new THREE.MeshStandardMaterial({ color: 0x8a7f70, roughness: 0.9, metalness: 0.0 });
             let geo;
+            // prop.json "stub": { box:[w,h,d] | cyl:[rTop,rBottom,h], color:'#hex' } — заглушка нужного размера (меш потом нарисуем)
+            if (def && def.stub && (def.stub.box || def.stub.cyl)) {
+                if (def.stub.box) { geo = new THREE.BoxGeometry(def.stub.box[0], def.stub.box[1], def.stub.box[2]); geo.translate(0, def.stub.box[1] / 2, 0); }
+                else { geo = new THREE.CylinderGeometry(def.stub.cyl[0], def.stub.cyl[1], def.stub.cyl[2], 16); geo.translate(0, def.stub.cyl[2] / 2, 0); }
+                if (def.stub.color) mat.color.set(def.stub.color);
+                const sm = new THREE.Mesh(geo, mat);
+                sm.name = 'fallback';
+                return sm;
+            }
             if (kind === 'held' && id === 'staff') {
                 const staffGroup = new THREE.Group();
                 const shaftGeo = new THREE.CylinderGeometry(0.016, 0.024, 1.85, 8);

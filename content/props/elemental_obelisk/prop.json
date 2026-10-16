@@ -1,0 +1,13 @@
+{
+  "id": "elemental_obelisk",
+  "name": "Обелиск стихий",
+  "obstacle": 1.0,
+  "stub": {
+    "cyl": [
+      0.45,
+      0.8,
+      4.6
+    ],
+    "color": "#6b6762"
+  }
+}

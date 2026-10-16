@@ -1,0 +1,6 @@
+{
+  "id": "npc_lizard_hermit",
+  "name": "Ящер-отшельник",
+  "obstacle": 0.7,
+  "npc": "lizard_hermit"
+}

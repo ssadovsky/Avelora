@@ -14,8 +14,8 @@
  * - Всё, что относится к локации (рельеф, объекты, маркеры проходов), добавляется в
  *   `this.locationRoot` и полностью освобождается при переходе (teardownLocation).
  * - Персонаж, камера, свет и вода живут всю сессию.
- * - Переход: game.changeLocation('lakeLand', 'fromForest') или вход в зону `exits`.
- * - Стартовая локация: window.START_LOCATION, для теста — index.html#lakeLand
+ * - Переход: game.changeLocation('savanna', 'fromForest') или вход в зону `exits`.
+ * - Стартовая локация: window.START_LOCATION, для теста — index.html#savanna
  *
  * ITEMS / HOTBAR / SKILLS (CLAUDE.md §7b): per-character state — game_state.js
  * (`this.gameState`), pickups & props — world_objects.js (`this.worldObjects`,
@@ -212,7 +212,7 @@ class AveloraGame {
         const saves = ((window.AveloraSave && window.AveloraSave.listValidSaves()) || []).filter(e => !e.character.disabled);
         if (saves.length === 1) {
             const { character, save } = saves[0];
-            await this.startGame(character, { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r } });
+            await this.startGame(character, { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r }, relocated: !!save.relocated });
         } else {
             this.showCharacterSelect(false);
         }
@@ -331,7 +331,7 @@ class AveloraGame {
         this.hideCharacterSelect();
         if (this.pauseOverlay) this.pauseOverlay.classList.remove('open');
         const opts = save
-            ? { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r } }
+            ? { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r }, relocated: !!save.relocated }
             : {};
         await this.startGame(char, opts);
     }
@@ -341,7 +341,7 @@ class AveloraGame {
     // ---------------------------------------------------------------
     getStartLocationId() {
         const locs = window.LOCATIONS || {};
-        // Dev shortcut: index.html#lakeLand or index.html#loc=lakeLand
+        // Dev shortcut: index.html#savanna or index.html#loc=savanna
         const hash = decodeURIComponent((location.hash || '').replace(/^#(loc=)?/, ''));
         if (hash && locs[hash]) return hash;
         if (window.START_LOCATION && locs[window.START_LOCATION]) return window.START_LOCATION;
@@ -423,7 +423,11 @@ class AveloraGame {
             opts.position = null; // спавним в безопасной точке снаружи
         }
 
-        const defaultSpawn = this.buildLocation(startId, opts.spawnId || null);
+        // Сохранение указывало на несуществующую локацию: координаты чужие, ставим в стартовую точку
+        if (opts.locationId && !window.LOCATIONS[opts.locationId]) { opts.position = null; opts.relocated = true; }
+        const built = this.buildLocationSafe(startId, opts.spawnId || null);
+        if (built.fallback) { opts.position = null; opts.relocated = true; }
+        const defaultSpawn = built.spawn;
         let spawn = opts.position || defaultSpawn;
 
         // Auto-rescue: check if character coordinates are stuck inside mountains/cliffs/water/edge (e.g. from an older map save)
@@ -462,6 +466,7 @@ class AveloraGame {
         if (this.ui) {
             this.ui.bindCharacter(this.gameState);
             this.ui.applyEquipment();
+            if (opts.relocated && this.ui.floatText) setTimeout(() => this.ui.floatText('Прежняя локация недоступна: вы на стартовой точке', 'info'), 1500);
         }
         if (this.skills && this.skills.forCharacter(characterConfig.id).length) this.skills.prewarm();
 
@@ -526,6 +531,22 @@ class AveloraGame {
         if (this.autosaveTimer) {
             clearInterval(this.autosaveTimer);
             this.autosaveTimer = null;
+        }
+    }
+
+    /**
+     * buildLocation с запасным выходом: если локацию не удалось построить (ошибка в данных, удалена и т.п.),
+     * герой (со всей сумкой, навыками и опытом — они в game_state) переносится на стартовую точку стартовой локации.
+     * Возвращает { spawn, fallback }.
+     */
+    buildLocationSafe(id, spawnId) {
+        try {
+            return { spawn: this.buildLocation(id, spawnId), fallback: false };
+        } catch (e) {
+            console.error(`[Avelora] location "${id}" failed to build, moving the hero to the start location`, e);
+            try { this.teardownLocation(); } catch (e2) { console.warn('[Avelora] teardown after failed build', e2); }
+            const sid = (window.START_LOCATION && window.LOCATIONS[window.START_LOCATION]) ? window.START_LOCATION : id;
+            return { spawn: this.buildLocation(sid, null), fallback: true };
         }
     }
 
@@ -718,8 +739,10 @@ class AveloraGame {
         await nextFrame();
 
         this.teardownLocation();
-        let spawn = this.buildLocation(targetId, spawnId);
-        if (position) spawn = { x: position.x, z: position.z, r: position.r || 0 };
+        const builtLoc = this.buildLocationSafe(targetId, spawnId);
+        targetId = this.location.id || targetId;
+        let spawn = builtLoc.spawn;
+        if (position && !builtLoc.fallback) spawn = { x: position.x, z: position.z, r: position.r || 0 };
         if (this.pathfinder && !this.pathfinder.isWalkableWorld(spawn.x, spawn.z)) {
             const safe = this.pathfinder.findNearestWalkableWorld(spawn.x, spawn.z, 120);
             if (safe) spawn = { x: safe.x, z: safe.z, r: spawn.r || 0 };

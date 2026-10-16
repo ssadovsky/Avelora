@@ -24,7 +24,7 @@
  *                  (возрождение через respawnMinutes сыгранного времени).
  *
  * Высота Y везде рассчитывается АВТОМАТИЧЕСКИ по рельефу.
- * Для быстрого теста локации: откройте index.html#lakeLand (имя локации после #).
+ * Для быстрого теста локации: откройте index.html#savanna (имя локации после #).
  */
 
 // Вспомогательная функция: группа объектов в радиусе (для decorations).
@@ -58,7 +58,7 @@ window.LOCATIONS = {
     // -------------------------------------------------------------
     // ЛОКАЦИЯ: Лесная опушка (стартовая)
     // Поляна, окружённая лесом, лесной пруд с камышом на северо-западе,
-    // каменистый холм, проход на запад — к Озерному краю.
+    // каменистый холм, проход на запад — в Золотую саванну.
     // -------------------------------------------------------------
     forestEdge: {
         id: 'forestEdge',
@@ -77,7 +77,7 @@ window.LOCATIONS = {
 
             // Естественный горный барьер по периметру (высота 6м, пики до 9м)
             mountainRim: { width: 16.0, height: 6.0 },
-            // Горный перевал (ущелье) на запад к Озерному краю
+            // Горный перевал (ущелье) на запад в Золотую саванну
             mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
             // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
             flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }],
@@ -157,8 +157,8 @@ window.LOCATIONS = {
         ],
 
         exits: [
-            // Проход в Озерный край через горный каньон на западе
-            { id: 'toLake', x: -128.0, z: 8.0, radius: 3.5, to: 'lakeLand', spawn: 'fromForest', label: 'Озерный край' },
+            // Проход в Золотую саванну через горный каньон на западе
+            { id: 'toLake', x: -128.0, z: 8.0, radius: 3.5, to: 'savanna', spawn: 'fromForest', label: 'Золотая саванна' },
             // Тайный рунический портал в глубине пещеры (переход в подземелье)
             {
                 id: 'toDungeon',
@@ -295,7 +295,7 @@ window.LOCATIONS = {
         ],
 
         // Существа в долине:
-        // Вепрь-страж охраняет вход в горный каньон к Озерному краю
+        // Вепрь-страж охраняет вход в горный каньон в Золотую саванну
         creatures: [
             // Тестовые новые звери: медведь и волк агрессивные, лисы мирные
             { id: 'bear_1', type: 'bear', x: 103.0, z: -60.0, r: 0 },
@@ -351,18 +351,8 @@ window.LOCATIONS = {
             { id: 'badger_14', type: 'badger', x: 51.0, z: 75.8, r: 2.43 },
             { id: 'badger_15', type: 'badger', x: 80.4, z: 63.1, r: 4.51 },
             { id: 'waterfall_fawn', type: 'fawn', x: 110.0, z: 12.0, r: 2.8 },
-            // Рунный вепрь-страж у портала в Озёрный край (перенесён из Озёрного края); респавнится как обычный зверь
+            // Рунный вепрь-страж у портала в Золотую саванну (перенесён из прежнего Озёрного края); респавнится как обычный зверь
             { id: 'portal_rune_boar', type: 'rune_boar', x: -118.0, z: 8.0, r: 1.57 },
-            // Мирные (retaliate) звери у озера стартовой долины (озеро x -20, z -18, R 20): ящер-воин и гиены на южном берегу, пещерный лев на западном
-            { id: 'lake_lizard_cmd', type: 'lizard', x: -30.0, z: 8.0, r: 0.6 },
-            { id: 'lake_lizard_sol_1', type: 'lizard_soldier', x: -35.0, z: 11.0, r: 0.9 },
-            { id: 'lake_hyena_1', type: 'hyena', x: -12.0, z: 8.0, r: 2.2 },
-            { id: 'lake_cave_lion_1', type: 'cave_lion', x: -45.0, z: -12.0, r: 1.2 },
-            { id: 'lake_komodo_1', type: 'komodo', x: -37.0, z: -6.0, r: 3.1 },
-            { id: 'lake_el_water', type: 'water_elemental', x: -26.0, z: 12.0, r: 0.8 },
-            { id: 'lake_el_fire', type: 'fire_elemental', x: -33.0, z: 16.0, r: 0.8 },
-            { id: 'lake_el_stone', type: 'stone_elemental', x: -40.0, z: 10.0, r: 0.8 },
-            { id: 'lake_el_air', type: 'air_elemental', x: -25.0, z: 5.0, r: 0.8 },
             // 10 обычных вепрей на северо-востоке долины, за лисицами по направлению к медведю (≈ x 38..82, z -62..-32): рассредоточены (≥12 м друг от друга), не вплотную к медведю (квест boar_hunt)
             { id: 'boar_1', type: 'boar', x: 66.0, z: -58.0, r: 1.20 },
             { id: 'boar_2', type: 'boar', x: 52.0, z: -62.0, r: 4.00 },
@@ -671,139 +661,230 @@ window.LOCATIONS = {
     },
 
     // -------------------------------------------------------------
-    // ЛОКАЦИЯ: Озерный Край (бывшая тестовая локация LakeLand)
+    // ЛОКАЦИЯ: Золотая саванна (прежде тестовая локация Озёрный край)
     // -------------------------------------------------------------
-    lakeLand: {
-        id: 'lakeLand',
-        name: 'Озерный край',
+    savanna: {
+        id: 'savanna',
+        name: 'Золотая саванна',
 
+        // -------------------------------------------------------------
+        // ЛОКАЦИЯ: Золотая саванна (бывший Озёрный край, id `savanna`)
+        // 300×200 м, как стартовая. Портал на западе, дорога на восток:
+        //   лужайка гиен у портала -> озеро и стоянка Ящера-отшельника -> вараны на берегах ->
+        //   скалы пещерных львов на севере -> Круг стихий (4 элементаля) на северо-востоке ->
+        //   лагерь ящеров (солдаты и командиры) на юго-востоке.
+        // -------------------------------------------------------------
         terrain: {
-            size: 120,
-            seed: 4242,
-            biome: 'goldshire', // WoW Златоземье: сочная изумрудная трава, грунтовые дорожки, стилизованные скалы
-            segments: 240,      // гладкий рельеф без ступеней
+            sizeX: 300,
+            sizeZ: 200,
+            seed: 6061,
+            biome: 'forest',
+            groundSet: 'savanna',          // золотая сухая трава, красная земля, зелень у воды
+            segmentsX: 300,
+            segmentsZ: 200,
+            border: 0,
+            baseHeight: 1.6,
+            landFloor: 0.9,
+            mountainRim: { width: 16.0, height: 6.0 },   // по периметру: рыжие скальные уступы
+            mountainPasses: [],
 
-            // ТИП ВОДОЕМА:
-            // 1. 'lake'   - Замкнутое озеро в любой точке карты
-            // 2. 'coast'  - Берег моря вдоль целого края карты ('west', 'east', 'north', 'south')
-            // 3. 'island' - Остров в центре океана
-            // 4. 'none'   - Сплошная суша без воды
+            // Озеро — те же параметры, что у озера стартовой локации (пологий плавный берег)
             waterBody: {
                 type: 'lake',
-                x: -14.0,           // Центр озера по X
-                z: 2.0,             // Центр озера по Z
-                radius: 14.0,       // Радиус озера
-                depth: -1.6         // Глубина водоема
+                x: -36.0,
+                z: -12.0,
+                radius: 20.0,
+                depth: -1.2,
+                beachWidth: 18.0,
+                shoreSmooth: true
             },
 
-            // Ровная площадка под порталом (радиус 4 м, дальше 5 м плавно возвращается к рельефу)
-            flatSpots: [{ x: 40.0, z: 6.0, radius: 4.0, blend: 5.0 }],
+            // Ровные площадки: портал, стоянка отшельника, Круг стихий, лагерь ящеров
+            flatSpots: [
+                { x: -131.0, z: 10.0, radius: 4.5, blend: 5.0 },
+                { x: -115.0, z: 20.0, radius: 7.0, blend: 7.0 },
+                { x: 74.0,   z: -42.0, radius: 15.0, blend: 9.0 },
+                { x: 96.0,   z: 46.0, radius: 14.0, blend: 9.0 }
+            ],
+            hills: { amplitude: 2.6, inclineX: 0.25, inclineZ: -0.10 },
 
-            hills: { amplitude: 1.4, inclineX: 0.8, inclineZ: 0.4 }
+            paths: [
+                // Главная тропа: портал -> стоянка отшельника -> южный берег озера -> центр -> Круг стихий
+                {
+                    type: 'dirt', width: 2.6,
+                    points: [
+                        [-131.0, 10.0], [-118.0, 8.0], [-102.0, 9.0], [-86.0, 15.0], [-68.0, 18.0], [-56.0, 30.0], [-32.0, 38.0],
+                        [-6.0, 34.0], [22.0, 22.0], [44.0, 8.0], [58.0, -14.0], [66.0, -30.0], [72.0, -40.0]
+                    ]
+                },
+                // Ответвление к лагерю ящеров
+                {
+                    type: 'dirt', width: 2.6,
+                    points: [[22.0, 22.0], [50.0, 36.0], [76.0, 44.0], [96.0, 46.0]]
+                },
+                // Аллея стихий: камень на подходе к алтарям
+                {
+                    type: 'stone', width: 2.8,
+                    points: [[58.0, -14.0], [66.0, -30.0], [74.0, -42.0]]
+                }
+            ]
         },
 
-        // Размер водной глади
-        water: { size: 100 },
+        atmosphere: { sky: 0xe9d9b6, skyTop: 0x5a96cc, fogColor: 0xe6d3a8, fogDensity: 0.0048 },
+        lighting: { hemiSky: 0xffe6bd, hemiGround: 0x9c7c48, hemiIntensity: 1.75, sunColor: 0xffe2b4, sunIntensity: 0.95 },
+        cameraAngle: 0.0,
+        // Трава: почти вся сухая (солома), в открытых местах почти без проплешин
+        foliage: { dryGrass: 0.85, openGap: 0.05 },
 
         spawns: {
-            default:    { x: 15.0, z: 8.0 },
-            fromForest: { x: 33.0, z: 6.0, r: 1.57 }
+            default:    { x: -120.0, z: 10.0, r: 4.71 },
+            fromForest: { x: -124.0, z: 10.0, r: 4.71 }     // выход из портала, лицом на восток
         },
 
         exits: [
-            { id: 'toForest', x: 40.0, z: 6.0, radius: 3.0, to: 'forestEdge', spawn: 'fromLake', label: 'Лесная опушка' }
+            { id: 'toForest', x: -131.0, z: 10.0, radius: 3.5, to: 'forestEdge', spawn: 'fromLake', label: 'Лесная опушка' }
         ],
 
         clearings: [
-            { x: 37.0, z: 6.0, radius: 5.0 }
+            { x: -131.0, z: 10.0, radius: 8.0 }, { x: -120.0, z: 10.0, radius: 7.0 },
+            { x: -115.0, z: 20.0, radius: 11.0 },                 // стоянка отшельника
+            { x: 74.0, z: -42.0, radius: 19.0 },                 // Круг стихий
+            { x: 96.0, z: 46.0, radius: 15.0 },                  // лагерь ящеров
+            { x: 4.0, z: -68.0, radius: 6.0 }, { x: 22.0, z: -64.0, radius: 6.0 }   // логово львов (кости)
         ],
 
         groups: [
-            // Поляны с травой и цветами вдоль дороги от портала
-            { id: 'meadow_portal_n', type: 'meadow', x: 40.0, z: 12.0,  radius: 7.0,  count: 35, flowers: 6, seed: 117 },
-            { id: 'meadow_portal_s', type: 'meadow', x: 41.0, z: -1.0,  radius: 7.0,  count: 35, flowers: 5, seed: 118 },
+            // Редкие акации и колчанные деревья: острова тени посреди золотой травы
+            { id: 'acacia_w_north', type: 'forest', grass: false, x: -96.0, z: -40.0, rx: 26.0, rz: 24.0, count: 9, spacing: 15.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','twisted','quiver','sentinel'], undergrowth: true, ferns: 0, shrubs: 3, seed: 700 },
+            { id: 'acacia_w_south', type: 'forest', grass: false, x: -98.0, z: 50.0, rx: 26.0, rz: 22.0, count: 8, spacing: 15.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','twisted','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 713 },
+            { id: 'acacia_lake_s', type: 'forest', grass: false, x: -22.0, z: 56.0, rx: 34.0, rz: 14.0, count: 8, spacing: 16.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','twisted','quiver','oak_wide'], undergrowth: true, ferns: 0, shrubs: 3, seed: 726 },
+            { id: 'acacia_lake_n', type: 'forest', grass: false, x: -34.0, z: -60.0, rx: 34.0, rz: 14.0, count: 8, spacing: 16.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','sentinel','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 739 },
+            { id: 'acacia_mid_n', type: 'forest', grass: false, x: 14.0, z: -38.0, rx: 24.0, rz: 18.0, count: 6, spacing: 16.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','oak_wide','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 752 },
+            { id: 'acacia_mid_s', type: 'forest', grass: false, x: 16.0, z: 50.0, rx: 26.0, rz: 14.0, count: 6, spacing: 16.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','oak_wide','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 765 },
+            { id: 'acacia_centre', type: 'forest', grass: false, x: 42.0, z: 6.0, rx: 22.0, rz: 18.0, count: 6, spacing: 16.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','oak_wide','sentinel'], undergrowth: true, ferns: 0, shrubs: 3, seed: 778 },
+            { id: 'lion_cliffs', type: 'forest', grass: false, x: 20.0, z: -68.0, rx: 32.0, rz: 10.0, count: 8, spacing: 14.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','sentinel','twisted'], undergrowth: true, ferns: 0, shrubs: 3, seed: 791 },
+            { id: 'circle_grove', type: 'forest', grass: false, x: 74.0, z: -42.0, rx: 38.0, rz: 32.0, count: 9, spacing: 15.0, scaleMin: 0.85, scaleMax: 1.3, types: ['sentinel','twisted','oak_wide','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 804 },
+            { id: 'lizard_grove', type: 'forest', grass: false, x: 98.0, z: 46.0, rx: 34.0, rz: 28.0, count: 9, spacing: 15.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','oak_wide','quiver','sentinel'], undergrowth: true, ferns: 0, shrubs: 3, seed: 817 },
+            { id: 'east_quivers', type: 'forest', grass: false, x: 124.0, z: -6.0, rx: 12.0, rz: 44.0, count: 9, spacing: 14.0, scaleMin: 0.85, scaleMax: 1.3, types: ['quiver','quiver','twisted'], undergrowth: true, ferns: 0, shrubs: 3, seed: 830 },
+            { id: 'west_rim_trees', type: 'forest', grass: false, x: -126.0, z: -50.0, rx: 10.0, rz: 24.0, count: 5, spacing: 15.0, scaleMin: 0.85, scaleMax: 1.3, types: ['twisted','quiver'], undergrowth: true, ferns: 0, shrubs: 3, seed: 843 },
 
-            // Заросли камыша вдоль берега (с просветами открытого пляжа)
-            { id: 'reeds_east',      type: 'reeds', x: 5.5,   z: -6.0,  radius: 7.0, count: 45, seed: 101 },
-            { id: 'reeds_northeast', type: 'reeds', x: -1.0,  z: -19.0, radius: 7.0, count: 40, seed: 102 },
-            { id: 'reeds_north',     type: 'reeds', x: -26.0, z: -18.0, radius: 8.0, count: 50, seed: 103 },
-            { id: 'reeds_west',      type: 'reeds', x: -38.0, z: 4.0,   radius: 7.0, count: 35, seed: 104 },
-            { id: 'reeds_southwest', type: 'reeds', x: -26.0, z: 21.0,  radius: 8.0, count: 45, seed: 105 },
-            { id: 'reeds_south',     type: 'reeds', x: -4.0,  z: 20.0,  radius: 6.0, count: 30, seed: 106 },
-            // Болотце в северо-западном углу
-            { id: 'marsh_reeds',     type: 'reeds', x: -50.0, z: -46.0, radius: 12.0, count: 45, seed: 107 },
+            // Пальмы-оазис: колчанные деревья (пальмы) по берегам озера и тень над стоянкой отшельника
+            { id: 'palms_lake_n', type: 'forest', grass: false, x: -36.0, z: -40.0, rx: 24.0, rz: 8.0, count: 6, spacing: 6.0, scaleMin: 0.85, scaleMax: 1.2, treeType: 'quiver', undergrowth: false, seed: 1101 },
+            { id: 'palms_lake_s', type: 'forest', grass: false, x: -30.0, z: 20.0, rx: 22.0, rz: 6.0, count: 5, spacing: 6.0, scaleMin: 0.85, scaleMax: 1.2, treeType: 'quiver', undergrowth: false, seed: 1102 },
+            { id: 'palms_lake_w', type: 'forest', grass: false, x: -66.0, z: -10.0, rx: 7.0, rz: 16.0, count: 5, spacing: 6.0, scaleMin: 0.85, scaleMax: 1.2, treeType: 'quiver', undergrowth: false, seed: 1103 },
+            { id: 'palms_lake_e', type: 'forest', grass: false, x: -6.0, z: -10.0, rx: 7.0, rz: 16.0, count: 5, spacing: 6.0, scaleMin: 0.85, scaleMax: 1.2, treeType: 'quiver', undergrowth: false, seed: 1104 },
+            { id: 'palms_camp', type: 'forest', grass: false, x: -112.0, z: 33.0, rx: 8.0, rz: 5.0, count: 3, spacing: 6.0, scaleMin: 0.9, scaleMax: 1.2, treeType: 'quiver', undergrowth: false, seed: 1105 },
 
-            // Пятна луговой травы (вместо ровного кольца)
-            { id: 'meadow_ne',    type: 'meadow', x: 22.0,  z: -12.0, radius: 10.0, count: 45, flowers: 6, seed: 111 },
-            { id: 'meadow_e',     type: 'meadow', x: 30.0,  z: 14.0,  radius: 10.0, count: 45, flowers: 6, seed: 112 },
-            { id: 'meadow_s',     type: 'meadow', x: 8.0,   z: 32.0,  radius: 9.0,  count: 40, flowers: 4, seed: 113 },
-            { id: 'meadow_nw',    type: 'meadow', x: -40.0, z: -30.0, radius: 10.0, count: 40, flowers: 4, seed: 114 },
-            { id: 'meadow_sw',    type: 'meadow', x: -40.0, z: 36.0,  radius: 9.0,  count: 35, flowers: 3, seed: 115 },
-            { id: 'meadow_shore', type: 'meadow', x: 14.0,  z: -2.0,  radius: 6.0,  count: 25, flowers: 0, seed: 116 },
+            // Сухая трава (grass_set, солома): сплошной ковёр, разрежённый подлеском у деревьев
+            { id: 'grass_w', type: 'grassland', x: -96.0, z: 0.0, rx: 40.0, rz: 80.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 800 },
+            { id: 'grass_nw', type: 'grassland', x: -50.0, z: -62.0, rx: 50.0, rz: 24.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 811 },
+            { id: 'grass_sw', type: 'grassland', x: -52.0, z: 58.0, rx: 50.0, rz: 22.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 822 },
+            { id: 'grass_c', type: 'grassland', x: 10.0, z: 4.0, rx: 46.0, rz: 60.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 833 },
+            { id: 'grass_n', type: 'grassland', x: 40.0, z: -62.0, rx: 50.0, rz: 22.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 844 },
+            { id: 'grass_s', type: 'grassland', x: 50.0, z: 62.0, rx: 50.0, rz: 22.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 855 },
+            { id: 'grass_e', type: 'grassland', x: 100.0, z: -8.0, rx: 36.0, rz: 60.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 866 },
+            { id: 'grass_circle', type: 'grassland', x: 74.0, z: -42.0, rx: 22.0, rz: 20.0, density: 6.0, spacing: 2.1, scaleMin: 1.0, scaleMax: 1.5, weights: { a: 0.55, b: 0.06, c: 0.33, d: 0.06 }, maxSlope: 0.38, seed: 877 },
 
-            // Лес по краям
-            { id: 'northeast_forest', type: 'forest', x: 44.0, z: -44.0, rx: 16.0, rz: 12.0, count: 14, seed: 121 },
-            { id: 'south_forest',     type: 'forest', x: -6.0, z: 50.0,  rx: 32.0, rz: 8.0,  count: 16, seed: 122 }
+            // Камни и скальные выходы (кладки у озера, холмы-копье)
+            { id: 'rocks_lake_e', type: 'rocks', x: -6.0, z: -30.0, radius: 6.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 900 },
+            { id: 'rocks_lake_s', type: 'rocks', x: -30.0, z: 34.0, radius: 5.0, count: 3, scaleMin: 0.9, scaleMax: 2.2, seed: 907 },
+            { id: 'rocks_lake_w', type: 'rocks', x: -74.0, z: -20.0, radius: 6.0, count: 3, scaleMin: 0.9, scaleMax: 2.2, seed: 914 },
+            { id: 'kopje_north', type: 'rocks', x: 8.0, z: -70.0, radius: 9.0, count: 6, scaleMin: 0.9, scaleMax: 2.2, seed: 921 },
+            { id: 'kopje_north2', type: 'rocks', x: 40.0, z: -74.0, radius: 8.0, count: 5, scaleMin: 0.9, scaleMax: 2.2, seed: 928 },
+            { id: 'kopje_centre', type: 'rocks', x: 40.0, z: 22.0, radius: 7.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 935 },
+            { id: 'kopje_west', type: 'rocks', x: -100.0, z: 20.0, radius: 8.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 942 },
+            { id: 'kopje_se', type: 'rocks', x: 60.0, z: 66.0, radius: 8.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 949 },
+            { id: 'kopje_east', type: 'rocks', x: 118.0, z: -48.0, radius: 9.0, count: 5, scaleMin: 0.9, scaleMax: 2.2, seed: 956 },
+            { id: 'circle_rocks', type: 'rocks', x: 74.0, z: -70.0, radius: 10.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 963 },
+
+            // Кусты и травянистые заросли
+            { id: 'shrubs_w', type: 'shrubCluster', x: -80.0, z: -4.0, radius: 22.0, count: 9, spacing: 5.0, seed: 1000 },
+            { id: 'shrubs_c', type: 'shrubCluster', x: 0.0, z: 20.0, radius: 24.0, count: 9, spacing: 5.0, seed: 1005 },
+            { id: 'shrubs_e', type: 'shrubCluster', x: 60.0, z: 24.0, radius: 22.0, count: 9, spacing: 5.0, seed: 1010 },
+            { id: 'shrubs_n', type: 'shrubCluster', x: -10.0, z: -48.0, radius: 20.0, count: 9, spacing: 5.0, seed: 1015 },
+            { id: 'shrubs_se', type: 'shrubCluster', x: 110.0, z: 70.0, radius: 16.0, count: 9, spacing: 5.0, seed: 1020 },
+
+            // Камыш у озера: куртины по периметру воды (только на мелководье и мокром берегу)
+            { id: 'lake_reeds_1', type: 'reeds', x: -15.3, z: -8.4, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 600 },
+            { id: 'lake_reeds_2', type: 'reeds', x: -21.4, z: 3.1, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 617 },
+            { id: 'lake_reeds_3', type: 'reeds', x: -33.1, z: 8.8, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 634 },
+            { id: 'lake_reeds_4', type: 'reeds', x: -45.9, z: 6.5, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 651 },
+            { id: 'lake_reeds_5', type: 'reeds', x: -54.9, z: -2.8, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 668 },
+            { id: 'lake_reeds_6', type: 'reeds', x: -56.7, z: -15.6, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 685 },
+            { id: 'lake_reeds_7', type: 'reeds', x: -50.6, z: -27.1, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 702 },
+            { id: 'lake_reeds_8', type: 'reeds', x: -38.9, z: -32.8, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 719 },
+            { id: 'lake_reeds_9', type: 'reeds', x: -26.1, z: -30.5, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 736 },
+            { id: 'lake_reeds_10', type: 'reeds', x: -17.1, z: -21.2, radius: 5.5, count: 26, spacing: 0.5, clumps: 3, clumpRadius: 1.6, seed: 753 }
         ],
 
-        // Рунный вепрь переехал к порталу в долине (forestEdge, portal_rune_boar)
-        creatures: [],
+        // Звери саванны: мирные пока не ударишь (behavior retaliate в content/creatures)
+        creatures: [
+            { id: 'sv_hyena_1', type: 'hyena', x: -98.0, z: -12.0, r: 0.40 },
+            { id: 'sv_hyena_2', type: 'hyena', x: -90.0, z: -22.0, r: 2.10 },
+            { id: 'sv_hyena_3', type: 'hyena', x: -104.0, z: -28.0, r: 3.80 },
+            { id: 'sv_hyena_4', type: 'hyena', x: -96.0, z: 40.0, r: 5.50 },
+            { id: 'sv_hyena_5', type: 'hyena', x: -88.0, z: 50.0, r: 0.92 },
+            { id: 'sv_hyena_6', type: 'hyena', x: -106.0, z: 52.0, r: 2.62 },
+            { id: 'sv_komodo_1', type: 'komodo', x: 4.0, z: -14.0, r: 1.00 },
+            { id: 'sv_komodo_2', type: 'komodo', x: -10.0, z: 20.0, r: 2.70 },
+            { id: 'sv_komodo_3', type: 'komodo', x: -78.0, z: -22.0, r: 4.40 },
+            { id: 'sv_komodo_4', type: 'komodo', x: -60.0, z: 38.0, r: 6.10 },
+            { id: 'sv_lion_1', type: 'cave_lion', x: 18.0, z: -66.0, r: 2.00 },
+            { id: 'sv_lion_2', type: 'cave_lion', x: 34.0, z: -72.0, r: 3.70 },
+            { id: 'sv_lion_3', type: 'cave_lion', x: 4.0, z: -74.0, r: 5.40 },
+            { id: 'sv_soldier_1', type: 'lizard_soldier', x: 105.6, z: 49.0, r: 0.50 },
+            { id: 'sv_soldier_2', type: 'lizard_soldier', x: 98.2, z: 55.8, r: 2.20 },
+            { id: 'sv_soldier_3', type: 'lizard_soldier', x: 88.7, z: 52.8, r: 3.90 },
+            { id: 'sv_soldier_4', type: 'lizard_soldier', x: 86.4, z: 43.0, r: 5.60 },
+            { id: 'sv_soldier_5', type: 'lizard_soldier', x: 93.8, z: 36.2, r: 1.02 },
+            { id: 'sv_soldier_6', type: 'lizard_soldier', x: 103.3, z: 39.2, r: 2.72 },
+            { id: 'sv_soldier_7', type: 'lizard_soldier', x: 66.0, z: 60.0, r: 4.42 },
+            { id: 'sv_soldier_8', type: 'lizard_soldier', x: 124.0, z: 66.0, r: 6.12 },
+            { id: 'sv_commander_1', type: 'lizard', x: 104.0, z: 44.0, r: 3.00 },
+            { id: 'sv_commander_2', type: 'lizard', x: 122.0, z: 28.0, r: 4.70 },
+            { id: 'sv_fire_elemental', type: 'fire_elemental', x: 74.0, z: -52.0, r: 0.00 },
+            { id: 'sv_stone_elemental', type: 'stone_elemental', x: 84.0, z: -42.0, r: 1.57 },
+            { id: 'sv_water_elemental', type: 'water_elemental', x: 74.0, z: -32.0, r: 3.14 },
+            { id: 'sv_air_elemental', type: 'air_elemental', x: 64.0, z: -42.0, r: 4.71 }
+        ],
 
-        // Объекты, расставленные вручную
+        pickups: [],
+
+        // Стоянка отшельника, Круг стихий, лагерь ящеров, путевые камни (заглушки — меши нарисуем позже)
+        props: [
+            { id: 'savanna.hermit', prop: 'npc_lizard_hermit', x: -112.0, z: 22.5, r: 0.0 },
+            { id: 'savanna.hermit_fire', prop: 'campfire', x: -115.0, z: 20.0, r: 0.0 },
+            { id: 'savanna.hermit_hut', prop: 'hermit_hut', x: -122.0, z: 25.0, r: 0.9 },
+            { id: 'savanna.hermit_rack', prop: 'drying_rack', x: -109.0, z: 15.0, r: 0.3 },
+            { id: 'savanna.hermit_stump_1', prop: 'stump', x: -118.5, z: 18.0, r: 0.4 },
+            { id: 'savanna.hermit_stump_2', prop: 'stump', x: -111.0, z: 18.0, r: 1.2 },
+            { id: 'savanna.hermit_log', prop: 'fallen_log', x: -117.0, z: 15.0, r: 0.6, noObstacle: true, s: 2.4 },
+            { id: 'savanna.waystone', prop: 'waystone', x: -126.0, z: 5.5, r: 0.3 },
+            { id: 'savanna.waystone_2', prop: 'waystone', x: -126.0, z: 14.5, r: -0.3 },
+            { id: 'savanna.altar_fire', prop: 'elemental_altar_fire', x: 74.0, z: -48.0, r: 0.0 },
+            { id: 'savanna.altar_stone', prop: 'elemental_altar_stone', x: 80.0, z: -42.0, r: 1.57 },
+            { id: 'savanna.altar_water', prop: 'elemental_altar_water', x: 74.0, z: -36.0, r: 3.14 },
+            { id: 'savanna.altar_air', prop: 'elemental_altar_air', x: 68.0, z: -42.0, r: 4.71 },
+            { id: 'savanna.obelisk', prop: 'elemental_obelisk', x: 74.0, z: -42.0, r: 0.0 },
+            { id: 'savanna.lizard_totem', prop: 'lizard_totem', x: 92.0, z: 40.0, r: 0.5 },
+            { id: 'savanna.lizard_tent_1', prop: 'lizard_tent', x: 86.0, z: 50.0, r: 0.8 },
+            { id: 'savanna.lizard_tent_2', prop: 'lizard_tent', x: 104.0, z: 52.0, r: -0.6 },
+            { id: 'savanna.lizard_tent_3', prop: 'lizard_tent', x: 108.0, z: 38.0, r: 2.4 },
+            { id: 'savanna.lizard_banner_1', prop: 'lizard_banner', x: 88.0, z: 36.0, r: 0.0 },
+            { id: 'savanna.lizard_banner_2', prop: 'lizard_banner', x: 100.0, z: 34.0, r: 0.0 },
+            { id: 'savanna.lizard_banner_3', prop: 'lizard_banner', x: 112.0, z: 46.0, r: 1.2 },
+            { id: 'savanna.lizard_fire', prop: 'campfire', x: 96.0, z: 46.0, r: 0.0 },
+            { id: 'savanna.bones_1', prop: 'bone_pile', x: 90.0, z: 46.0, r: 0.4 },
+            { id: 'savanna.bones_2', prop: 'bone_pile', x: 20.0, z: -62.0, r: 1.9 },
+            { id: 'savanna.bones_3', prop: 'bone_pile', x: -8.0, z: -70.0, r: 0.7 },
+            { id: 'savanna.bones_4', prop: 'bone_pile', x: -100.0, z: -18.0, r: 2.5 }
+        ],
+
         decorations: {
-            trees: [
-                { x: 14.0, z: 20.0, s: 1.10, r: 0.40 },
-                { x: 20.0, z: 25.0, s: 1.25, r: 1.80 },
-                { x: 16.0, z: 10.0, s: 1.05, r: 2.70 },
-                { x: 23.0, z: 6.0, s: 1.20, r: 0.90 },
-                { x: 18.0, z: -8.0, s: 1.15, r: 3.10 },
-                { x: 24.0, z: -16.0, s: 1.30, r: 1.40 },
-                { x: 11.0, z: -20.0, s: 0.95, r: 0.20 },
-                { x: 18.0, z: -25.0, s: 1.10, r: 2.30 },
-                { x: 28.0, z: 2.0, s: 1.35, r: 1.70 },
-                { x: 30.0, z: -10.0, s: 1.40, r: 0.60 },
-                { x: -5.0, z: 27.0, s: 1.05, r: 2.90 },
-                { x: -16.0, z: 24.0, s: 1.15, r: 1.10 },
-                { x: -24.0, z: -22.0, s: 1.25, r: 0.50 },
-                { x: -26.0, z: -12.0, s: 1.10, r: 2.20 }
-            ],
-            boulders: [
-                { x: -5.0, z: 18.0, s: 2.00, r: 0.40 },
-                { x: 3.0, z: 15.0, s: 1.70, r: 1.20 },
-                { x: 6.0, z: 7.0, s: 2.20, r: 2.10 },
-                { x: 8.0, z: -4.0, s: 1.90, r: 0.80 },
-                { x: 4.0, z: -15.0, s: 2.30, r: 3.00 },
-                { x: -2.0, z: -20.0, s: 1.80, r: 1.70 },
-                { x: -10.0, z: -22.0, s: 2.50, r: 0.50 },
-                { x: -21.0, z: -17.0, s: 2.00, r: 2.60 },
-                { x: 22.0, z: 15.0, s: 2.80, r: 0.30 },
-                { x: 28.0, z: 20.0, s: 2.40, r: 1.90 },
-                { x: 20.0, z: -15.0, s: 2.30, r: 1.40 }
-            ],
-            shrubs: [
-                { x: 12.0, z: 18.0, s: 1.80, r: 0.00 },
-                { x: 15.0, z: 12.0, s: 2.10, r: 1.30 },
-                { x: 22.0, z: 24.0, s: 2.30, r: 2.60 },
-                { x: 18.0, z: -5.0, s: 1.90, r: 3.90 },
-                { x: 25.0, z: -14.0, s: 2.20, r: 5.20 },
-                { x: 12.0, z: -19.0, s: 1.70, r: 0.50 },
-                { x: 27.0, z: 4.0, s: 2.40, r: 1.80 },
-                { x: 29.0, z: -6.0, s: 2.00, r: 3.10 },
-                { x: -4.0, z: 25.0, s: 1.80, r: 4.40 },
-                { x: -15.0, z: 23.0, s: 2.10, r: 5.70 }
-            ],
-            ferns: [
-                { x: 10.0, z: 14.0, s: 3.00, r: 0.80 },
-                { x: 18.0, z: 18.0, s: 2.80, r: 1.50 },
-                { x: 22.0, z: 10.0, s: 3.20, r: 2.30 },
-                { x: 15.0, z: -12.0, s: 2.90, r: 3.10 },
-                { x: 21.0, z: -18.0, s: 3.40, r: 0.40 },
-                { x: 26.0, z: -8.0, s: 2.70, r: 1.90 },
-                { x: 14.0, z: 24.0, s: 3.10, r: 2.80 },
-                { x: 28.0, z: 16.0, s: 3.30, r: 0.70 },
-                { x: -3.0, z: 22.0, s: 2.80, r: 1.60 },
-                { x: -12.0, z: 20.0, s: 3.00, r: 2.50 }
-            ],
+            trees: [],
+            boulders: [],
+            shrubs: [],
+            ferns: [],
             reeds: [],
             grass: []
         }
