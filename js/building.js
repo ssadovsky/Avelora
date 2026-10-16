@@ -253,11 +253,11 @@
         // --- помост: доски поперёк (вдоль X), как на мосту ---
         const nP = 15, stepZ = (2 * HZ) / nP;
         for (let i = 0; i < nP; i++) {
-            box(B.floor, 2 * HX, 0.12, stepZ - 0.03, 0, -0.06, -HZ + stepZ * (i + 0.5), sh(WOOD, kv()));
+            box(B.floor, 2 * HX - 0.04, 0.12, stepZ - 0.03, 0, -0.06, -HZ + stepZ * (i + 0.5), sh(WOOD, kv()));
         }
         [-1.7, 0, 1.7].forEach(x => box(B.frame, 0.16, 0.2, 2 * HZ - 0.2, x, -0.22, 0, sh(DARK, 1)));
-        [-1, 1].forEach(s => box(B.frame, 0.22, 0.24, 2 * HZ, s * (HX - 0.11), -0.24, 0, sh(LOG, kv())));
-        [-1, 1].forEach(s => box(B.frame, 2 * HX - 0.44, 0.24, 0.22, 0, -0.24, s * (HZ - 0.11), sh(LOG, kv())));
+        [-1, 1].forEach(s => box(B.frame, 0.24, 0.24, 2 * HZ + 0.04, s * (HX - 0.10), -0.24, 0, sh(LOG, kv())));   // лежни выступают за столбы на 2–3 см: нет общих плоскостей
+        [-1, 1].forEach(s => box(B.frame, 2 * HX - 0.4, 0.24, 0.26, 0, -0.24, s * (HZ - 0.10), sh(LOG, kv())));
         // юбка: закрывает зазор между помостом и землёй
         const skH = drop + 0.1 - 0.12, skY = -0.12 - skH / 2;
         [-1, 1].forEach(s => {
@@ -276,7 +276,7 @@
             box(B.frame, 0.16, EAVE_Y, 0.16, s * (HX - 0.08), EAVE_Y / 2, 0, sh(LOG, kv()));           // средний столб
             box(B.frame, 0.22, 0.16, 2 * HZ + 0.1, s * (HX - 0.12), EAVE_Y - 0.02, 0, sh(LOG, kv()));        // обвязка (торцы выступают за столбы — нет общих плоскостей)
         });
-        box(B.frame, 2 * HX + 0.1, 0.2, 0.2, 0, EAVE_Y - 0.1, HZ - 0.1, sh(LOG, 1));                        // фронтальная балка (торцы выступают)
+        box(B.frame, 2 * HX + 0.1, 0.2, 0.24, 0, EAVE_Y - 0.1, HZ - 0.08, sh(LOG, 1));                        // фронтальная балка (торцы выступают)
         [-1.6, 0, 1.6].forEach(z => box(B.frame, 2 * HX - 0.2, 0.14, 0.14, 0, EAVE_Y + 0.08, z, sh(DARK, 1)));
         // раскосы у входа
         [-1, 1].forEach(s => box(B.frame, 0.12, 0.9, 0.1, s * (HX - 0.36), EAVE_Y - 0.55, HZ - 0.1, sh(LOG, 0.95), 0, 0, s * 0.7));
@@ -509,7 +509,7 @@
         [-1, 1].forEach(sz => box(sz > 0 ? B.roof : B.frame, 2 * SX + 0.2, 0.2, 0.22, 0, topAt(sz * PZ) + 0.09, sz * PZ, sh(LOG, kv())));   // поперечные балки (передняя, высокая — часть «крыши»: исчезает вместе с ней)
         // нижние лежни по бокам и сзади (чуть утоплены); спереди вход свободен
         [-1, 1].forEach(sx => box(B.frame, 0.22, 0.36, 2 * PZB - 0.2, sx * PXB, -0.12, -0.1, sh(LOG, kv() * 0.85)));
-        box(B.frame, 2 * PXB - 0.4, 0.36, 0.22, 0, -0.12, -PZB, sh(LOG, kv() * 0.85));
+        box(B.frame, 2 * PXB - 0.1, 0.36, 0.22, 0, -0.12, -PZB, sh(LOG, kv() * 0.85));
 
         // --- крыша: односкатная, высокий край — вход (+Z) ---
         {
@@ -1504,7 +1504,6 @@
                     this._stKey = key;
                     const ui = this.game.ui;
                     if (ui && ui.currentTab === 'craft' && ui.renderCrafting) ui.renderCrafting();
-                    if (prev !== undefined && /[1-9]/.test(key) && !/[1-9]/.test(prev) && ui) ui.floatText('Пильня рядом — доски: сумка → «Создание»', 'info');
                 }
             }
             const pl = this.placing;
