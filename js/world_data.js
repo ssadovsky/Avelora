@@ -359,6 +359,10 @@ window.LOCATIONS = {
             { id: 'lake_hyena_1', type: 'hyena', x: -12.0, z: 8.0, r: 2.2 },
             { id: 'lake_cave_lion_1', type: 'cave_lion', x: -45.0, z: -12.0, r: 1.2 },
             { id: 'lake_komodo_1', type: 'komodo', x: -37.0, z: -6.0, r: 3.1 },
+            { id: 'lake_el_water', type: 'water_elemental', x: -26.0, z: 12.0, r: 0.8 },
+            { id: 'lake_el_fire', type: 'fire_elemental', x: -33.0, z: 16.0, r: 0.8 },
+            { id: 'lake_el_stone', type: 'stone_elemental', x: -40.0, z: 10.0, r: 0.8 },
+            { id: 'lake_el_air', type: 'air_elemental', x: -25.0, z: 5.0, r: 0.8 },
             // 10 обычных вепрей на северо-востоке долины, за лисицами по направлению к медведю (≈ x 38..82, z -62..-32): рассредоточены (≥12 м друг от друга), не вплотную к медведю (квест boar_hunt)
             { id: 'boar_1', type: 'boar', x: 66.0, z: -58.0, r: 1.20 },
             { id: 'boar_2', type: 'boar', x: 52.0, z: -62.0, r: 4.00 },

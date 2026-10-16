@@ -1191,6 +1191,33 @@ window.GAME_CONTENT = {
   }
  },
  "creatures": {
+  "air_elemental": {
+   "id": "air_elemental",
+   "name": "Воздушный элементаль",
+   "hp": 100,
+   "damage": [
+    6,
+    10
+   ],
+   "attackRange": 2.0,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.2,
+   "gold": [
+    3,
+    5
+   ],
+   "xp": 55,
+   "level": 6,
+   "attackCooldown": 1.6,
+   "walkSpeed": 1.0,
+   "runSpeed": 4.2,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/air_elemental"
+  },
   "badger": {
    "id": "badger",
    "name": "Радужный барсук",
@@ -1441,6 +1468,33 @@ window.GAME_CONTENT = {
    "xp": 0,
    "level": 1,
    "modelKey": "creatures/fawn"
+  },
+  "fire_elemental": {
+   "id": "fire_elemental",
+   "name": "Огненный элементаль",
+   "hp": 130,
+   "damage": [
+    9,
+    14
+   ],
+   "attackRange": 2.0,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.2,
+   "gold": [
+    4,
+    6
+   ],
+   "xp": 60,
+   "level": 7,
+   "attackCooldown": 1.6,
+   "walkSpeed": 1.0,
+   "runSpeed": 4.2,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/fire_elemental"
   },
   "fire_fox": {
    "id": "fire_fox",
@@ -1909,6 +1963,33 @@ window.GAME_CONTENT = {
    "level": 1,
    "modelKey": "creatures/spotted_fawn"
   },
+  "stone_elemental": {
+   "id": "stone_elemental",
+   "name": "Каменный элементаль",
+   "hp": 180,
+   "damage": [
+    8,
+    12
+   ],
+   "attackRange": 2.0,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.2,
+   "gold": [
+    5,
+    7
+   ],
+   "xp": 70,
+   "level": 8,
+   "attackCooldown": 1.6,
+   "walkSpeed": 1.0,
+   "runSpeed": 4.2,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/stone_elemental"
+  },
   "thunderclaw": {
    "id": "thunderclaw",
    "name": "Громовой Коготь",
@@ -1950,6 +2031,33 @@ window.GAME_CONTENT = {
     16
    ],
    "modelKey": "creatures/thunderclaw"
+  },
+  "water_elemental": {
+   "id": "water_elemental",
+   "name": "Водный элементаль",
+   "hp": 120,
+   "damage": [
+    7,
+    11
+   ],
+   "attackRange": 2.0,
+   "leashRadius": 14,
+   "wanderRadius": 5,
+   "respawnMinutes": 5,
+   "hitRadius": 1.2,
+   "gold": [
+    3,
+    5
+   ],
+   "xp": 50,
+   "level": 6,
+   "attackCooldown": 1.6,
+   "walkSpeed": 1.0,
+   "runSpeed": 4.2,
+   "behavior": "retaliate",
+   "aggroRadius": 0,
+   "scale": 1.0,
+   "modelKey": "creatures/water_elemental"
   },
   "wolf": {
    "id": "wolf",
