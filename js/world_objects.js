@@ -765,10 +765,32 @@
 
         containerDistance(rec) {
             const c = this.game.character;
-            return c ? Math.hypot(c.position.x - rec.x, c.position.z - rec.z) : Infinity;
+            if (!c) return Infinity;
+            if (rec.distanceTo) return rec.distanceTo(c.position);   // buildings (building.js): not through walls
+            return Math.hypot(c.position.x - rec.x, c.position.z - rec.z);
         }
 
-        containerReach(rec) { return Math.max(rec.r, 0.5) + CONTAINER_REACH; }
+        containerReach(rec) { return rec.reach || (Math.max(rec.r, 0.5) + CONTAINER_REACH); }
+
+        /** A storage that is not a prop of world_data (building.js): registers like a chest and gets hover/click/open for free. */
+        registerContainer(rec, proxy) {
+            this.props.push(rec);
+            this.containerProxies.push(proxy);
+            this.version++;
+        }
+
+        unregisterContainer(id) {
+            if (this.openContainer && this.openContainer.id === id) this.closeChest();
+            const i = this.props.findIndex(r => r.id === id);
+            if (i < 0) return;
+            const rec = this.props[i];
+            this.props.splice(i, 1);
+            const j = this.containerProxies.indexOf(rec.proxy);
+            if (j >= 0) this.containerProxies.splice(j, 1);
+            if (rec.proxy && rec.proxy.parent) rec.proxy.parent.remove(rec.proxy);
+            if (this.pendingContainerId === id) this.pendingContainerId = null;
+            this.version++;
+        }
 
         requestOpenContainer(rec) {
             const c = this.game.character;
@@ -779,7 +801,8 @@
                 this.activate(rec);
                 return;
             }
-            const path = this.pathfinder ? this.pathfinder.findPath(c.position, new THREE.Vector3(rec.x, 0, rec.z)) : [];
+            const tgt = rec.access || rec;   // buildings: walk to the doorway-side access point, not to the chest itself
+            const path = this.pathfinder ? this.pathfinder.findPath(c.position, new THREE.Vector3(tgt.x, 0, tgt.z)) : [];
             if (path && path.length) {
                 c.setPath(path);
                 this.pendingContainerId = rec.id;

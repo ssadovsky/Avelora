@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#player-frame, #player-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
+const UI_SELECTOR = '#player-frame, #player-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -593,6 +593,7 @@ class AveloraGame {
             : null;
         this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc);
         this.worldObjects = window.AveloraWorldObjects ? new AveloraWorldObjects(this, loc) : null;
+        this.building = window.AveloraBuilding ? new AveloraBuilding(this, loc) : null;   // building.js: player buildings (home camp)
         this.creatures = window.AveloraCreatures ? new AveloraCreatures(this, loc) : null;
         this.harvest = window.AveloraHarvest ? new AveloraHarvest(this, loc) : null;
         this.buildExits(loc);
@@ -621,6 +622,7 @@ class AveloraGame {
         if (this.map) this.map.clearAll();        // close map panel when leaving location
         if (this.creatures) { this.creatures.dispose(); this.creatures = null; }
         if (this.harvest) { this.harvest.dispose(); this.harvest = null; }
+        if (this.building) { this.building.dispose(); this.building = null; }
         if (this.worldObjects) { this.worldObjects.dispose(); this.worldObjects = null; }
         if (this.environment) this.environment.dispose();
         if (this.terrain && this.terrain.dispose) this.terrain.dispose();
@@ -1042,6 +1044,7 @@ class AveloraGame {
                 e.preventDefault();
                 // Escape закрывает карту если она открыта
                 if (this.map && this.map.isOpen) { this.map.close(); return; }
+                if (!this.isPaused && this.building && this.building.onEscape()) return;   // placement mode / build menu
                 // Escape closes open windows first (bag + skills + hero + quests + micromenu + potion), otherwise toggles pause
                 const skillsOpen = this.ui && this.ui.isSkillsOpen();
                 const heroOpen = this.ui && this.ui.isHeroOpen && this.ui.isHeroOpen();
@@ -1697,6 +1700,7 @@ class AveloraGame {
         const fpAim = this.viewMode === 'first';
         if (fpAim && !e.fpAim) return;
         if (this.combat && this.combat.isDead) return;
+        if (this.building && this.building.handleWorldClick(e)) return;   // placing a building: the click is its own
 
         const center = fpAim && e.aimCenter;   // touch: the screen centre (crosshair)
         this.mouse.x = center ? 0 : (e.clientX / window.innerWidth) * 2 - 1;
@@ -1751,7 +1755,10 @@ class AveloraGame {
         }
 
         if (fpAim) return;
-        const intersects = this.raycaster.intersectObject(this.terrain.mesh);
+        let intersects = this.raycaster.intersectObject(this.terrain.mesh);
+        // walking on a plank deck: the floor of a building is hit before the ground under it
+        const floorHit = this.building ? this.building.pickFloor(this.raycaster) : null;
+        if (floorHit && (!intersects.length || floorHit.distance < intersects[0].distance)) intersects = [floorHit];
 
         if (intersects.length > 0) {
             const hitPoint = intersects[0].point;
@@ -1781,7 +1788,7 @@ class AveloraGame {
             this.hideObjectTooltip();
             return;
         }
-        if (!this.isReady || this.isTransitioning || !this.environment) {
+        if (!this.isReady || this.isTransitioning || !this.environment || (this.building && this.building.placing)) {
             this.hideObjectTooltip();
             return;
         }
@@ -2586,6 +2593,7 @@ class AveloraGame {
             this.environment.update(delta, this.character ? this.character.position : null);
         }
         if (this.worldObjects) this.worldObjects.update(delta); // auto-pickup on arrival
+        if (this.building) this.building.update(delta);         // placement ghost, roof fade near/inside buildings
         if (this.skills) this.skills.update(delta);             // casts, projectiles, VFX
         if (this.ui) this.ui.update(delta);                     // cooldown sweeps, floating texts
 

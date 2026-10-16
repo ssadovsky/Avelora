@@ -106,6 +106,25 @@
         return out;
     }
 
+    /** Player buildings: { "<locationId>": [ {uid, type, x, z, r} ] } (building.js). */
+    function sanitizeBuildings(raw) {
+        const out = {};
+        if (!raw || typeof raw !== 'object') return out;
+        Object.keys(raw).forEach(loc => {
+            const arr = raw[loc];
+            if (!Array.isArray(arr)) return;
+            const list = [];
+            arr.forEach(b => {
+                if (!b || typeof b.type !== 'string') return;
+                const x = Number(b.x), z = Number(b.z), r = Number(b.r), uid = Math.floor(Number(b.uid));
+                if (!Number.isFinite(x) || !Number.isFinite(z) || !(uid >= 1)) return;
+                list.push({ uid, type: b.type, x, z, r: Number.isFinite(r) ? r : 0 });
+            });
+            if (list.length) out[loc] = list.slice(0, 40);
+        });
+        return out;
+    }
+
     function sanitizeHotbar(raw, characterId, learned) {
         const out = new Array(HOTBAR_SIZE).fill(null);
         const skills = characterSkills(characterId, learned);
@@ -275,6 +294,8 @@
             this.gold = Number.isFinite(gd) && gd > 0 ? Math.min(gd, 999999999) : 0;
             // Storage chests (world_objects.js props with a `container` block), saved per chest
             this.chestData = sanitizeChests(data.chests);
+            // Buildings placed by the player (building.js), per location
+            this.buildings = sanitizeBuildings(data.buildings);
             // Quests: { questId: 'active' | 'done' } (content/quests, taken from NPCs in dialog.js)
             this.quests = sanitizeQuests(data.quests);
             this.questKills = sanitizeCounts(data.questKills);   // kills counted while a kill quest is active
@@ -542,6 +563,32 @@
             this.save();
         }
 
+        buildingsOf(locationId) { return this.buildings[locationId] || []; }
+
+        addBuilding(locationId, type, x, z, r) {
+            const list = this.buildings[locationId] || (this.buildings[locationId] = []);
+            let uid = 1;
+            list.forEach(b => { if (b.uid >= uid) uid = b.uid + 1; });
+            const b = { uid, type, x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, r: Math.round(r * 1000) / 1000 };
+            list.push(b);
+            this.save();
+            return b;
+        }
+
+        removeBuilding(locationId, uid) {
+            const list = this.buildings[locationId];
+            if (!list) return false;
+            const i = list.findIndex(b => b.uid === uid);
+            if (i < 0) return false;
+            list.splice(i, 1);
+            if (!list.length) delete this.buildings[locationId];
+            this.save();
+            return true;
+        }
+
+        /** Forget a chest's contents (demolished storage). */
+        dropChest(key) { delete this.chestData[key]; delete this.chestInvs[key]; }
+
         chestsJSON() {
             const out = {};
             Object.keys(this.chestData).forEach(k => { out[k] = this.chestData[k]; });
@@ -565,6 +612,7 @@
                 returnTo: this.returnTo || null,
                 returnPos: this.returnPos || null,
                 chests: this.chestsJSON(),
+                buildings: JSON.parse(JSON.stringify(this.buildings)),
                 gold: this.gold,
                 xp: this.xp,
                 learnedSkills: this.learnedSkills.slice(),

@@ -2129,7 +2129,7 @@ window.GAME_CONTENT = {
   "plank": {
    "id": "plank",
    "name": "Доски",
-   "description": "Бревно распиливается на несколько досок.",
+   "description": "Бревно распиливается на несколько досок. Работать можно только рядом с пильней.",
    "category": "carpentry",
    "ingredients": [
     {
@@ -2140,7 +2140,8 @@ window.GAME_CONTENT = {
    "result": {
     "item": "plank",
     "count": 4
-   }
+   },
+   "station": "sawmill"
   },
   "potion_health_large": {
    "id": "potion_health_large",

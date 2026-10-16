@@ -837,6 +837,9 @@ window.LOCATIONS = {
 
         cameraAngle: 0.0,           // на старте камера смотрит на север по компасу (север = −Z)
 
+        // Строительство (building.js): меню «Строить» (B) есть только здесь; ставить можно внутри area (метры)
+        building: { types: ['sawmill', 'storage'], area: { x: 0.0, z: 10.0, hx: 38.0, hz: 30.0 } },   // z от −20 до 40
+
         atmosphere: { sky: 0xd6e6dc, skyTop: 0x4f97d6, fogDensity: 0.0045 },
 
         spawns: {
@@ -855,9 +858,9 @@ window.LOCATIONS = {
 
         groups: [
             // Южный берег: лес вдоль горного хребта
-            { id: 'forest_s_w',   type: 'forest', x: -45.0, z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 401, types: ['fir_a', 'fir_b', 'tree', 'tree_small'] },
-            { id: 'forest_s_mid', type: 'forest', x: 0.0,   z: 56.0, rx: 26.0, rz: 10.0, count: 16, spacing: 8.0, shrubs: 6, seed: 402, types: ['tree', 'fir_a', 'fir_c', 'tree_small'] },
-            { id: 'forest_s_e',   type: 'forest', x: 45.0,  z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 403, types: ['fir_b', 'tree', 'fir_a', 'tree_small'] },
+            { id: 'forest_s_w',   type: 'forest', x: -45.0, z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 401, types: ['evergreen', 'evergreen', 'tree', 'tree_small'] },
+            { id: 'forest_s_mid', type: 'forest', x: 0.0,   z: 56.0, rx: 26.0, rz: 10.0, count: 16, spacing: 8.0, shrubs: 6, seed: 402, types: ['tree', 'evergreen', 'evergreen', 'tree_small'] },
+            { id: 'forest_s_e',   type: 'forest', x: 45.0,  z: 54.0, rx: 24.0, rz: 10.0, count: 14, spacing: 8.0, shrubs: 6, seed: 403, types: ['evergreen', 'tree', 'evergreen', 'tree_small'] },
 
             // Западный фланг: лес от южных гор ДО САМОЙ РЕКИ
             { id: 'forest_sw_mid',   type: 'forest', x: -56.0, z: 32.0, rx: 14.0, rz: 16.0, count: 12, spacing: 8.0, shrubs: 4, seed: 404 },
@@ -870,7 +873,7 @@ window.LOCATIONS = {
             // Подлесок: скальные валуны и папоротники
             { id: 'rocks_s1',   type: 'rocks',  x: -36.0, z: 58.0, radius: 6.0, count: 4, seed: 411 },
             { id: 'rocks_s2',   type: 'rocks',  x: 36.0,  z: 58.0, radius: 6.0, count: 4, seed: 412 },
-            { id: 'ferns_s1',   type: 'fernPatch', x: -22.0, z: 46.0, radius: 6.0, count: 10, seed: 421 },
+            { id: 'ferns_s1',   type: 'fernPatch', x: -22.0, z: 49.0, radius: 6.0, count: 10, seed: 421 },
             { id: 'ferns_s2',   type: 'fernPatch', x: 22.0,  z: 46.0, radius: 6.0, count: 10, seed: 422 },
             { id: 'ferns_sw',   type: 'fernPatch', x: -48.0, z: 14.0, radius: 6.0, count: 8, seed: 423 },
             { id: 'ferns_se',   type: 'fernPatch', x: 48.0,  z: 14.0, radius: 6.0, count: 8, seed: 424 },

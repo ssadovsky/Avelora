@@ -564,13 +564,20 @@
                 desc.className = 'crafting-card-desc';
                 desc.textContent = rec.description || (resItemDef ? resItemDef.description : '');
                 infoWrap.append(title, desc);
+                const stn = this.stationInfo(rec);
+                if (stn) {
+                    const sl = document.createElement('div');
+                    sl.className = 'crafting-station ' + (stn.near ? 'near' : 'far');
+                    sl.textContent = stn.near ? `✓ ${stn.name} рядом` : `Нужна: ${stn.name} — подойдите к ней`;
+                    infoWrap.appendChild(sl);
+                }
 
                 topRow.append(iconWrap, infoWrap);
 
                 const ingContainer = document.createElement('div');
                 ingContainer.className = 'crafting-ingredients';
 
-                let canCraft = true;
+                let canCraft = !stn || stn.near;
                 const ingredients = rec.ingredients || [];
                 const maxQty = this.maxCraftable(rec);
                 if (!this.craftQty) this.craftQty = {};
@@ -651,6 +658,15 @@
             });
         }
 
+        /** Recipe with a `station` (e.g. planks -> sawmill): { name, near } or null when no station is needed. */
+        stationInfo(rec) {
+            if (!rec || !rec.station) return null;
+            const types = window.AveloraBuildingTypes || {};
+            const def = types[rec.station];
+            const b = this.game && this.game.building;
+            return { name: def ? def.name : rec.station, near: !!(b && b.stationNear && b.stationNear(rec.station)) };
+        }
+
         /** How many times a recipe can be crafted right now (materials and bag space). */
         maxCraftable(rec) {
             const inv = this.state ? this.state.inventory : null;
@@ -668,6 +684,12 @@
             const st = this.state;
             if (!rec || !st || !st.inventory) return;
 
+            const stn = this.stationInfo(rec);
+            if (stn && !stn.near) {
+                this.floatText(`Нужна: ${stn.name} рядом`, 'warn');
+                this.renderCrafting();
+                return;
+            }
             const ingredients = rec.ingredients || [];
             const n = Math.max(1, Math.floor(times || 1));
             for (const ing of ingredients) {

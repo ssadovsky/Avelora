@@ -47,6 +47,7 @@ class LakesideTerrain {
         // Dirt paths (forest biome): [{points:[[x,z],...], width}] drawn by the terrain shader (max 12 segments)
         this.paths = locTerrain.paths || null;
         this.bridges = locTerrain.bridges || null; // [{x, z, length (along Z), width, deckY}]
+        this.platforms = [];                       // building.js: raised plank decks with a ramp (see addPlatform)
         this.noise = new SimplexNoise(locTerrain.seed !== undefined ? locTerrain.seed : 4242);
 
         this.mesh = null;
@@ -137,9 +138,9 @@ class LakesideTerrain {
      */
     getHeightAt(x, z) {
         const h = this.getRawHeightAt(x, z);
+        if (this._rawOnly) return h;
         const br = this.bridges;
-        if (!br || this._rawOnly) return h;
-        for (let i = 0; i < br.length; i++) {
+        for (let i = 0; br && i < br.length; i++) {
             const b = br[i];
             const ax = Math.abs(x - b.x), az = Math.abs(z - b.z);
             const hw = b.width / 2 + 0.6, hl = b.length / 2;
@@ -151,8 +152,29 @@ class LakesideTerrain {
             const deckY = b.deckY;
             return h + (deckY - h) * k;
         }
+        const pl = this.platforms;
+        if (pl && pl.length) {
+            for (let i = 0; i < pl.length; i++) {
+                const p = pl[i];
+                const dx = x - p.x, dz = z - p.z;
+                if (dx * dx + dz * dz > p.reach2) continue;
+                const lx = dx * p.cos - dz * p.sin;
+                const lz = dx * p.sin + dz * p.cos;
+                const alx = Math.abs(lx);
+                if (alx <= p.hx && lz >= -p.hz && lz <= p.hz) return p.y;   // deck
+                if (lz > p.hz && lz < p.hz + p.rampLen && alx < p.rampHx + 0.25) {   // ramp down to the ground
+                    let plane = p.y + (p.endY - p.y) * ((lz - p.hz) / p.rampLen);
+                    if (alx > p.rampHx) plane -= (alx - p.rampHx) * 4;               // soft side edge
+                    return plane > h ? plane : h;
+                }
+            }
+        }
         return h;
     }
+
+    /** Raised walkable deck (building.js): {id, x, z, cos, sin, hx, hz, y, rampLen, rampHx, endY, reach2}. */
+    addPlatform(p) { if (!this.platforms) this.platforms = []; this.platforms.push(p); }
+    removePlatform(id) { if (this.platforms) this.platforms = this.platforms.filter(q => q.id !== id); }
 
     /**
      * Raw ground height + flat spots (locTerrain.flatSpots: [{x, z, radius, blend}]): inside radius the ground is levelled
