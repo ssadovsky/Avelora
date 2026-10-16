@@ -127,7 +127,7 @@ window.LOCATIONS = {
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
             camp:      { x: 6.0,    z: 12.0 },
-            fromLake:  { x: -120.0, z: 8.0, r: 4.71 },  // персонаж выходит из портала в долину
+            fromSavanna:  { x: -104.0, z: 8.0, r: 4.71 },  // выход из портала: в 14 м от рунного вепря (aggro 9), лицом на восток в долину
             waterfall: { x: 104.0,  z: 6.0, r: 4.71 },  // с видом на восточный каскадный водопад
             fromDungeon: { x: 135.0, z: -18.0, r: 1.57 } // площадка перед входом в пещеру (лицом на запад к долине)
         },
@@ -742,7 +742,7 @@ window.LOCATIONS = {
         },
 
         exits: [
-            { id: 'toForest', x: -131.0, z: 10.0, radius: 3.5, to: 'forestEdge', spawn: 'fromLake', label: 'Лесная опушка' }
+            { id: 'toForest', x: -131.0, z: 10.0, radius: 3.5, to: 'forestEdge', spawn: 'fromSavanna', label: 'Лесная опушка' }
         ],
 
         clearings: [
