@@ -274,9 +274,9 @@
             for (let i = 0; i < 6; i++) box(B.frame, 0.1, 0.19, 2 * HZ - 0.48, s * (HX - 0.1), 0.1 + i * 0.2, 0, sh(WOOD, kv()));
             box(B.frame, 0.18, 0.12, 2 * HZ - 0.24, s * (HX - 0.1), 1.28, 0, sh(WOOD, 1.05));          // поручень
             box(B.frame, 0.16, EAVE_Y, 0.16, s * (HX - 0.08), EAVE_Y / 2, 0, sh(LOG, kv()));           // средний столб
-            box(B.frame, 0.22, 0.16, 2 * HZ, s * (HX - 0.12), EAVE_Y - 0.02, 0, sh(LOG, kv()));        // обвязка
+            box(B.frame, 0.22, 0.16, 2 * HZ + 0.1, s * (HX - 0.12), EAVE_Y - 0.02, 0, sh(LOG, kv()));        // обвязка (торцы выступают за столбы — нет общих плоскостей)
         });
-        box(B.frame, 2 * HX, 0.2, 0.2, 0, EAVE_Y - 0.1, HZ - 0.1, sh(LOG, 1));                        // фронтальная балка
+        box(B.frame, 2 * HX + 0.1, 0.2, 0.2, 0, EAVE_Y - 0.1, HZ - 0.1, sh(LOG, 1));                        // фронтальная балка (торцы выступают)
         [-1.6, 0, 1.6].forEach(z => box(B.frame, 2 * HX - 0.2, 0.14, 0.14, 0, EAVE_Y + 0.08, z, sh(DARK, 1)));
         // раскосы у входа
         [-1, 1].forEach(s => box(B.frame, 0.12, 0.9, 0.1, s * (HX - 0.36), EAVE_Y - 0.55, HZ - 0.1, sh(LOG, 0.95), 0, 0, s * 0.7));
@@ -987,7 +987,7 @@
                 rampBox.position.copy(cpos);
                 rampBox.rotation.set(model.rampAngle, 0, 0);
             }
-            [-1, 1].forEach(s => addBox(low, 0.14, 1.28, 2 * HZ, s * (HX - 0.1), 0.64, 0));
+            [-1, 1].forEach(s => addBox(shell, 0.14, 1.28, 2 * HZ, s * (HX - 0.1), 0.64, 0));   // борта блокируют камеру только пока герой снаружи — иначе при вращении камера «прыгает» об них
             addBox(shell, 2 * HX, EAVE_Y, 0.14, 0, EAVE_Y / 2, -HZ + 0.1);
             // the open front and the open upper sides are sealed for the camera while the hero is outside:
             // the camera stays outside the shed instead of sitting under the roof
@@ -1055,10 +1055,11 @@
             };
             const low = new THREE.Group(); low.name = 'cam-low'; g.add(low);
             const shell = new THREE.Group(); shell.name = 'cam-shell'; g.add(shell);
-            addBox(low, 3.8, 1.25, 0.8, 0, 0.62, 0);                          // козлы с брусом и пилой
-            addBox(low, 1.5, 0.9, 1.0, -1.0, 0.45, -0.95);                    // штабель брёвен
-            addBox(low, 1.3, 0.8, 0.45, 1.2, 0.4, -1.0);                      // стопка досок
-            addBox(low, 0.6, 0.7, 0.6, -1.2, 0.35, 1.0);                      // колода
+            // мелкие предметы блокируют камеру только пока герой снаружи (под навесом камера не прыгает об них при вращении)
+            addBox(shell, 3.8, 1.25, 0.8, 0, 0.62, 0);                        // козлы с бревном
+            addBox(shell, 1.5, 0.9, 1.0, -1.0, 0.45, -0.95);                  // штабель брёвен
+            addBox(shell, 1.3, 0.8, 0.45, 1.2, 0.4, -1.0);                    // стопка досок
+            addBox(shell, 0.6, 0.7, 0.6, -1.2, 0.35, 1.0);                    // колода
             const ang = -Math.atan2(0.6, 2 * (SZ - 0.17));                    // высокий край — вход (+Z)
             addBox(shell, 2 * SX + 0.6, 0.16, (2 * SZ + 0.6) / Math.cos(ang), 0, 2.72, 0, ang, 0, 0);
 
@@ -1151,7 +1152,16 @@
                 // camera inside the building volume (e.g. the hero walks away from the front, the camera trails behind):
                 // the roof is cut away too, otherwise the view is a close-up of the ceiling
                 let camIn = false;
-                const cp = g.camera && g.camera.position;
+                let cp = g.camera && g.camera.position;
+                if (cp && ch) {
+                    // желаемая позиция камеры: тот же луч от головы героя, но на полной дистанции зума. Фактическая позиция зависит от
+                    // «оболочки» (её включаем мы сами) — на ней получалась обратная связь: оболочка → камера → оболочка → мерцание и дрожь.
+                    const hx0 = ch.position.x, hy0 = ch.position.y + 1.5, hz0 = ch.position.z;
+                    let dx = cp.x - hx0, dy = cp.y - hy0, dz = cp.z - hz0;
+                    const dl = Math.hypot(dx, dy, dz);
+                    const want = Math.max(dl, g.cameraDistance || dl);
+                    if (dl > 0.05) { dx /= dl; dy /= dl; dz /= dl; cp = { x: hx0 + dx * want, y: hy0 + dy * want, z: hz0 + dz * want }; }
+                }
                 if (cp) {
                     const cx = cp.x - inst.x, cz = cp.z - inst.z;
                     const clx = cx * pl.cos - cz * pl.sin, clz = cx * pl.sin + cz * pl.cos;
