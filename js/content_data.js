@@ -988,6 +988,10 @@ window.GAME_CONTENT = {
    "id": "elemental_altar_fire",
    "name": "Алтарь Огня",
    "obstacle": 1.0,
+   "fire": {
+    "y": 0.98,
+    "size": 0.65
+   },
    "stub": {
     "box": [
      1.7,
