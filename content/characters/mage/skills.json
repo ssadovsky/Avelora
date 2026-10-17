@@ -2,6 +2,7 @@
   "character": "mage",
   "skills": [
     "spark",
+    "lightning_strike",
     "fire_arrow",
     "ice_arrow",
     "fireball",

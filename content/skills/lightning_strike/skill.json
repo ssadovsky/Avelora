@@ -1,0 +1,29 @@
+{
+  "id": "lightning_strike",
+  "name": "Удар молнии",
+  "description": "С небес обрушивается сокрушительный разряд молнии, поражающий цель электричеством и оглушающий её на 5 секунд.",
+  "type": "strike",
+  "category": "attack",
+  "cooldown": 9,
+  "range": 16,
+  "castTime": 0.35,
+  "damage": {
+    "min": 18,
+    "max": 28,
+    "type": "lightning"
+  },
+  "stun": {
+    "duration": 5.0
+  },
+  "vfx": {
+    "color": "#6fe3ff",
+    "core": "#ffffff",
+    "height": 26,
+    "size": 1.1,
+    "impactSparks": 36,
+    "impactRadius": 2.0
+  },
+  "mana": 22,
+  "requiresLevel": 1,
+  "price": 25
+}

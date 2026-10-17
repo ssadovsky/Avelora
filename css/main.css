@@ -2115,7 +2115,7 @@
         .skill-entry, .skill-entry * {
             user-select: none !important;
             -webkit-user-select: none !important;
-            touch-action: none !important;
+            touch-action: pan-y !important;
         }
         .inventory-cell, .inventory-cell * {
             user-select: none !important;
@@ -2521,7 +2521,7 @@
             border: 1px solid rgba(195, 160, 95, 0.25);
             border-radius: 3px;
             cursor: grab;
-            touch-action: none;
+            touch-action: pan-y;
         }
         .skill-entry:hover { border-color: rgba(239, 207, 122, 0.75); }
         .skill-entry-icon {
@@ -3965,8 +3965,18 @@ html { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transpare
 /* Панель навыков: заголовок с крестиком закреплён, прокручивается только список; группы-аккордеон */
 #skills-panel.open { display: flex; flex-direction: column; overflow: hidden !important; }
 #skills-panel .inventory-header { flex: 0 0 auto; }
-#skills-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
+#skills-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
 #skills-panel .skills-hint { flex: 0 0 auto; }
+.skill-group, .skill-group-head, .skill-group-body { touch-action: pan-y; }
 .skill-group { margin-bottom: 6px; }
 .skill-group-head {
     display: flex; align-items: center; gap: 8px; width: 100%;

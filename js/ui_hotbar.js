@@ -2321,31 +2321,61 @@
             if (!this.inputAllowed()) return;
             const src = this.sourceFromEl(e.target);
             if (!src) return;
+            const isTouchSkill = e.pointerType !== 'mouse' && src.kind === 'skill';
             this.drag = {
                 src,
                 x: e.clientX,
                 y: e.clientY,
+                lastX: e.clientX,
+                lastY: e.clientY,
                 pointerId: e.pointerId,
                 pointerType: e.pointerType,
                 active: false,
+                scrolling: false,
                 over: null,
                 shiftKey: !!e.shiftKey,
                 ctrlKey: !!e.ctrlKey,
                 captureEl: e.target
             };
-            e.preventDefault();
-            try {
-                if (e.target && e.target.setPointerCapture) {
-                    e.target.setPointerCapture(e.pointerId);
-                }
-            } catch (_) {}
+            if (!isTouchSkill) {
+                e.preventDefault();
+                try {
+                    if (e.target && e.target.setPointerCapture) {
+                        e.target.setPointerCapture(e.pointerId);
+                    }
+                } catch (_) {}
+            }
         }
 
         onPointerMove(e) {
             const d = this.drag;
             if (!d || e.pointerId !== d.pointerId) return;
             if (!d.active) {
-                if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD) return;
+                // На сенсорных экранах отличаем вертикальный скролл от перетаскивания
+                if (d.pointerType !== 'mouse' && d.src.kind === 'skill') {
+                    const dx = e.clientX - d.x;
+                    const dy = e.clientY - d.y;
+                    const absDx = Math.abs(dx);
+                    const absDy = Math.abs(dy);
+
+                    // Если движение вертикальное: это плавный скролл списка навыков!
+                    if (d.scrolling || (absDy > absDx && absDy > 3)) {
+                        d.scrolling = true;
+                        if (this.skillsList) {
+                            const stepY = d.lastY - e.clientY;
+                            if (Math.abs(stepY) > 0.5) this.skillsList.scrollTop += stepY;
+                        }
+                        d.lastY = e.clientY;
+                        d.lastX = e.clientX;
+                        return;
+                    }
+
+                    // Для начала перетаскивания (DnD) жест направлен вбок (в сторону панели)
+                    if (absDx < DRAG_THRESHOLD || absDx < absDy + 4) return;
+                } else {
+                    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_THRESHOLD) return;
+                }
+
                 // Only real things can be dragged (an empty slot is just a click target)
                 if (d.src.kind === 'slot' && !d.src.entry) { this.drag = null; return; }
                 // On touch screens, lock dragging skills/items directly OFF the hotbar unless the skills panel is open
@@ -2356,6 +2386,11 @@
                 }
                 d.active = true;
                 this.hideTooltip();
+                try {
+                    if (d.captureEl && d.captureEl.setPointerCapture) {
+                        d.captureEl.setPointerCapture(d.pointerId);
+                    }
+                } catch (_) {}
                 this.startGhost(d.src);
                 document.body.classList.add('ui-dragging');
             }
@@ -2370,6 +2405,10 @@
                 try { d.captureEl.releasePointerCapture(d.pointerId); } catch (_) {}
             }
             this.drag = null;
+            if (d.scrolling) {
+                // Был скролл списка пальцем — не запускаем tap-to-equip
+                return;
+            }
             if (!d.active) {
                 // Plain tap/click
                 if (d.src.kind === 'slot') {

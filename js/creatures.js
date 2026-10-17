@@ -168,7 +168,7 @@
                 timer: 0, goal: { x: sp.x, z: sp.z }, path: null, pathIdx: 0, lastPath: -99, losT: 0, los: false,
                 pathGoal: { x: NaN, z: NaN },
                 attackT: -1, attackHitDone: false, nextAttack: 0, attackDur: 0.6, hitAt: 0.3,
-                staggerT: 0, slowT: 0, slowF: 1, iceOn: false, lastHitClip: -99, flashT: 0, lastDamaged: -99, aggro: false,
+                staggerT: 0, slowT: 0, slowF: 1, iceOn: false, stunT: 0, stunOn: false, lastHitClip: -99, flashT: 0, lastDamaged: -99, aggro: false,
                 deadT: 0, growT: 0, speed: 0, moveAnim: 0,
                 hpEl: null, hpFill: null, hpShown: false, hpFrac: -1
             };
@@ -294,7 +294,7 @@
                 rec.hoverT = Math.random() * Math.PI * 2;
                 rec.state = 'idle';
                 rec.timer = 1 + Math.random() * 3;
-                rec.aggro = false; rec.attackT = -1; rec.staggerT = 0; rec.flashT = 0; rec.path = null; rec.slowT = 0; rec.iceOn = false;
+                rec.aggro = false; rec.attackT = -1; rec.staggerT = 0; rec.flashT = 0; rec.path = null; rec.slowT = 0; rec.iceOn = false; rec.stunT = 0; rec.stunOn = false;
                 rec.deadT = 0; rec.lastDamaged = -99;
                 rec.growT = grow ? 0 : SPAWN_GROW;
                 group.position.set(rec.x, rec.y, rec.z);
@@ -518,9 +518,25 @@
                     }
                 }
 
-                // Ледяной оттенок, пока существо замедлено (вспышка попадания сильнее и перекрывает его)
+                // Эффект оглушения (стан) или замедления (вспышка попадания сильнее и перекрывает его)
                 if (rec.flashT <= 0) {
-                    if (rec.slowT > 0) {
+                    if (rec.stunT > 0) {
+                        const pulse = 0.65 + 0.35 * Math.sin(this.game.gameTime * 24);
+                        const k = Math.min(1, rec.stunT / 0.5) * 0.8 * pulse;
+                        for (let j = 0; j < rec.materials.length; j++) {
+                            const m = rec.materials[j];
+                            m.emissive.copy(m.userData.baseEmissive).lerp(AveloraCreatures.STUN_COLOR, k);
+                            m.emissiveIntensity = Math.max(m.userData.baseEmissiveIntensity, k * 1.5);
+                        }
+                        rec.stunOn = true;
+                    } else if (rec.stunOn) {
+                        for (let j = 0; j < rec.materials.length; j++) {
+                            const m = rec.materials[j];
+                            m.emissive.copy(m.userData.baseEmissive);
+                            m.emissiveIntensity = m.userData.baseEmissiveIntensity;
+                        }
+                        rec.stunOn = false;
+                    } else if (rec.slowT > 0) {
                         const k = Math.min(1, rec.slowT / 0.6) * 0.6;
                         for (let j = 0; j < rec.materials.length; j++) {
                             const m = rec.materials[j];
@@ -538,7 +554,10 @@
                     }
                 }
 
-                if (rec.mixer) rec.mixer.update(delta * (rec.slowT > 0 ? rec.slowF : 1));
+                if (rec.mixer) {
+                    const animRate = rec.stunT > 0 ? 0.05 : (rec.slowT > 0 ? rec.slowF : 1);
+                    rec.mixer.update(delta * animRate);
+                }
                 this.proceduralPose(rec, delta);
                 if (rec.def.flyHeight) {
                     const groundY = this.terrain.getHeightAt(rec.x, rec.z);
@@ -568,6 +587,14 @@
             const leash = rec.rallied ? 400 : (def.leashRadius || 14);   // rallied dungeon mobs chase across the whole dungeon
             const reach = (def.attackRange || 0.8) + (def.hitRadius || 0.4) + PLAYER_RADIUS;
             rec.speed = 0;
+            // Оглушение (стан на 5 сек): существо парализовано, не двигается и не атакует
+            if (rec.stunT > 0) {
+                rec.stunT = Math.max(0, rec.stunT - dt);
+                rec.attackT = -1;
+                rec.path = null;
+                rec.speed = 0;
+                return;
+            }
             // Замедление (skill.json `slow`): весь ИИ идёт в slowF раз медленнее — шаг, замах атаки, оглушение (анимации см. mixer.update)
             if (rec.slowT > 0) { rec.slowT = Math.max(0, rec.slowT - dt); dt *= rec.slowF; }
             if (rec.staggerT > 0) rec.staggerT = Math.max(0, rec.staggerT - dt);
@@ -882,6 +909,8 @@
             rec.aggro = false;
             rec.rallied = false;
             rec.staggerT = 0;
+            rec.stunT = 0;
+            rec.stunOn = false;
             const i = this.proxies.indexOf(rec.proxy);
             if (i >= 0) this.proxies.splice(i, 1);
             this.play(rec, 'Death', 0.1, true);
@@ -952,6 +981,26 @@
             rec.slowT = Math.max(rec.slowT, dur);
         }
 
+        /**
+         * Stun (skill.json `stun: {duration}`): target is completely paralyzed (cannot move or attack)
+         * for `duration` seconds.
+         */
+        stun(rec, stCfg) {
+            if (!stCfg || !this.isAlive(rec)) return;
+            const dur = typeof stCfg === 'number' ? stCfg : (stCfg.duration || 5);
+            const resist = Math.max(0, Math.min(1, rec.def.stunResist || 0));
+            const finalDur = Math.max(0, dur * (1 - resist));
+            if (finalDur <= 0) return;
+            rec.stunT = Math.max(rec.stunT || 0, finalDur);
+            rec.attackT = -1;
+            rec.path = null;
+            rec.speed = 0;
+            const ui = this.game.ui;
+            if (ui && ui.floatAt) {
+                ui.floatAt('Оглушение (5 сек)', 'warn', rec.x, rec.y + rec.height + 0.45, rec.z);
+            }
+        }
+
         stepKnockback(rec, dt) {
             const t0 = rec.kbT;
             rec.kbT = Math.max(0, t0 - dt);
@@ -971,11 +1020,13 @@
             for (let i = 0; i < this.list.length; i++) {
                 const rec = this.list[i];
                 if (!this.isAlive(rec)) continue;
+                if (detail.excludeId && rec.id === detail.excludeId) continue;
                 const d = Math.hypot(rec.x - pt.x, rec.z - pt.z) - (rec.def.hitRadius || 0.4);
                 if (d <= R && pt.y <= rec.y + rec.height + R) {
                     const dealt = this.damage(rec, detail.amount, 'spark');
                     if (dealt > 0 && detail.knockback) this.knockback(rec, pt.x, pt.z, detail.knockback);
                     if (dealt > 0 && detail.slow) this.slow(rec, detail.slow);
+                    if (dealt > 0 && detail.stun) this.stun(rec, detail.stun);
                 }
             }
         }
@@ -1007,6 +1058,8 @@
                 rec.attackT = -1;
                 rec.staggerT = 0;
                 rec.slowT = 0;
+                rec.stunT = 0;
+                rec.stunOn = false;
                 rec.hp = rec.maxHp;
                 rec.x = rec.home.x; rec.z = rec.home.z;
                 rec.y = this.terrain.getHeightAt(rec.x, rec.z);
@@ -1141,6 +1194,7 @@
 
     AveloraCreatures.FLASH_COLOR = new THREE.Color(1.0, 0.12, 0.05);
     AveloraCreatures.ICE_COLOR = new THREE.Color(0.25, 0.62, 1.0);
+    AveloraCreatures.STUN_COLOR = new THREE.Color(0.35, 0.88, 1.0);
     AveloraCreatures.cloneSkinned = cloneSkinned;
     window.AveloraCreatures = AveloraCreatures;
 })();

@@ -59,6 +59,10 @@
     const AIM_HEIGHT = 0.3;          // projectile aims this far above the ground point
     const TRAIL_FADE = 0.16;         // seconds for the trail to collapse after impact
     const IMPACT_LIFE = 1.3;         // seconds an impact record lives (the scorch mark is the last to fade)
+    const MAX_STRIKES = 3;
+    const STRIKE_BOLTS = 6;
+    const STRIKE_SEGS = 18;
+    const STRIKE_LIFE = 0.35;
 
     // ---------------------------------------------------------------
     // Canvas textures (generated once per session)
@@ -244,6 +248,80 @@
         line.geometry.attributes.position.needsUpdate = true;
     }
 
+    /** Writes a jagged lightning strike falling from height to (0,0,0) */
+    function writeVerticalBolt(line, height, jitter) {
+        const arr = line.geometry.attributes.position.array;
+        let k = 0;
+        // 1. Главный ствол: сверху (y = height) вниз в основание (y = 0)
+        let px = (Math.random() - 0.5) * 1.5;
+        let py = height;
+        let pz = (Math.random() - 0.5) * 1.5;
+        for (let s = 1; s <= STRIKE_SEGS; s++) {
+            const t = s / STRIKE_SEGS;
+            const amp = Math.sin(t * Math.PI) * jitter;
+            const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+            const ny = height * (1 - t);
+            const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+            arr[k++] = px; arr[k++] = py; arr[k++] = pz;
+            arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
+            px = nx; py = ny; pz = nz;
+        }
+        // 2. Дублирующий ствол
+        px = (Math.random() - 0.5) * 2.0;
+        py = height;
+        pz = (Math.random() - 0.5) * 2.0;
+        for (let s = 1; s <= STRIKE_SEGS; s++) {
+            const t = s / STRIKE_SEGS;
+            const amp = Math.sin(t * Math.PI) * jitter * 1.15;
+            const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+            const ny = height * (1 - t);
+            const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+            arr[k++] = px; arr[k++] = py; arr[k++] = pz;
+            arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
+            px = nx; py = ny; pz = nz;
+        }
+        // 3-6. Четыре ветвящихся отростка
+        for (let f = 0; f < 4; f++) {
+            const startFrac = 0.22 + f * 0.18;
+            let bx = (Math.random() - 0.5) * jitter * 0.7;
+            let by = height * (1 - startFrac);
+            let bz = (Math.random() - 0.5) * jitter * 0.7;
+            const ang = (f / 4) * Math.PI * 2 + Math.random() * 0.8;
+            const dirX = Math.cos(ang), dirZ = Math.sin(ang);
+            for (let s = 1; s <= STRIKE_SEGS; s++) {
+                const t = s / STRIKE_SEGS;
+                const nx = bx + dirX * t * 3.2 + (Math.random() - 0.5) * 0.7;
+                const ny = by - t * 4.2 + (Math.random() - 0.5) * 0.4;
+                const nz = bz + dirZ * t * 3.2 + (Math.random() - 0.5) * 0.7;
+                arr[k++] = bx; arr[k++] = by; arr[k++] = bz;
+                arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
+                bx = nx; py = ny; pz = nz;
+            }
+        }
+        line.geometry.attributes.position.needsUpdate = true;
+    }
+
+    function writeVerticalBoltCore(line, height, jitter) {
+        const arr = line.geometry.attributes.position.array;
+        let k = 0;
+        for (let b = 0; b < 2; b++) {
+            let px = (Math.random() - 0.5) * 0.8;
+            let py = height;
+            let pz = (Math.random() - 0.5) * 0.8;
+            for (let s = 1; s <= STRIKE_SEGS; s++) {
+                const t = s / STRIKE_SEGS;
+                const amp = Math.sin(t * Math.PI) * (jitter * 0.65);
+                const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+                const ny = height * (1 - t);
+                const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
+                arr[k++] = px; arr[k++] = py; arr[k++] = pz;
+                arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
+                px = nx; py = ny; pz = nz;
+            }
+        }
+        line.geometry.attributes.position.needsUpdate = true;
+    }
+
     // ---------------------------------------------------------------
     // Skill system
     // ---------------------------------------------------------------
@@ -323,7 +401,7 @@
             if (def.type === 'buff') return this.startBuff(def);
             if (def.type === 'nova') return this.startNova(def);
 
-            if (def.type === 'projectile' || def.type === 'rain') {   // both need a target; 'rain' lands on it after the cast
+            if (def.type === 'projectile' || def.type === 'rain' || def.type === 'strike') {   // need a target
                 const range = (def.range || 12) + 2;
                 const tgt = (g.combat && g.combat.findBestTarget) ? g.combat.findBestTarget(range) : (g.combat && g.combat.selectedTarget);
                 if (!tgt || !(g.creatures && g.creatures.isAlive(tgt))) {
@@ -342,7 +420,7 @@
                 c.faceTowards(target.x, target.z);
                 this.startCooldown(def);
                 const castDur = Math.max(0, def.castTime || 0);
-                this.casting = { def, target, t: castDur };
+                this.casting = { def, target, tgt, t: castDur };
                 this.ensureResources();
                 if (c.playCast) c.playCast(castDur || 0.6);
                 else c.startSwing(castDur || 0.6);
@@ -731,6 +809,26 @@
                 impacts.push(m);
             }
 
+            const strikes = [];
+            for (let i = 0; i < MAX_STRIKES; i++) {
+                const s = {
+                    active: false, def: null, age: 0, dur: STRIKE_LIFE, boltTimer: 0,
+                    pos: new THREE.Vector3(),
+                    color: new THREE.Color('#6fe3ff'),
+                    coreColor: new THREE.Color('#ffffff'),
+                    height: 26,
+                    group: new THREE.Group(),
+                    outerBolt: boltLines(STRIKE_BOLTS, STRIKE_SEGS),
+                    coreBolt: boltLines(2, STRIKE_SEGS),
+                    topFlare: additiveSprite(tex.flare)
+                };
+                s.group.name = 'strike-fx';
+                s.group.visible = false;
+                s.group.add(s.outerBolt, s.coreBolt, s.topFlare);
+                root.add(s.group);
+                strikes.push(s);
+            }
+
             // Spark simulation state (structure of arrays, swap-remove)
             const S = MAX_SPARKS;
             const sp = {
@@ -746,7 +844,7 @@
             const zone = { ring: additivePlane(tex.ring), glow: additivePlane(tex.glow) };
             root.add(zone.glow, zone.ring);
 
-            this.res = { tex, root, trail, sparks, projectiles, impacts, sp, zone };
+            this.res = { tex, root, trail, sparks, projectiles, impacts, strikes, sp, zone };
             return this.res;
         }
 
@@ -923,6 +1021,121 @@
             }));
         }
 
+        fireStrike(def, target, tgt) {
+            const g = this.game;
+            if (!g.character || (g.combat && g.combat.isDead)) return;
+            const r = this.ensureResources();
+            const s = r.strikes.find(q => !q.active) || r.strikes[0];
+            const vfx = def.vfx || {};
+            const height = vfx.height || 26;
+            const colorHex = vfx.color || '#6fe3ff';
+            const coreHex = vfx.core || '#ffffff';
+
+            // Если цель жива, берём её самые свежие текущие координаты прямо сейчас (попадание по движущейся цели)
+            const cr = g.creatures;
+            const aliveTgt = (tgt && cr && cr.isAlive(tgt)) ? tgt : null;
+            const tx = aliveTgt ? aliveTgt.x : target.x;
+            const tz = aliveTgt ? aliveTgt.z : target.z;
+            const ty = aliveTgt ? aliveTgt.y : (g.terrain ? g.terrain.getHeightAt(tx, tz) : target.y);
+
+            s.active = true;
+            s.def = def;
+            s.tgt = aliveTgt;
+            s.age = 0;
+            s.dur = STRIKE_LIFE;
+            s.boltTimer = 0;
+            s.height = height;
+            s.color.set(colorHex);
+            s.coreColor.set(coreHex);
+
+            s.pos.set(tx, ty + 0.05, tz);
+            s.group.position.copy(s.pos);
+            s.group.visible = true;
+
+            s.outerBolt.material.color.copy(s.color);
+            s.outerBolt.material.opacity = 1.0;
+            s.outerBolt.visible = true;
+
+            s.coreBolt.material.color.copy(s.coreColor);
+            s.coreBolt.material.opacity = 1.0;
+            s.coreBolt.visible = true;
+
+            s.topFlare.position.set(0, height, 0);
+            s.topFlare.scale.set(6, 6, 1);
+            s.topFlare.material.color.copy(s.coreColor);
+            s.topFlare.material.opacity = 1.0;
+            s.topFlare.visible = true;
+
+            writeVerticalBolt(s.outerBolt, height, 1.8);
+            writeVerticalBoltCore(s.coreBolt, height, 1.8);
+
+            // Импакт на земле: вспышка, кольцо энергии, электрические искры во все стороны
+            this.spawnImpact(def, s.pos, s.color, true);
+
+            // Прямой удар в таргет (гарантированное попадание)
+            const dmg = def.damage || null;
+            const amount = dmg && Number.isFinite(dmg.min) && Number.isFinite(dmg.max)
+                ? Math.max(1, Math.round((dmg.min + Math.random() * (dmg.max - dmg.min)) * (g.hero ? g.hero.skillMult(def) : 1))) : 0;
+
+            if (aliveTgt && cr && cr.isAlive(aliveTgt)) {
+                const dealt = cr.damage(aliveTgt, amount, 'spark');
+                if (dealt > 0) {
+                    if (def.stun) cr.stun(aliveTgt, def.stun);
+                    if (def.knockback) cr.knockback(aliveTgt, tx, tz, def.knockback);
+                    if (def.slow) cr.slow(aliveTgt, def.slow);
+                }
+            }
+
+            // Сплеш по площади вокруг точки удара
+            window.dispatchEvent(new CustomEvent('game:skillImpact', {
+                detail: {
+                    skillId: def.id,
+                    point: { x: tx, y: ty + 0.05, z: tz },
+                    radius: (vfx && vfx.impactRadius) || 2.0,
+                    damage: dmg,
+                    amount,
+                    stun: def.stun || { duration: 5.0 },
+                    knockback: def.knockback || null,
+                    slow: def.slow || null,
+                    excludeId: aliveTgt ? aliveTgt.id : null
+                }
+            }));
+        }
+
+        updateStrikes(delta) {
+            const r = this.res;
+            if (!r || !r.strikes) return;
+            const cr = this.game.creatures;
+            for (let i = 0; i < r.strikes.length; i++) {
+                const s = r.strikes[i];
+                if (!s.active) continue;
+                s.age += delta;
+                if (s.age >= s.dur) {
+                    s.active = false;
+                    s.group.visible = false;
+                    s.tgt = null;
+                    continue;
+                }
+                // Молния точно держится на движущейся цели во время разряда
+                if (s.tgt && cr && cr.isAlive(s.tgt)) {
+                    s.pos.set(s.tgt.x, s.tgt.y + 0.05, s.tgt.z);
+                    s.group.position.copy(s.pos);
+                }
+                s.boltTimer -= delta;
+                if (s.boltTimer <= 0) {
+                    s.boltTimer = 0.035;
+                    writeVerticalBolt(s.outerBolt, s.height, 1.8);
+                    writeVerticalBoltCore(s.coreBolt, s.height, 1.8);
+                }
+                const fadeT = Math.max(0, (s.age - 0.06) / (s.dur - 0.06));
+                const flicker = 0.75 + Math.random() * 0.25;
+                const op = Math.max(0, 1 - fadeT) * flicker;
+                s.outerBolt.material.opacity = op;
+                s.coreBolt.material.opacity = op;
+                s.topFlare.material.opacity = op;
+            }
+        }
+
         spawnImpact(def, point, color, onGround) {
             const r = this.res;
             const m = r.impacts.find(q => !q.active) || r.impacts[0];
@@ -1002,6 +1215,7 @@
                     if (this.game.character && this.game.terrain) {
                         if (cst.nova) this.fireNova(cst.def);
                         else if (cst.def.type === 'rain') this.startRain(cst.def, cst.target);
+                        else if (cst.def.type === 'strike') this.fireStrike(cst.def, cst.target, cst.tgt);
                         else this.spawnProjectile(cst.def, cst.target);
                     }
                 }
@@ -1010,6 +1224,7 @@
             const r = this.res;
             if (!r) return;
             let busy = r.sp.n > 0 || !!this.rain;
+            for (let i = 0; i < r.strikes.length && !busy; i++) busy = r.strikes[i].active;
             for (let i = 0; i < r.projectiles.length && !busy; i++) busy = r.projectiles[i].active;
             for (let i = 0; i < r.impacts.length && !busy; i++) busy = r.impacts[i].active;
             if (!busy && !r.trail.points.visible && !r.sparks.points.visible) return;
@@ -1017,6 +1232,7 @@
             r.trail.begin();
             r.sparks.begin();
             if (this.rain) this.updateRain(delta);
+            this.updateStrikes(delta);
             for (let i = 0; i < r.projectiles.length; i++) {
                 const p = r.projectiles[i];
                 if (p.active) this.updateProjectile(p, delta);
@@ -1306,6 +1522,9 @@
                 m.active = false;
                 m.flash.visible = m.bloom.visible = m.ring.visible = m.decal.visible = m.scorch.visible = m.arcs.visible = false;
             });
+            if (r.strikes) {
+                r.strikes.forEach(s => { s.active = false; if (s.group) s.group.visible = false; s.tgt = null; });
+            }
             if (r.zone) r.zone.ring.visible = r.zone.glow.visible = false;
             r.sp.n = 0;
             r.trail.begin(); r.trail.end(1);
