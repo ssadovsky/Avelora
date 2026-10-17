@@ -90,7 +90,8 @@
             this.level = levelForXp(this.xp);
             const cls = this.classCfg(), M = CFG().multipliers, D = CFG().derived;
             const st = this.stats();
-            this.maxMana = Math.round(cls.baseMana + Math.max(0, st.int - cls.start.int) * D.manaPerInt * M.mana);
+            const lvlManaBonus = (cls.manaPerLevel || 0) * (this.level - 1);
+            this.maxMana = Math.round(cls.baseMana + lvlManaBonus + Math.max(0, st.int - cls.start.int) * D.manaPerInt * M.mana);
             this.manaRegen = (cls.manaRegen + Math.max(0, st.int - cls.start.int) * D.manaRegenPerInt) * M.regen;
             if (this.mana > this.maxMana || heal) this.mana = this.maxMana;
             const cb = this.game.combat;
@@ -156,7 +157,9 @@
         gain(stat) { return Math.max(0, this.stats()[stat] - this.classCfg().start[stat]); }
 
         maxHp() {
-            return Math.max(1, Math.round(this.baseHp + this.gain('str') * CFG().derived.hpPerStr * CFG().multipliers.health));
+            const cls = this.classCfg();
+            const lvlHpBonus = (cls.hpPerLevel || 0) * (this.level - 1);
+            return Math.max(1, Math.round(this.baseHp + lvlHpBonus + this.gain('str') * CFG().derived.hpPerStr * CFG().multipliers.health));
         }
 
         /** Damage multiplier of a weapon (item.json weapon.stat, default 'str'). */
@@ -221,7 +224,7 @@
             if (!d || !this.state) return;
             const def = (window.GAME_CONTENT && window.GAME_CONTENT.creatures && window.GAME_CONTENT.creatures[d.type]) || null;
             if (!def) return;
-            const mult = Number.isFinite(d.levelMult) ? d.levelMult : 1;
+            const mult = Number.isFinite(d.xpMult) ? d.xpMult : (Number.isFinite(d.levelMult) ? d.levelMult : 1);
             const base = (Number.isFinite(def.xp) ? def.xp : Math.max(1, Math.round((def.hp || 10) / 4))) * mult;
             const lvl = Number.isFinite(d.level) ? d.level : (Number.isFinite(def.level) ? def.level : 1);
             const c = CFG();
@@ -394,6 +397,12 @@
                     const deg = Math.max(0, Math.min(360, p.frac * 360)).toFixed(1);
                     portraitWrap.style.setProperty('--xp-deg', `${deg}deg`);
                     portraitWrap.title = `Персонаж (C)\n${label}`;
+                }
+                const xpCircle = document.getElementById('player-xp-circle');
+                if (xpCircle) {
+                    const circum = 295;
+                    const offset = Math.max(0, Math.min(circum, circum * (1 - (p.max ? 1 : p.frac)))).toFixed(1);
+                    xpCircle.style.strokeDashoffset = offset;
                 }
             }
             const lvlBadge = document.getElementById('player-level-badge');

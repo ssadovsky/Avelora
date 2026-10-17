@@ -114,6 +114,7 @@
             this.targetHpBar = document.getElementById('target-hp-bar');
             this.targetHpFill = document.getElementById('target-hp-fill');
             this.targetHpText = document.getElementById('target-hp-text');
+            this.targetRankBadge = document.getElementById('target-rank-badge');
             this.targetStatusBar = document.getElementById('target-status-bar');
             this._targetHpShown = -1;
             this._targetMaxHpShown = -1;
@@ -585,7 +586,10 @@
             const cr = this.game.creatures;
             if (!sel || !cr || !cr.isAlive(sel)) {
                 frame.style.display = 'none';
-                frame.classList.remove('active');
+                frame.classList.remove('active', 'elite', 'boss');
+                if (this.targetPortraitWrap) {
+                    this.targetPortraitWrap.classList.remove('elite', 'boss', 'aggro', 'neutral');
+                }
                 this._targetHpShown = -1;
                 this._targetMaxHpShown = -1;
                 return;
@@ -596,11 +600,32 @@
 
             const def = sel.def || {};
             const isAggro = def.behavior === 'aggressive';
+            const rank = sel.rank || def.rank || 'normal';
 
-            // Окантовка портрета: красная для агрессивных мобов, золотисто-желтая для мирных/нейтральных
+            frame.classList.toggle('elite', rank === 'elite');
+            frame.classList.toggle('boss', rank === 'boss');
+
+            // Окантовка портрета: красная для агро, золотисто-желтая для мирных, плюс аура элиты/босса
             if (this.targetPortraitWrap) {
                 this.targetPortraitWrap.classList.toggle('aggro', isAggro);
                 this.targetPortraitWrap.classList.toggle('neutral', !isAggro);
+                this.targetPortraitWrap.classList.toggle('elite', rank === 'elite');
+                this.targetPortraitWrap.classList.toggle('boss', rank === 'boss');
+            }
+
+            // Бейдж ранга (Элита / БОСС)
+            if (this.targetRankBadge) {
+                if (rank === 'elite') {
+                    this.targetRankBadge.style.display = 'inline-block';
+                    this.targetRankBadge.className = 'target-rank-badge elite';
+                    this.targetRankBadge.textContent = 'Элита';
+                } else if (rank === 'boss') {
+                    this.targetRankBadge.style.display = 'inline-block';
+                    this.targetRankBadge.className = 'target-rank-badge boss';
+                    this.targetRankBadge.textContent = 'БОСС';
+                } else {
+                    this.targetRankBadge.style.display = 'none';
+                }
             }
 
             // Портрет: используем отрендеренную 3D-морду из iconData (или эмодзи-фоллбек)
@@ -623,10 +648,24 @@
                 }
             }
 
+            // Уровень цели и цветовой класс опасности (относительно уровня героя)
+            const heroLvl = (this.game.hero && this.game.hero.level) || 1;
             const lvl = sel.level || def.level || 1;
-            if (this.targetLevelBadge && this.targetLevelBadge.textContent !== String(lvl)) {
-                this.targetLevelBadge.textContent = String(lvl);
-                this.targetLevelBadge.title = `Уровень цели: ${lvl}`;
+            const diff = lvl - heroLvl;
+            let threatClass = 'lvl-normal';
+            if (diff <= -4) threatClass = 'lvl-trivial';
+            else if (diff <= -2) threatClass = 'lvl-easy';
+            else if (diff <= 1) threatClass = 'lvl-normal';
+            else if (diff <= 3) threatClass = 'lvl-hard';
+            else threatClass = 'lvl-deadly';
+
+            if (this.targetLevelBadge) {
+                this.targetLevelBadge.className = `target-level-badge ${threatClass}`;
+                const label = String(lvl);
+                if (this.targetLevelBadge.textContent !== label) {
+                    this.targetLevelBadge.textContent = label;
+                }
+                this.targetLevelBadge.title = `Уровень цели: ${lvl}` + (rank !== 'normal' ? ` (${rank})` : '');
             }
 
             const name = def.name || sel.type;

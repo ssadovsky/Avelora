@@ -159,22 +159,42 @@
                 : def;
             // Уровень существа: задаётся в спавне sp.level или в creature.json def.level (по умолчанию 1)
             const level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
-            // Множитель характеристик: базовый уровень существа из creature.json def.level (минимум 1)
-            const baseLevel = Math.max(1, Math.floor(Number(def.level) || 1));
-            // Множитель силы моба: каждый уровень выше базового увеличивает силу (+18% HP и урона за уровень)
-            const levelMult = Math.max(0.2, 1 + (level - baseLevel) * 0.18);
+
+            // Ранг существа: normal (обычный) | elite (элитный, обитатели подземелий) | boss (боссы)
+            const rank = sp.rank || def.rank || 'normal';
+            const RANK_MULTS = {
+                normal: { hp: 1.0, dmg: 1.0, xp: 1.0, gold: 1.0 },
+                elite:  { hp: 3.0, dmg: 1.4, xp: 3.0, gold: 3.0 },
+                boss:   { hp: 8.0, dmg: 1.8, xp: 8.0, gold: 8.0 }
+            };
+            const rm = RANK_MULTS[rank] || RANK_MULTS.normal;
+
+            // Уровень и есть прямой множитель параметров (1 ур = x1, 2 ур = x2, 5 ур = x5):
+            const hpMult = level * rm.hp;
+            const dmgMult = level * rm.dmg;
+            const xpMult = level * rm.xp;
+            const goldMult = level * rm.gold;
 
             const baseHp = mergedDef.hp || 10;
-            const scaledHp = Math.max(1, Math.round(baseHp * levelMult));
+            const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
             const baseDmg = mergedDef.damage || [1, 2];
-            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 1) * levelMult));
-            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 2) * levelMult));
+            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 1) * dmgMult));
+            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 2) * dmgMult));
+
+            const baseGold = Array.isArray(mergedDef.gold) ? mergedDef.gold : [1, 2];
+            const scaledGold = [
+                Math.max(0, Math.round((baseGold[0] || 0) * goldMult)),
+                Math.max(1, Math.round((baseGold[1] || 1) * goldMult))
+            ];
 
             return {
                 id: sp.id, type: sp.type, def: mergedDef, spawn: sp,
                 level: level,
-                levelMult: levelMult,
+                rank: rank,
+                levelMult: hpMult,
+                xpMult: xpMult,
                 scaledDamage: [dmgMin, dmgMax],
+                scaledGold: scaledGold,
                 home: { x: sp.x, z: sp.z },
                 state: 'gone',       // idle | wander | chase | attack | return | dead | gone
                 hp: scaledHp, maxHp: scaledHp,
@@ -941,22 +961,37 @@
             const bd = this.location.dungeon;
             if (this.state && bd && bd.bossId === rec.id) this.state.setKilled(this.location.id, '__cleared', Math.floor(Date.now() / 1000));   // boss killed under the dungeon-reset rules
             this.dropLoot(rec);
-            window.dispatchEvent(new CustomEvent('game:creatureKilled', { detail: { id: rec.id, type: rec.type, level: rec.level, levelMult: rec.levelMult } }));
+            window.dispatchEvent(new CustomEvent('game:creatureKilled', {
+                detail: { id: rec.id, type: rec.type, level: rec.level, levelMult: rec.levelMult, rank: rec.rank, xpMult: rec.xpMult }
+            }));
         }
 
         /**
-         * creature.json `drops: [{item, count, chance?}]`: straight into the bag; whatever does not fit
-         * lies on the ground by the corpse (monster loot vanishes from the ground after despawnMinutes).
+         * creature.json `drops: [{item, count, chance?}]` and gold: straight into the bag/purse.
          */
         dropLoot(rec) {
-            const wo = this.game.worldObjects, st = this.state, ui = this.game.ui, drops = rec.def.drops;
-            if (!st || !Array.isArray(drops)) return;
+            const wo = this.game.worldObjects, st = this.state, ui = this.game.ui;
+            if (!st) return;
+
+            // Gold drop
+            const gRange = rec.scaledGold || rec.def.gold;
+            if (Array.isArray(gRange) && gRange[1] > 0) {
+                const gMin = gRange[0] || 0, gMax = gRange[1] || gMin;
+                const gAmount = Math.max(1, Math.round(gMin + Math.random() * (gMax - gMin)));
+                if (gAmount > 0) {
+                    st.addGold(gAmount);
+                    if (ui && ui.bagFloat) { ui.bagFloat(`+${gAmount} 🪙`, 0.05); }
+                }
+            }
+
+            const drops = rec.def.drops;
+            if (!Array.isArray(drops)) return;
             drops.forEach((d, i) => {
                 if (!d || !d.item || !window.AveloraItems.get(d.item) || (d.chance !== undefined && Math.random() > d.chance)) return;
                 const want = Math.max(1, d.count || 1);
                 const got = st.inventory.add(d.item, want);
                 const def = window.AveloraItems.get(d.item);
-                if (got > 0 && ui) { ui.bagFloat(`+${got} ${def.name}`, i * 0.15); ui.pulseInventory(); }
+                if (got > 0 && ui) { ui.bagFloat(`+${got} ${def.name}`, (i + 1) * 0.15); ui.pulseInventory(); }
                 const left = want - got;
                 if (left > 0 && wo) {
                     if (ui) ui.floatText('Сумка полна', 'warn', i * 0.2 + 0.1);

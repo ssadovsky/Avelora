@@ -1426,6 +1426,9 @@
                 this.game.ui.floatText(`Построено: ${pl.def.name}`, 'gain');
                 if (this.game.ui.pulseInventory) this.game.ui.pulseInventory();
             }
+            if (this.game.hero && this.game.hero.addXp) {
+                this.game.hero.addXp(35);
+            }
         }
 
         /** Для тестов/консоли: поставить без проверок цены и размещения. */

@@ -24,7 +24,7 @@
 window.AVELORA_PROGRESSION = {
     maxLevel: 20,
 
-    multipliers: { xpGain: 5, statGrowth: 1, health: 1, mana: 1, damage: 1, regen: 1 },
+    multipliers: { xpGain: 1, statGrowth: 1, health: 1, mana: 1, damage: 1, regen: 1 },
 
     xp: { base: 100, growth: 1.35 },
     levelXpSwing: 0.1,
@@ -35,16 +35,22 @@ window.AVELORA_PROGRESSION = {
         warrior: {
             start:    { str: 14, dex: 8,  int: 4 },
             perLevel: { str: 2.5, dex: 1.0, int: 0.5 },
+            hpPerLevel: 32,
+            manaPerLevel: 4,
             baseMana: 30, manaRegen: 0.8
         },
         archer: {
             start:    { str: 7,  dex: 15, int: 6 },
             perLevel: { str: 1.0, dex: 2.5, int: 0.5 },
+            hpPerLevel: 22,
+            manaPerLevel: 8,
             baseMana: 45, manaRegen: 1.0
         },
         mage: {
             start:    { str: 5,  dex: 7,  int: 15 },
             perLevel: { str: 0.5, dex: 1.0, int: 2.5 },
+            hpPerLevel: 16,
+            manaPerLevel: 14,
             baseMana: 60, manaRegen: 1.5
         }
     },

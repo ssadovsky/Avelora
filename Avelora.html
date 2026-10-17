@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Experience</title>
-    <link rel="stylesheet" href="css/main.css?v=20261017_tgt4">
+    <link rel="stylesheet" href="css/main.css?v=20261018_boss6">
 </head>
 <body>
 
@@ -358,6 +358,10 @@
         <div class="player-portrait-wrap" id="player-portrait-btn" title="Персонаж (C)">
             <div class="player-portrait-img" id="player-portrait-img"></div>
             <div class="player-portrait-ring"></div>
+            <svg class="player-xp-ring" id="player-xp-ring" viewBox="0 0 100 100" aria-hidden="true">
+                <circle class="player-xp-bg" cx="50" cy="50" r="47"/>
+                <circle class="player-xp-bar" id="player-xp-circle" cx="50" cy="50" r="47"/>
+            </svg>
             <div class="player-level-badge" id="player-level-badge" title="Уровень героя">1</div>
         </div>
         <div class="player-vitals">
@@ -386,6 +390,7 @@
         <div class="target-vitals">
             <div id="target-header">
                 <div id="target-name">Цель</div>
+                <div id="target-rank-badge" class="target-rank-badge" style="display:none">ЭЛИТА</div>
             </div>
             <div id="target-hp-bar" class="hp-bar" title="Здоровье цели">
                 <div class="hp-fill" id="target-hp-fill"></div>
@@ -568,7 +573,7 @@
     <script src="js/assets/props.js?v=20261008_single7"></script>
     <script src="js/assets_data.js"></script>
     <script src="js/content_data.js?v=20261017_tgt5"></script>
-    <script src="js/world_data.js?v=20261017_tgt5"></script>
+    <script src="js/world_data.js?v=20261018_scale1"></script>
     <script src="js/location_groups.js?v=20261012_grotto7"></script>
     <script src="js/gfx_profile.js?v=20261008_2"></script>
     <script src="js/pathfinding.js?v=20261009_1"></script>
@@ -585,19 +590,19 @@
     <script src="js/items.js?v=20261016_sav2"></script>
     <script src="js/game_state.js?v=20261017_strike2"></script>
     <script src="js/world_objects.js?v=20261016_sav1"></script>
-    <script src="js/building.js?v=20261016_saw11"></script>
-    <script src="js/creatures.js?v=20261017_tgt5"></script>
+    <script src="js/building.js?v=20261018_scale1"></script>
+    <script src="js/creatures.js?v=20261018_scale1"></script>
     <script src="js/harvest.js?v=20261009_1"></script>
-    <script src="js/combat.js?v=20261017_tgt5"></script>
-    <script src="js/progression_config.js?v=20261015_ice1"></script>
-    <script src="js/hero.js?v=20261017_tgt1"></script>
+    <script src="js/combat.js?v=20261018_boss1"></script>
+    <script src="js/progression_config.js?v=20261018_boss1"></script>
+    <script src="js/hero.js?v=20261018_boss1"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
     <script src="js/dialog.js?v=20261017_tgt1"></script>
     <script src="js/skills.js?v=20261017_strike1"></script>
     <script src="js/ui_hotbar.js?v=20261017_strike1"></script>
     <script src="js/character.js?v=20261009_2"></script>
     <script src="js/map.js?v=20261013_map2"></script>
-    <script src="js/main.js?v=20261017_tgt4"></script>
+    <script src="js/main.js?v=20261018_scale1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
