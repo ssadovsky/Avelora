@@ -41,19 +41,31 @@
     const FLASH_DECAY = 0.55;       // s red vignette fade
     const LOW_HP_FLASH_FRAC = 0.2;  // flash-on-every-hit only kicks in below this HP fraction
 
-    // Target indicator: flat ring drawn under the selected creature's feet
-    const TARGET_RING_SEGS = 40;
+    // Target indicator: terrain-conforming ring drawn under the selected creature's feet
+    const TARGET_RING_SEGS = 48;
     const TARGET_RING_COLOR = 0xffdd44;
     const TARGET_RING_COLOR_AGGRO = 0xff2a1a;   // creatures that attack on sight
 
+    const CREATURE_ICONS = {
+        'spider': '🕷️', 'blue_spider': '🕷️', 'rat': '🐀', 'grey_rat': '🐀',
+        'bear': '🐻', 'wolf': '🐺', 'boar': '🐗', 'rune_boar': '🐗',
+        'badger': '🦡', 'bee': '🐝', 'dragonfly': '🦗', 'fawn': '🦌',
+        'spotted_fawn': '🦌', 'forest_doe': '🦌', 'rooster': '🐓', 'fire_fox': '🦊',
+        'red_panda': '🐼', 'hyena': '🐕', 'cave_lion': '🦁', 'komodo': '🦎',
+        'lizard': '🦎', 'lizard_soldier': '🦎', 'kobold': '⛏️', 'minotaur': '🐂',
+        'thunderclaw': '🦖', 'yasha': '🐊', 'fire_elemental': '🔥',
+        'water_elemental': '💧', 'air_elemental': '💨', 'stone_elemental': '🗿'
+    };
+
     function makeTargetRing() {
-        const geo = new THREE.RingGeometry(0.82, 1.08, TARGET_RING_SEGS);
+        const geo = new THREE.RingGeometry(0.82, 1.08, TARGET_RING_SEGS, 1);
+        geo.rotateX(-Math.PI / 2);
+        geo.userData.basePositions = geo.attributes.position.clone();
         const mat = new THREE.MeshBasicMaterial({
             color: TARGET_RING_COLOR, transparent: true, opacity: 0.85,
             depthWrite: false, side: THREE.DoubleSide
         });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = -Math.PI / 2;
         mesh.renderOrder = 1;
         mesh.visible = false;
         mesh.name = 'target-ring';
@@ -92,6 +104,54 @@
             this.hpText = document.getElementById('hp-text');
             this.vignette = document.getElementById('damage-vignette');
             this.deathOverlay = document.getElementById('death-overlay');
+
+            // --- Target Frame DOM ---
+            this.targetFrame = document.getElementById('target-frame');
+            this.targetPortraitWrap = document.getElementById('target-portrait-wrap');
+            this.targetPortraitImg = document.getElementById('target-portrait-img');
+            this.targetLevelBadge = document.getElementById('target-level-badge');
+            this.targetName = document.getElementById('target-name');
+            this.targetHpBar = document.getElementById('target-hp-bar');
+            this.targetHpFill = document.getElementById('target-hp-fill');
+            this.targetHpText = document.getElementById('target-hp-text');
+            this.targetStatusBar = document.getElementById('target-status-bar');
+            this._targetHpShown = -1;
+            this._targetMaxHpShown = -1;
+
+            if (this.targetPortraitWrap) {
+                const deselectTarget = (e) => {
+                    if (e) {
+                        e.stopPropagation();
+                        if (e.preventDefault && e.cancelable) e.preventDefault();
+                    }
+                    window.__avelora_just_ui_tap = performance.now();
+                    this.clearTarget();
+                };
+                this.targetPortraitWrap.addEventListener('click', deselectTarget);
+                this.targetPortraitWrap.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                    window.__avelora_just_ui_tap = performance.now();
+                });
+                this.targetPortraitWrap.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    if (e.cancelable) e.preventDefault();
+                    window.__avelora_just_ui_tap = performance.now();
+                }, { passive: false });
+                this.targetPortraitWrap.addEventListener('touchend', deselectTarget, { passive: false });
+            }
+
+            if (this.targetFrame) {
+                const absorbUI = (e) => {
+                    window.__avelora_just_ui_tap = performance.now();
+                    e.stopPropagation();
+                };
+                this.targetFrame.addEventListener('pointerdown', absorbUI);
+                this.targetFrame.addEventListener('pointerup', absorbUI);
+                this.targetFrame.addEventListener('touchstart', absorbUI, { passive: true });
+                this.targetFrame.addEventListener('touchend', absorbUI, { passive: true });
+                this.targetFrame.addEventListener('click', absorbUI);
+            }
+
             this.renderHp(true);
         }
 
@@ -127,12 +187,14 @@
             const cr = this.game.creatures;
             if (!rec || !cr || !cr.isAlive(rec)) { this.clearTarget(); return; }
             this.selectedTarget = rec;
+            this.renderTargetFrame();
         }
 
         /** Deselect the current target. */
         clearTarget() {
             this.selectedTarget = null;
             if (this._targetRing) this._targetRing.visible = false;
+            this.renderTargetFrame();
         }
 
         /**
@@ -456,24 +518,51 @@
                 }
             }
 
-            // --- Target ring update ---
+            // --- Target ring and leash update ---
             const sel = this.selectedTarget;
             const cr = g.creatures;
-            if (sel && cr && cr.isAlive(sel) && this._targetRing) {
+            const char = g.character;
+
+            // Auto-clear target:
+            // 1) Agro mob broke off combat and is returning home (leash reset)
+            // 2) Player moved extremely far away (beyond 90m view distance)
+            if (sel && cr && char && char.position) {
+                const distToTarget = Math.hypot(sel.x - char.position.x, sel.z - char.position.z);
+                if (sel.state === 'return' || distToTarget > 90.0) {
+                    this.clearTarget();
+                }
+            }
+
+            const currentSel = this.selectedTarget;
+            if (currentSel && cr && cr.isAlive(currentSel) && this._targetRing) {
                 const ring = this._targetRing;
                 this._ringAge += delta;
                 const pulse = 0.65 + 0.35 * Math.sin(this._ringAge * 3.5);
                 ring.material.opacity = 0.75 * pulse;
-                ring.material.color.setHex(sel.def.behavior === 'aggressive' ? TARGET_RING_COLOR_AGGRO : TARGET_RING_COLOR);
-                const gy = g.terrain ? g.terrain.getHeightAt(sel.x, sel.z) : sel.y;
-                ring.position.set(sel.x, gy + 0.06, sel.z);
-                const r = Math.max(0.55, (sel.def.hitRadius || 0.4) * 1.15);
-                ring.scale.setScalar(r);
+                ring.material.color.setHex(currentSel.def.behavior === 'aggressive' ? TARGET_RING_COLOR_AGGRO : TARGET_RING_COLOR);
+                const gy = (g.terrain && g.terrain.getHeightAt) ? g.terrain.getHeightAt(currentSel.x, currentSel.z) : currentSel.y;
+                ring.position.set(currentSel.x, gy, currentSel.z);
+                ring.scale.set(1, 1, 1);
+
+                const r = Math.max(0.55, (currentSel.def.hitRadius || 0.4) * 1.15);
+                const pos = ring.geometry.attributes.position;
+                const base = ring.geometry.userData.basePositions;
+                if (pos && base) {
+                    const count = pos.count;
+                    const hasTerrain = Boolean(g.terrain && g.terrain.getHeightAt);
+                    for (let i = 0; i < count; i++) {
+                        const bx = base.getX(i) * r;
+                        const bz = base.getZ(i) * r;
+                        const wy = hasTerrain ? (g.terrain.getHeightAt(currentSel.x + bx, currentSel.z + bz) + 0.05) : (gy + 0.05);
+                        pos.setXYZ(i, bx, wy - gy, bz);
+                    }
+                    pos.needsUpdate = true;
+                }
                 ring.visible = true;
             } else {
                 if (this._targetRing) this._targetRing.visible = false;
                 // Auto-clear dead/gone target
-                if (sel && cr && !cr.isAlive(sel)) this.selectedTarget = null;
+                if (currentSel && cr && !cr.isAlive(currentSel)) this.selectedTarget = null;
             }
 
             // Red screen-edge flash (game time -> frozen on pause) + faint low-HP glow
@@ -484,6 +573,128 @@
                 this.vignetteShown = v;
                 this.vignette.style.opacity = String(v);
             }
+
+            // --- Target Frame HUD update ---
+            this.renderTargetFrame();
+        }
+
+        renderTargetFrame() {
+            const frame = this.targetFrame;
+            if (!frame) return;
+            const sel = this.selectedTarget;
+            const cr = this.game.creatures;
+            if (!sel || !cr || !cr.isAlive(sel)) {
+                frame.style.display = 'none';
+                frame.classList.remove('active');
+                this._targetHpShown = -1;
+                this._targetMaxHpShown = -1;
+                return;
+            }
+
+            frame.style.display = 'flex';
+            frame.classList.add('active');
+
+            const def = sel.def || {};
+            const isAggro = def.behavior === 'aggressive';
+
+            // Окантовка портрета: красная для агрессивных мобов, золотисто-желтая для мирных/нейтральных
+            if (this.targetPortraitWrap) {
+                this.targetPortraitWrap.classList.toggle('aggro', isAggro);
+                this.targetPortraitWrap.classList.toggle('neutral', !isAggro);
+            }
+
+            // Портрет: используем отрендеренную 3D-морду из iconData (или эмодзи-фоллбек)
+            const iconData = def.iconData || '';
+            if (this.targetPortraitImg) {
+                if (iconData) {
+                    if (this.targetPortraitImg.dataset.iconKey !== sel.type) {
+                        this.targetPortraitImg.dataset.iconKey = sel.type;
+                        this.targetPortraitImg.textContent = '';
+                        this.targetPortraitImg.style.backgroundImage = `url("${iconData}")`;
+                        this.targetPortraitImg.style.backgroundSize = 'cover';
+                    }
+                } else {
+                    delete this.targetPortraitImg.dataset.iconKey;
+                    this.targetPortraitImg.style.backgroundImage = 'none';
+                    const fallbackIcon = (def.icon) || CREATURE_ICONS[sel.type] || '👾';
+                    if (this.targetPortraitImg.textContent !== fallbackIcon) {
+                        this.targetPortraitImg.textContent = fallbackIcon;
+                    }
+                }
+            }
+
+            const lvl = sel.level || def.level || 1;
+            if (this.targetLevelBadge && this.targetLevelBadge.textContent !== String(lvl)) {
+                this.targetLevelBadge.textContent = String(lvl);
+                this.targetLevelBadge.title = `Уровень цели: ${lvl}`;
+            }
+
+            const name = def.name || sel.type;
+            if (this.targetName && this.targetName.textContent !== name) {
+                this.targetName.textContent = name;
+            }
+
+            // Здоровье моба
+            const curHp = Math.max(0, Math.ceil(sel.hp));
+            const maxHp = Math.max(1, Math.ceil(sel.maxHp));
+            if (curHp !== this._targetHpShown || maxHp !== this._targetMaxHpShown) {
+                this._targetHpShown = curHp;
+                this._targetMaxHpShown = maxHp;
+                const frac = Math.max(0, Math.min(1, curHp / maxHp));
+                if (this.targetHpFill) this.targetHpFill.style.width = (frac * 100).toFixed(1) + '%';
+                if (this.targetHpText) this.targetHpText.textContent = `${curHp} / ${maxHp}`;
+                if (this.targetHpBar) this.targetHpBar.title = `Здоровье цели: ${curHp} / ${maxHp}`;
+            }
+
+            // Бафы и дебафы цели (Оглушение, Замедление и др.)
+            this.renderTargetEffects(sel);
+        }
+
+        renderTargetEffects(sel) {
+            const bar = this.targetStatusBar;
+            if (!bar) return;
+            const effects = [];
+            if (sel.stunT > 0) {
+                effects.push({
+                    id: 'stun',
+                    kind: 'debuff',
+                    name: 'Оглушение',
+                    icon: '⚡',
+                    t: sel.stunT,
+                    color: '#ffc83b'
+                });
+            }
+            if (sel.slowT > 0) {
+                effects.push({
+                    id: 'slow',
+                    kind: 'debuff',
+                    name: 'Замедление',
+                    icon: '❄️',
+                    t: sel.slowT,
+                    color: '#6cd8ff'
+                });
+            }
+
+            if (!effects.length) {
+                if (bar.style.display !== 'none') bar.style.display = 'none';
+                return;
+            }
+
+            if (bar.style.display === 'none') bar.style.display = 'flex';
+            bar.innerHTML = '';
+            effects.forEach(ef => {
+                const el = document.createElement('div');
+                el.className = `status-fx ${ef.kind}`;
+                el.title = `${ef.name}: ${ef.t.toFixed(1)} с`;
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'status-fx-icon status-fx-glyph';
+                iconSpan.textContent = ef.icon;
+                const tm = document.createElement('span');
+                tm.className = 'status-fx-time';
+                tm.textContent = Math.ceil(ef.t);
+                el.append(iconSpan, tm);
+                bar.appendChild(el);
+            });
         }
 
         renderHp(force) {

@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#player-frame, #player-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
+const UI_SELECTOR = '#player-frame, #player-frame *, #target-frame, #target-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -1562,9 +1562,10 @@ class AveloraGame {
         window.addEventListener('touchcancel', fpTouchEnd);
         window.addEventListener('touchend', (e) => {
             fpTouchEnd(e);
-            const onUI = this.touchStartedOnUI || !!(e.target && e.target.closest && e.target.closest(UI_SELECTOR));
+            const justUiTap = (performance.now() - (window.__avelora_just_ui_tap || 0) < 450);
+            const onUI = this.touchStartedOnUI || justUiTap || !!(e.target && e.target.closest && e.target.closest(UI_SELECTOR));
             if (e.touches.length === 0) this.touchStartedOnUI = false;
-            if (this.isPaused || onUI) return;
+            if (this.isPaused || onUI || justUiTap) return;
             if (e.touches.length === 0 && !this.touchMoved && this.viewMode !== 'first') {
                 // Clean single tap: move character
                 this.handleGroundClick({
@@ -1744,16 +1745,17 @@ class AveloraGame {
             return;
         }
 
+        if (performance.now() - (window.__avelora_just_ui_tap || 0) < 450) return;
+
         // A click out in the world closes the chest window (unless it is the chest itself)
         if (this.worldObjects && this.worldObjects.openContainer) {
             const hitChest = this.worldObjects.pickContainerAt(this.raycaster);
             if (!hitChest || hitChest !== this.worldObjects.openContainer) this.worldObjects.closeChest();
         }
 
-        // Clicked on something other than a creature: deselect target
+        // Clicked elsewhere: stop melee engagement / chopping, but KEEP selectedTarget (deselected only via portrait click or death)
         if (this.combat) {
-            this.combat.clearTarget();
-            this.combat.cancel(); // clicked anything else: stop fighting / chopping
+            this.combat.cancel();
         }
 
         // Click on an item pile: walk there and pick it up on arrival (world_objects.js)

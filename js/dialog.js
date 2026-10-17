@@ -696,7 +696,8 @@
             const defs = (window.GAME_CONTENT && window.GAME_CONTENT.creatures) || {};
             const def = defs[detail.type];
             if (!def || !Array.isArray(def.gold)) return;
-            const lo = Math.max(0, Math.floor(def.gold[0] || 0)), hi = Math.max(lo, Math.floor(def.gold[1] || lo));
+            const mult = Number.isFinite(detail.levelMult) ? detail.levelMult : 1;
+            const lo = Math.max(0, Math.floor((def.gold[0] || 0) * mult)), hi = Math.max(lo, Math.floor((def.gold[1] || lo) * mult));
             const n = lo + Math.floor(Math.random() * (hi - lo + 1));
             if (n <= 0) return;
             st.addGold(n);

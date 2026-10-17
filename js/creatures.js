@@ -157,11 +157,27 @@
             const mergedDef = (sp.behavior || sp.aggroRadius !== undefined || sp.leashRadius !== undefined)
                 ? Object.assign({}, def, sp)
                 : def;
+            // Уровень существа: задаётся в спавне sp.level или в creature.json def.level (по умолчанию 1)
+            const level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
+            // Множитель характеристик: базовый уровень существа из creature.json def.level (минимум 1)
+            const baseLevel = Math.max(1, Math.floor(Number(def.level) || 1));
+            // Множитель силы моба: каждый уровень выше базового увеличивает силу (+18% HP и урона за уровень)
+            const levelMult = Math.max(0.2, 1 + (level - baseLevel) * 0.18);
+
+            const baseHp = mergedDef.hp || 10;
+            const scaledHp = Math.max(1, Math.round(baseHp * levelMult));
+            const baseDmg = mergedDef.damage || [1, 2];
+            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 1) * levelMult));
+            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 2) * levelMult));
+
             return {
                 id: sp.id, type: sp.type, def: mergedDef, spawn: sp,
+                level: level,
+                levelMult: levelMult,
+                scaledDamage: [dmgMin, dmgMax],
                 home: { x: sp.x, z: sp.z },
                 state: 'gone',       // idle | wander | chase | attack | return | dead | gone
-                hp: mergedDef.hp || 10, maxHp: mergedDef.hp || 10,
+                hp: scaledHp, maxHp: scaledHp,
                 x: sp.x, z: sp.z, y: 0, yaw: sp.r || 0,
                 group: null, model: null, proxy: null, mixer: null, actions: {}, current: null, anim: null,
                 materials: [], height: 0.5,
@@ -272,11 +288,16 @@
 
                 // Generous invisible hit cylinder (hover / click / tap / Spark)
                 if (!this.proxyGeos[rec.type]) {
+                    const isFlyer = (def.flyHeight && def.flyHeight > 0) || rec.type === 'bee' || rec.type === 'dragonfly';
                     const H = (window.AVELORA_HIT && window.AVELORA_HIT.creature) || { sizeMul: 0.9, minRadius: 0.3, maxRadius: 1.2, heightMul: 0.9, minHeight: 0.4 };
-                    const pr = Math.min(H.maxRadius, Math.max(H.minRadius, (tpl.bodyR || def.hitRadius || 0.4) * H.sizeMul));
-                    const ph = Math.max(H.minHeight, tpl.height * H.heightMul);
-                    const geo = new THREE.CylinderGeometry(pr, pr, ph, 10, 1);
-                    geo.translate(0, ph / 2 - 0.1, 0);
+                    const pr = isFlyer
+                        ? Math.max(0.75, (tpl.bodyR || def.hitRadius || 0.45) * 1.55)
+                        : Math.min(H.maxRadius, Math.max(H.minRadius, (tpl.bodyR || def.hitRadius || 0.4) * H.sizeMul));
+                    const ph = isFlyer
+                        ? Math.max(1.35, tpl.height * 2.5 + 0.6)
+                        : Math.max(H.minHeight, tpl.height * H.heightMul);
+                    const geo = new THREE.CylinderGeometry(pr, pr, ph, 12, 1);
+                    geo.translate(0, isFlyer ? ph * 0.5 - 0.35 : ph / 2 - 0.1, 0);
                     this.proxyGeos[rec.type] = geo;
                 }
                 const proxy = new THREE.Mesh(this.proxyGeos[rec.type], window.AveloraWorldObjects
@@ -607,7 +628,7 @@
                 if (!rec.attackHitDone && rec.attackT >= rec.hitAt) {
                     rec.attackHitDone = true;
                     if (playerAlive && distP <= reach + 0.5 && this.game.combat) {
-                        const d = def.damage || [1, 2];
+                        const d = rec.scaledDamage || def.damage || [1, 2];
                         const amount = Math.round(d[0] + Math.random() * ((d[1] || d[0]) - d[0]));
                         this.game.combat.damagePlayer(amount, rec);
                     }
@@ -920,7 +941,7 @@
             const bd = this.location.dungeon;
             if (this.state && bd && bd.bossId === rec.id) this.state.setKilled(this.location.id, '__cleared', Math.floor(Date.now() / 1000));   // boss killed under the dungeon-reset rules
             this.dropLoot(rec);
-            window.dispatchEvent(new CustomEvent('game:creatureKilled', { detail: { id: rec.id, type: rec.type } }));
+            window.dispatchEvent(new CustomEvent('game:creatureKilled', { detail: { id: rec.id, type: rec.type, level: rec.level, levelMult: rec.levelMult } }));
         }
 
         /**
@@ -1043,11 +1064,53 @@
             return null;
         }
 
-        /** Creature under the (already set up) raycaster, or null. */
+        /** Creature under the raycaster, or nearest candidate within smart distance tolerance. */
         pickAt(raycaster) {
             if (!this.proxies.length) return null;
+            // 1. Direct hit on proxy cylinder
             const hit = raycaster.intersectObjects(this.proxies, false)[0];
-            return hit ? hit.object.userData.creature || null : null;
+            if (hit && hit.object && hit.object.userData && hit.object.userData.creature) {
+                return hit.object.userData.creature;
+            }
+
+            // 2. Distant smart picking (allows easily targeting distant visible creatures)
+            const ray = raycaster.ray;
+            const origin = ray.origin;
+            const dir = ray.direction;
+            let bestRec = null;
+            let bestScore = Infinity;
+
+            for (let i = 0; i < this.list.length; i++) {
+                const rec = this.list[i];
+                if (!this.isAlive(rec)) continue;
+
+                const cy = rec.y + (rec.height || 0.8) * 0.5;
+                const dx = rec.x - origin.x;
+                const dy = cy - origin.y;
+                const dz = rec.z - origin.z;
+
+                const proj = dx * dir.x + dy * dir.y + dz * dir.z;
+                if (proj <= 1.0 || proj > 95.0) continue;
+
+                const px = origin.x + dir.x * proj;
+                const py = origin.y + dir.y * proj;
+                const pz = origin.z + dir.z * proj;
+                const distToRay = Math.hypot(rec.x - px, cy - py, rec.z - pz);
+
+                const baseR = (rec.def && rec.def.hitRadius) || 0.45;
+                const isFlyer = (rec.def && rec.def.flyHeight > 0) || rec.type === 'bee' || rec.type === 'dragonfly';
+                const allowedRadius = Math.max(isFlyer ? 0.85 : baseR, proj * (isFlyer ? 0.065 : 0.045));
+
+                if (distToRay <= allowedRadius) {
+                    const score = distToRay / allowedRadius;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        bestRec = rec;
+                    }
+                }
+            }
+
+            return bestRec;
         }
 
         /** Player died / respawned: every living creature forgets the fight and goes home at full health. */

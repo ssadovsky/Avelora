@@ -2602,7 +2602,7 @@
             position: absolute;
             inset: 3.5px;
             border-radius: 50%;
-            background: #11141a no-repeat center center / cover;
+            background: radial-gradient(circle at 45% 40%, #1f354d 0%, #0d1b2a 60%, #050a10 100%) no-repeat center center / cover;
             box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 0, 0, 0.85);
         }
 
@@ -2610,16 +2610,16 @@
             position: absolute;
             inset: 0;
             border-radius: 50%;
-            border: 1px solid rgba(255, 235, 170, 0.75);
-            box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(0, 0, 0, 0.9);
+            border: 2.5px solid rgba(255, 235, 170, 0.9);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.7), 0 0 10px rgba(212, 175, 55, 0.65);
             pointer-events: none;
         }
         .player-portrait-ring::after {
             content: '';
             position: absolute;
-            inset: 2.5px;
+            inset: 2px;
             border-radius: 50%;
-            border: 1px solid rgba(0, 0, 0, 0.65);
+            border: 1px solid rgba(0, 0, 0, 0.75);
             pointer-events: none;
         }
 
@@ -2648,6 +2648,160 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            pointer-events: none;
+        }
+
+        /* Target Frame & Vitals (информация о таргете: моб, портрет, уровень, имя, HP, бафы) */
+        .target-frame {
+            position: fixed;
+            top: 14px;
+            left: calc(clamp(165px, 13vw, 220px) + clamp(56px, 4.4vw, 68px) + 54px);
+            display: none;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+            pointer-events: auto;
+            user-select: none;
+            transition: opacity 0.18s ease-out;
+        }
+        .target-frame.active {
+            display: flex;
+        }
+        .target-portrait-wrap {
+            position: relative;
+            width: clamp(56px, 4.4vw, 68px);
+            height: clamp(56px, 4.4vw, 68px);
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85), 0 0 10px rgba(212, 175, 55, 0.35);
+            flex-shrink: 0;
+            background: radial-gradient(circle at 45% 40%, #302616 0%, #17120a 60%, #080603 100%);
+            border: 2.5px solid #d4af37;
+            box-sizing: border-box;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        /* Агрессивный моб: благородная рубиново-красная окантовка и сочный фон */
+        .target-portrait-wrap.aggro {
+            background: radial-gradient(circle at 45% 40%, #4a1414 0%, #240808 60%, #0e0303 100%);
+            border-color: #d43535;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85), 0 0 14px rgba(220, 50, 50, 0.6);
+        }
+        /* Мирный / нейтральный моб: золотисто-желтая окантовка и благородный фон */
+        .target-portrait-wrap.neutral {
+            background: radial-gradient(circle at 45% 40%, #3a2e16 0%, #1c1508 60%, #0a0804 100%);
+            border-color: #d4af37;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85), 0 0 14px rgba(212, 175, 55, 0.55);
+        }
+        .target-portrait-img {
+            position: absolute;
+            inset: 3px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 45% 40%, #302616 0%, #17120a 60%, #080603 100%) no-repeat center center / cover;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(24px, 2vw, 32px);
+            user-select: none;
+            line-height: 1;
+        }
+        .target-portrait-wrap.aggro .target-portrait-img {
+            background-color: transparent;
+            background-image: radial-gradient(circle at 45% 40%, #4a1414 0%, #240808 60%, #0e0303 100%);
+        }
+        .target-portrait-wrap.neutral .target-portrait-img {
+            background-color: transparent;
+            background-image: radial-gradient(circle at 45% 40%, #3a2e16 0%, #1c1508 60%, #0a0804 100%);
+        }
+        .target-portrait-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255, 235, 170, 0.9);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.6), 0 0 8px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+        }
+        .target-portrait-wrap.aggro .target-portrait-ring {
+            border-color: rgba(255, 90, 90, 0.95);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.6), 0 0 10px rgba(220, 40, 40, 0.7);
+        }
+        .target-portrait-wrap.neutral .target-portrait-ring {
+            border-color: rgba(255, 215, 100, 0.95);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.6), 0 0 10px rgba(212, 175, 55, 0.6);
+        }
+        .target-portrait-ring::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.75);
+            pointer-events: none;
+        }
+        .target-level-badge {
+            position: absolute;
+            bottom: -3px;
+            right: -3px;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 4px;
+            border-radius: 11px;
+            background: radial-gradient(circle at 40% 35%, #2a2215 0%, #151109 100%);
+            border: 1.5px solid #d4af37;
+            color: #ffdf7a;
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 6px rgba(212, 175, 55, 0.4);
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .target-portrait-wrap.aggro .target-level-badge {
+            background: radial-gradient(circle at 40% 35%, #351515 0%, #1a0808 100%);
+            border-color: #d45050;
+            color: #ffb8b8;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 6px rgba(212, 80, 80, 0.4);
+        }
+        .target-vitals {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+            position: relative;
+        }
+        #target-header {
+            pointer-events: none;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+        }
+        #target-name {
+            font-size: 11px;
+            color: #ffdede;
+            font-weight: 600;
+            letter-spacing: 0.03rem;
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: rgba(28, 12, 12, 0.8);
+            border: 1px solid rgba(195, 75, 75, 0.45);
+            border-radius: 3px;
+            padding: 1px 7px;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            white-space: nowrap;
+            line-height: 15px;
+        }
+        #target-status-bar {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            width: clamp(165px, 13vw, 220px);
             pointer-events: none;
         }
 
@@ -2975,6 +3129,83 @@
         }
         body.touch-ui .skill-bar::before,
         body.touch-ui .skill-bar::after { display: none !important; }
+
+        /* Mobile Target Frame (touch-ui): справа от player-frame */
+        body.touch-ui .target-frame {
+            position: fixed !important;
+            top: max(env(safe-area-inset-top, 0px), 8px) !important;
+            left: calc(max(env(safe-area-inset-left, 0px), 10px) + clamp(130px, 24vw, 160px) + 58px) !important;
+            display: none;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 8px !important;
+            z-index: 110 !important;
+            pointer-events: none !important;
+            user-select: none !important;
+        }
+        body.touch-ui .target-frame.active {
+            display: flex !important;
+        }
+        body.touch-ui .target-portrait-wrap {
+            display: block !important;
+            width: 50px !important;
+            height: 50px !important;
+            border-radius: 50% !important;
+            pointer-events: auto !important;
+            cursor: pointer !important;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.85), 0 0 8px rgba(180, 40, 40, 0.4) !important;
+            flex-shrink: 0 !important;
+        }
+        body.touch-ui .target-portrait-img {
+            inset: 3px !important;
+            font-size: 22px !important;
+        }
+        body.touch-ui .target-level-badge {
+            min-width: 18px !important;
+            height: 18px !important;
+            font-size: 10px !important;
+            bottom: -2px !important;
+            right: -2px !important;
+            border-radius: 9px !important;
+            border-width: 1px !important;
+        }
+        body.touch-ui .target-vitals {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-start !important;
+            height: 50px !important;
+            gap: 2px !important;
+            pointer-events: none !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+        }
+        body.touch-ui #target-header {
+            margin: 0 !important;
+            line-height: 1 !important;
+            pointer-events: none !important;
+        }
+        body.touch-ui #target-name {
+            font-size: 9.5px !important;
+            padding: 1px 5px !important;
+            line-height: 12px !important;
+            height: 14px !important;
+            border-radius: 2px !important;
+            display: inline-block !important;
+            box-sizing: border-box !important;
+        }
+        body.touch-ui #target-hp-bar {
+            width: clamp(110px, 20vw, 150px) !important;
+            height: 14px !important;
+            margin: 0 !important;
+        }
+        body.touch-ui #target-status-bar {
+            position: absolute !important;
+            top: calc(100% + 3px) !important;
+            left: 0 !important;
+            margin: 0 !important;
+            gap: 3px !important;
+            width: clamp(110px, 20vw, 150px) !important;
+        }
 
         /* Mobile Top-Right System Dock (Compass | Camera | Menu | Bag | Micromenu) */
         body.touch-ui #compass-btn {

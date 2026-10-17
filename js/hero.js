@@ -221,8 +221,9 @@
             if (!d || !this.state) return;
             const def = (window.GAME_CONTENT && window.GAME_CONTENT.creatures && window.GAME_CONTENT.creatures[d.type]) || null;
             if (!def) return;
-            const base = Number.isFinite(def.xp) ? def.xp : Math.max(1, Math.round((def.hp || 10) / 4));
-            const lvl = Number.isFinite(def.level) ? def.level : 1;
+            const mult = Number.isFinite(d.levelMult) ? d.levelMult : 1;
+            const base = (Number.isFinite(def.xp) ? def.xp : Math.max(1, Math.round((def.hp || 10) / 4))) * mult;
+            const lvl = Number.isFinite(d.level) ? d.level : (Number.isFinite(def.level) ? def.level : 1);
             const c = CFG();
             const k = Math.max(c.minXpFactor, Math.min(c.maxXpFactor, 1 + (lvl - this.level) * c.levelXpSwing));
             this.addXp(base * k);
