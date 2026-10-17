@@ -1072,6 +1072,16 @@ window.GAME_CONTENT = {
     "color": "#7c2f22"
    }
   },
+  "lizard_barricade": {
+   "id": "lizard_barricade",
+   "name": "Частокол из кольев",
+   "obstacle": 1.4
+  },
+  "lizard_drum": {
+   "id": "lizard_drum",
+   "name": "Боевой барабан ящеров",
+   "obstacle": 0.5
+  },
   "lizard_tent": {
    "id": "lizard_tent",
    "name": "Шатёр ящеров",

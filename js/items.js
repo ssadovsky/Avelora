@@ -252,7 +252,8 @@
                 waystone: 1, hermit_hut: 1, drying_rack: 1,
                 elemental_obelisk: 1, elemental_altar_fire: 1, elemental_altar_water: 1,
                 elemental_altar_stone: 1, elemental_altar_air: 1,
-                lizard_tent: 1, lizard_totem: 1, lizard_banner: 1, bone_pile: 1
+                lizard_tent: 1, lizard_totem: 1, lizard_banner: 1, bone_pile: 1,
+                lizard_barricade: 1, lizard_drum: 1
             };
             if (!SAVANNA_IDS[id]) return null;
 
@@ -974,6 +975,88 @@
                     addMesh(group, new THREE.SphereGeometry(0.038, 6, 5), oldBoneMat, a[0], a[1], a[2]);
                     addMesh(group, new THREE.SphereGeometry(0.038, 6, 5), oldBoneMat, b[0], b[1], b[2]);
                 });
+                return group;
+            }
+
+            // -------------------------------------------------------
+            // 10. LIZARD BARRICADE (Частокол из заострённых кольев: ширина ~2.8 м)
+            // -------------------------------------------------------
+            if (id === 'lizard_barricade') {
+                const woodMat = new THREE.MeshStandardMaterial({ map: makeWoodTex(88, 58, 34), roughness: 0.88, metalness: 0.02 });
+                const ropeMat = new THREE.MeshStandardMaterial({ color: 0x9e8354, roughness: 0.92, metalness: 0.0 });
+                const boneMat = new THREE.MeshStandardMaterial({ color: 0xd9ceb4, roughness: 0.74, metalness: 0.04 });
+
+                // Горизонтальные опорные брусья
+                addPoleBetween(group, woodMat, [-1.35, 0.45, -0.06], [1.35, 0.45, -0.06], 0.048, 0.045, 6);
+                addPoleBetween(group, woodMat, [-1.28, 1.15, -0.04], [1.28, 1.15, -0.04], 0.042, 0.040, 6);
+
+                // Задние наклонные подпорки
+                for (const sx of [-0.95, 0, 0.95]) {
+                    addPoleBetween(group, woodMat, [sx, 0.0, -0.72], [sx, 1.18, -0.06], 0.046, 0.038, 6);
+                }
+
+                // 7 заострённых кольев разной высоты с наклоном вперёд (+Z)
+                const stakes = [
+                    { x: -1.20, h: 1.85, tilt: 0.12, rot: -0.05 },
+                    { x: -0.80, h: 2.15, tilt: 0.16, rot: 0.08 },
+                    { x: -0.40, h: 1.95, tilt: 0.14, rot: -0.04 },
+                    { x:  0.00, h: 2.28, tilt: 0.18, rot: 0.02 },
+                    { x:  0.40, h: 1.92, tilt: 0.15, rot: -0.06 },
+                    { x:  0.80, h: 2.18, tilt: 0.17, rot: 0.05 },
+                    { x:  1.20, h: 1.80, tilt: 0.11, rot: -0.03 }
+                ];
+
+                stakes.forEach(s => {
+                    const topZ = Math.sin(s.tilt) * s.h;
+                    const topY = Math.cos(s.tilt) * s.h;
+                    // Ствол кола
+                    addPoleBetween(group, woodMat, [s.x, 0.0, 0], [s.x, topY - 0.35, topZ - 0.05], 0.068, 0.048, 6);
+                    // Заострённый кончик
+                    const tipGeo = new THREE.ConeGeometry(0.048, 0.38, 6);
+                    addMesh(group, tipGeo, woodMat, s.x, topY - 0.18, topZ - 0.02, s.tilt, 0, s.rot);
+                    // Верёвочная обвязка на перекладинах
+                    const lash1 = new THREE.TorusGeometry(0.065, 0.016, 5, 8);
+                    addMesh(group, lash1, ropeMat, s.x, 0.45, -0.04, Math.PI / 2, 0, 0);
+                    const lash2 = new THREE.TorusGeometry(0.058, 0.015, 5, 8);
+                    addMesh(group, lash2, ropeMat, s.x, 1.15, -0.03, Math.PI / 2, 0, 0);
+                });
+
+                // Костяной череп/рога на центральном колу
+                addBeastSkull(group, boneMat, woodMat, ropeMat, 0.0, 1.62, 0.26, 0, 0.72);
+                return group;
+            }
+
+            // -------------------------------------------------------
+            // 11. LIZARD DRUM (Боевой барабан ящеров из полого бревна)
+            // -------------------------------------------------------
+            if (id === 'lizard_drum') {
+                const woodMat = new THREE.MeshStandardMaterial({ map: makeWoodTex(82, 54, 30), roughness: 0.86, metalness: 0.02 });
+                const hideMat = new THREE.MeshStandardMaterial({ map: makeHideTex(false), roughness: 0.78, metalness: 0.0 });
+                const darkMat = new THREE.MeshStandardMaterial({ color: 0x221810, roughness: 0.95, metalness: 0.0 });
+                const paintRedMat = new THREE.MeshStandardMaterial({ color: 0x942618, roughness: 0.8, metalness: 0.05 });
+                const boneMat = new THREE.MeshStandardMaterial({ color: 0xd9ceb4, roughness: 0.72, metalness: 0.04 });
+
+                // Деревянная тренога-подставка
+                for (let i = 0; i < 3; i++) {
+                    const a = (i / 3) * Math.PI * 2;
+                    addPoleBetween(group, woodMat, [Math.cos(a) * 0.48, 0.0, Math.sin(a) * 0.48], [Math.cos(a) * 0.22, 0.65, Math.sin(a) * 0.22], 0.042, 0.032, 6);
+                }
+
+                // Бочкообразный корпус барабана
+                const drumBody = perturbGeo(new THREE.CylinderGeometry(0.38, 0.32, 0.72, 12), 0.015, 0.01);
+                addMesh(group, drumBody, woodMat, 0, 0.76, 0);
+
+                // Декоративные боевые красные полосы
+                addMesh(group, new THREE.CylinderGeometry(0.39, 0.385, 0.08, 12), paintRedMat, 0, 0.98, 0);
+                addMesh(group, new THREE.CylinderGeometry(0.36, 0.35, 0.08, 12), paintRedMat, 0, 0.54, 0);
+
+                // Натянутая мембрана из кожи сверху
+                const drumSkin = new THREE.CylinderGeometry(0.375, 0.375, 0.04, 14);
+                addMesh(group, drumSkin, hideMat, 0, 1.13, 0);
+
+                // Костяные колотушки/палочки, прислонённые к барабану
+                addPoleBetween(group, boneMat, [0.38, 0.0, 0.28], [0.26, 1.08, 0.18], 0.022, 0.018, 5);
+                addMesh(group, new THREE.SphereGeometry(0.042, 6, 5), boneMat, 0.26, 1.09, 0.18);
                 return group;
             }
 

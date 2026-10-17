@@ -704,7 +704,7 @@ window.LOCATIONS = {
                 { x: -131.0, z: 10.0, radius: 4.5, blend: 5.0 },
                 { x: -115.0, z: 20.0, radius: 7.0, blend: 7.0 },
                 { x: 74.0,   z: -42.0, radius: 15.0, blend: 9.0 },
-                { x: 96.0,   z: 46.0, radius: 14.0, blend: 9.0 }
+                { x: 106.0,  z: 46.0, radius: 25.0, blend: 9.0 }
             ],
             hills: { amplitude: 2.6, inclineX: 0.25, inclineZ: -0.10 },
 
@@ -720,7 +720,7 @@ window.LOCATIONS = {
                 // Ответвление к лагерю ящеров
                 {
                     type: 'dirt', width: 2.6,
-                    points: [[22.0, 22.0], [50.0, 36.0], [76.0, 44.0], [96.0, 46.0]]
+                    points: [[22.0, 22.0], [50.0, 36.0], [76.0, 44.0], [96.0, 46.0], [116.0, 48.0]]
                 },
                 // Аллея стихий: камень на подходе к алтарям
                 {
@@ -749,7 +749,7 @@ window.LOCATIONS = {
             { x: -131.0, z: 10.0, radius: 8.0 }, { x: -120.0, z: 10.0, radius: 7.0 },
             { x: -115.0, z: 20.0, radius: 11.0 },                 // стоянка отшельника
             { x: 74.0, z: -42.0, radius: 19.0 },                 // Круг стихий
-            { x: 96.0, z: 46.0, radius: 15.0 },                  // лагерь ящеров
+            { x: 106.0, z: 46.0, radius: 26.0 },                 // расширенный лагерь ящеров
             { x: 4.0, z: -68.0, radius: 6.0 }, { x: 22.0, z: -64.0, radius: 6.0 }   // логово львов (кости)
         ],
 
@@ -832,16 +832,26 @@ window.LOCATIONS = {
             { id: 'sv_lion_1', type: 'cave_lion', x: 18.0, z: -66.0, r: 2.00 },
             { id: 'sv_lion_2', type: 'cave_lion', x: 34.0, z: -72.0, r: 3.70 },
             { id: 'sv_lion_3', type: 'cave_lion', x: 4.0, z: -74.0, r: 5.40 },
+            // Ящеры-солдаты в лагере (расширены по всей восточной и юго-восточной части)
             { id: 'sv_soldier_1', type: 'lizard_soldier', x: 105.6, z: 49.0, r: 0.50 },
             { id: 'sv_soldier_2', type: 'lizard_soldier', x: 98.2, z: 55.8, r: 2.20 },
             { id: 'sv_soldier_3', type: 'lizard_soldier', x: 88.7, z: 52.8, r: 3.90 },
             { id: 'sv_soldier_4', type: 'lizard_soldier', x: 86.4, z: 43.0, r: 5.60 },
             { id: 'sv_soldier_5', type: 'lizard_soldier', x: 93.8, z: 36.2, r: 1.02 },
             { id: 'sv_soldier_6', type: 'lizard_soldier', x: 103.3, z: 39.2, r: 2.72 },
-            { id: 'sv_soldier_7', type: 'lizard_soldier', x: 66.0, z: 60.0, r: 4.42 },
-            { id: 'sv_soldier_8', type: 'lizard_soldier', x: 124.0, z: 66.0, r: 6.12 },
+            { id: 'sv_soldier_7', type: 'lizard_soldier', x: 74.0, z: 54.0, r: 4.42 },
+            { id: 'sv_soldier_8', type: 'lizard_soldier', x: 122.0, z: 62.0, r: 6.12 },
+            { id: 'sv_soldier_9', type: 'lizard_soldier', x: 114.0, z: 38.0, r: 1.80 },
+            { id: 'sv_soldier_10', type: 'lizard_soldier', x: 118.0, z: 50.0, r: 3.50 },
+            { id: 'sv_soldier_11', type: 'lizard_soldier', x: 128.0, z: 44.0, r: 4.90 },
+            { id: 'sv_soldier_12', type: 'lizard_soldier', x: 132.0, z: 56.0, r: 0.80 },
+            { id: 'sv_soldier_13', type: 'lizard_soldier', x: 108.0, z: 66.0, r: 2.40 },
+            { id: 'sv_soldier_14', type: 'lizard_soldier', x: 92.0, z: 62.0, r: 4.10 },
+            { id: 'sv_soldier_15', type: 'lizard_soldier', x: 135.0, z: 32.0, r: 5.70 },
+            // Командиры ящеров
             { id: 'sv_commander_1', type: 'lizard', x: 104.0, z: 44.0, r: 3.00 },
-            { id: 'sv_commander_2', type: 'lizard', x: 122.0, z: 28.0, r: 4.70 },
+            { id: 'sv_commander_2', type: 'lizard', x: 124.0, z: 32.0, r: 4.70 },
+            { id: 'sv_commander_3', type: 'lizard', x: 126.0, z: 52.0, r: 1.20 },
             { id: 'sv_fire_elemental', type: 'fire_elemental', x: 74.0, z: -52.0, r: 0.00 },
             { id: 'sv_stone_elemental', type: 'stone_elemental', x: 84.0, z: -42.0, r: 1.57 },
             { id: 'sv_water_elemental', type: 'water_elemental', x: 74.0, z: -32.0, r: 3.14 },
@@ -850,7 +860,7 @@ window.LOCATIONS = {
 
         pickups: [],
 
-        // Стоянка отшельника, Круг стихий, лагерь ящеров, путевые камни (заглушки — меши нарисуем позже)
+        // Стоянка отшельника, Круг стихий, лагерь ящеров, путевые камни
         props: [
             { id: 'savanna.hermit', prop: 'npc_lizard_hermit', x: -112.0, z: 22.5, r: 0.0 },
             { id: 'savanna.hermit_fire', prop: 'campfire', x: -115.0, z: 20.0, r: 0.0 },
@@ -866,15 +876,51 @@ window.LOCATIONS = {
             { id: 'savanna.altar_water', prop: 'elemental_altar_water', x: 74.0, z: -36.0, r: 3.14 },
             { id: 'savanna.altar_air', prop: 'elemental_altar_air', x: 68.0, z: -42.0, r: 4.71 },
             { id: 'savanna.obelisk', prop: 'elemental_obelisk', x: 74.0, z: -42.0, r: 0.0 },
+
+            // Центральный узел лагеря ящеров
             { id: 'savanna.lizard_totem', prop: 'lizard_totem', x: 92.0, z: 40.0, r: 0.5 },
+            { id: 'savanna.lizard_fire', prop: 'campfire', x: 96.0, z: 46.0, r: 0.0 },
+            { id: 'savanna.lizard_drum_1', prop: 'lizard_drum', x: 94.0, z: 42.5, r: 0.8 },
+            { id: 'savanna.lizard_drum_2', prop: 'lizard_drum', x: 99.0, z: 43.5, r: -0.6 },
+            { id: 'savanna.bones_1', prop: 'bone_pile', x: 90.0, z: 46.0, r: 0.4 },
+
+            // Шатры (рассредоточены от центра на восток к краю карты)
             { id: 'savanna.lizard_tent_1', prop: 'lizard_tent', x: 86.0, z: 50.0, r: 0.8 },
             { id: 'savanna.lizard_tent_2', prop: 'lizard_tent', x: 104.0, z: 52.0, r: -0.6 },
             { id: 'savanna.lizard_tent_3', prop: 'lizard_tent', x: 108.0, z: 38.0, r: 2.4 },
+            { id: 'savanna.lizard_tent_4', prop: 'lizard_tent', x: 124.0, z: 42.0, r: 1.1 },
+            { id: 'savanna.lizard_tent_5', prop: 'lizard_tent', x: 130.0, z: 54.0, r: -1.8 },
+
+            // Боевые знамёна
             { id: 'savanna.lizard_banner_1', prop: 'lizard_banner', x: 88.0, z: 36.0, r: 0.0 },
             { id: 'savanna.lizard_banner_2', prop: 'lizard_banner', x: 100.0, z: 34.0, r: 0.0 },
-            { id: 'savanna.lizard_banner_3', prop: 'lizard_banner', x: 112.0, z: 46.0, r: 1.2 },
-            { id: 'savanna.lizard_fire', prop: 'campfire', x: 96.0, z: 46.0, r: 0.0 },
-            { id: 'savanna.bones_1', prop: 'bone_pile', x: 90.0, z: 46.0, r: 0.4 },
+            { id: 'savanna.lizard_banner_3', prop: 'lizard_banner', x: 114.0, z: 46.0, r: 1.2 },
+            { id: 'savanna.lizard_banner_4', prop: 'lizard_banner', x: 120.0, z: 28.0, r: 0.4 },
+            { id: 'savanna.lizard_banner_5', prop: 'lizard_banner', x: 134.0, z: 44.0, r: -0.8 },
+
+            // Частокол из кольев с проходами (основной широкий вход с тропы на северо-западе + проход на юг)
+            // Северное крыло частокола
+            { id: 'savanna.lizard_barricade_n1', prop: 'lizard_barricade', x: 82.0, z: 32.0, r: 0.45 },
+            { id: 'savanna.lizard_barricade_n2', prop: 'lizard_barricade', x: 87.5, z: 29.5, r: 0.35 },
+            // ВХОД С ТРОПЫ: свободен между x: 88..97, z: 30..38 (проём шириной более 8 метров)
+            { id: 'savanna.lizard_barricade_n3', prop: 'lizard_barricade', x: 105.0, z: 29.0, r: -0.15 },
+            { id: 'savanna.lizard_barricade_n4', prop: 'lizard_barricade', x: 112.0, z: 28.0, r: -0.20 },
+            { id: 'savanna.lizard_barricade_n5', prop: 'lizard_barricade', x: 127.0, z: 26.0, r: -0.30 },
+
+            // Западное крыло частокола
+            { id: 'savanna.lizard_barricade_w1', prop: 'lizard_barricade', x: 78.0, z: 37.0, r: 1.45 },
+            { id: 'savanna.lizard_barricade_w2', prop: 'lizard_barricade', x: 77.0, z: 44.0, r: 1.55 },
+            { id: 'savanna.lizard_barricade_w3', prop: 'lizard_barricade', x: 78.0, z: 52.0, r: 1.65 },
+
+            // Южное крыло частокола
+            { id: 'savanna.lizard_barricade_s1', prop: 'lizard_barricade', x: 84.0, z: 60.0, r: 2.85 },
+            { id: 'savanna.lizard_barricade_s2', prop: 'lizard_barricade', x: 91.0, z: 62.0, r: 2.95 },
+            // ЮЖНЫЙ ПРОХОД: свободен между x: 92..102 (проём шириной ~10 метров)
+            { id: 'savanna.lizard_barricade_s3', prop: 'lizard_barricade', x: 104.0, z: 64.0, r: 3.10 },
+            { id: 'savanna.lizard_barricade_s4', prop: 'lizard_barricade', x: 114.0, z: 63.0, r: -3.05 },
+            { id: 'savanna.lizard_barricade_s5', prop: 'lizard_barricade', x: 126.0, z: 60.0, r: -2.85 },
+
+            // Кости в других зонах
             { id: 'savanna.bones_2', prop: 'bone_pile', x: 20.0, z: -62.0, r: 1.9 },
             { id: 'savanna.bones_3', prop: 'bone_pile', x: -8.0, z: -70.0, r: 0.7 },
             { id: 'savanna.bones_4', prop: 'bone_pile', x: -100.0, z: -18.0, r: 2.5 }
