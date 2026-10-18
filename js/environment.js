@@ -15,7 +15,7 @@
 const ENV_CHUNK_SIZE = 20; // meters
 // V0.3: множители радиуса куллинга чанков (GFX.grassRadius * mul)
 const CULL_INNER_MUL = { dandelions_lod: 0.45 };
-const CULL_RADIUS_MUL = { grass: 1.0, dandelions: 0.45, dandelions_lod: 1.0, ferns: 1.3, reeds: 1.5, shrubs: 1.8 };
+const CULL_RADIUS_MUL = { grass: 1.0, dandelions: 0.45, dandelions_lod: 1.0, flowers: 1.2, branches: 1.0, ferns: 1.3, reeds: 1.5, shrubs: 2.4 };
 const CULL_CHUNK_HALF_DIAG = ENV_CHUNK_SIZE * 0.7071; // расстояние от центра до угла чанка
 
 // Decoded GLB buffers are cached between locations (atob of multi-MB strings is slow)
@@ -214,8 +214,9 @@ class LakesideEnvironment {
                 mesh.position.set(chunk.ox, 0, chunk.oz);
                 mesh.userData.kind = kind;
                 mesh.userData.instanceIds = [];
-                if (kind === 'trees' && mesh.castShadow) this.shadowMeshes.push({ mesh, x: chunk.ox, z: chunk.oz });
-                if (CULL_RADIUS_MUL[kind]) this.cullMeshes.push({ mesh, x: chunk.ox, z: chunk.oz, mul: CULL_RADIUS_MUL[kind], inner: CULL_INNER_MUL[kind] || 0 });
+                if ((kind === 'trees' || kind === 'boulders' || kind === 'ores') && mesh.castShadow) this.shadowMeshes.push({ mesh, x: chunk.ox, z: chunk.oz });
+                const cullKey = CULL_RADIUS_MUL[kind] !== undefined ? kind : kind.split('_')[0];
+                if (CULL_RADIUS_MUL[cullKey]) this.cullMeshes.push({ mesh, x: chunk.ox, z: chunk.oz, mul: CULL_RADIUS_MUL[cullKey], inner: CULL_INNER_MUL[cullKey] || 0 });
                 if (HOVER_KINDS.has(kind) && !PROXY_HOVER_KINDS.has(kind) && !opts.noHover) {
                     mesh.userData.hoverable = true;
                     this.hoverMeshes.push(mesh);
@@ -465,7 +466,7 @@ class LakesideEnvironment {
                         if (mName.includes('tree_1') || mName.includes('twig') || mName.includes('leaves') || mName.includes('needle') || mName.includes('leaf') || (c.material.alphaTest > 0) || (c.material.map && c.material.map.format === THREE.RGBAFormat)) {
                             c.material.transparent = false;
                             c.material.alphaTest = 0.22;
-                            c.material.alphaToCoverage = true;
+                            c.material.alphaToCoverage = !(window.GFX && window.GFX.low);
                             c.material.depthWrite = true;
                         }
                     }
@@ -685,7 +686,7 @@ class LakesideEnvironment {
                     const rotY = (sp.r !== undefined) ? sp.r : (idx * 1.73);
                     d.rotation.set(0, rotY, 0);
                     d.scale.set(scale, scale, scale);
-                }, { castShadow: true, reflect: false });
+                }, { castShadow: false, reflect: false });
             });
         });
     }

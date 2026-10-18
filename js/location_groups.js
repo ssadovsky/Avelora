@@ -137,10 +137,14 @@
                 return true;
             },
             surfaceOk(surface, x, z) {
-                const test = SURFACES[surface] || SURFACES.land;
+                const sKey = surface && SURFACES[surface] ? surface : 'land';
                 const h = terrain.getHeightAt(x, z);
-                const slope = terrain.getSlopeAt ? terrain.getSlopeAt(x, z) : 0;
-                return test(h, slope);
+                if (sKey === 'land') {
+                    if (h <= 0.35) return false;
+                    const slope = terrain.getSlopeAt ? terrain.getSlopeAt(x, z) : 0;
+                    return slope < 0.78;
+                }
+                return SURFACES[sKey](h, 0);
             }
         };
     }
@@ -196,7 +200,7 @@
             let tries = 0;
             while (centers.length < spec.clumps && tries++ < spec.clumps * 200) {
                 const p = randomInShape(g, rng);
-                if (ctx.isInsideMap(p.x, p.z) && ctx.surfaceOk(spec.surface, p.x, p.z) && !ctx.isReserved(p.x, p.z, spec.kind)) {
+                if (ctx.isInsideMap(p.x, p.z) && !ctx.isReserved(p.x, p.z, spec.kind) && ctx.surfaceOk(spec.surface, p.x, p.z)) {
                     centers.push(p);
                 }
             }
@@ -221,10 +225,10 @@
             }
 
             if (!ctx.isInsideMap(p.x, p.z)) continue;
-            if (ctx.isReserved(p.x, p.z, spec.kind)) continue;
-            if (spec.filter && !spec.filter(p.x, p.z)) continue;
-            if (!ctx.surfaceOk(spec.surface, p.x, p.z)) continue;
             if (!ctx.isFree(spec.kind, p.x, p.z, spec.spacing)) continue;
+            if (ctx.isReserved(p.x, p.z, spec.kind)) continue;
+            if (!ctx.surfaceOk(spec.surface, p.x, p.z)) continue;
+            if (spec.filter && !spec.filter(p.x, p.z)) continue;
 
             const [smin, smax] = spec.scale;
             const obj = { x: round2(p.x), z: round2(p.z), s: round2(smin + rng() * (smax - smin)), r: round2(rng() * Math.PI * 2) };

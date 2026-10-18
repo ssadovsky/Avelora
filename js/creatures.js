@@ -417,6 +417,7 @@
             if (rec.anim === name && !restart) return;
             rec.anim = name;
             rec.animT = 0;
+            rec._poseDirty = true;
             const next = rec.actions[name];
             if (!next) return;
             const f = fade === undefined ? FADE : fade;
@@ -532,7 +533,16 @@
                     s.radius = h * 1.2 + (rec.bodyR || 0.5) * 2 + 2.5;   // запас: лапы/хвост в анимации, тень
                     vis = this._fr.intersectsSphere(s);
                 }
-                if (rec.group.visible !== vis) rec.group.visible = vis;
+                if (rec.group.visible !== vis) {
+                    rec.group.visible = vis;
+                    if (vis) {
+                        if (rec.mixer && rec._animDt > 0) {
+                            rec.mixer.update(rec._animDt);
+                            rec._animDt = 0;
+                        }
+                        if (rec.def.tiltSpan && rec.state !== 'dead') this.alignToTerrain(rec, 0.16);
+                    }
+                }
             }
         }
 
@@ -562,6 +572,7 @@
                 if (c && c.position) {
                     const dx = rec.group.position.x - c.position.x, dz = rec.group.position.z - c.position.z;
                     const d2 = dx * dx + dz * dz;
+                    rec._d2 = d2;
                     const vis = d2 < CREATURE_DRAW_DIST * CREATURE_DRAW_DIST;
                     rec._inRange = vis;
                     if (vis) {
@@ -634,18 +645,37 @@
                     }
                 }
 
+                const isVis = rec.group.visible;
                 if (rec.mixer) {
                     const animRate = rec.stunT > 0 ? 0.05 : (rec.slowT > 0 ? rec.slowF : 1);
-                    rec.mixer.update(delta * animRate);
+                    rec._animDt = (rec._animDt || 0) + delta * animRate;
+                    const d2 = rec._d2 || 0;
+                    const mustStep = rec._poseDirty || (rec.state === 'dead' && rec.deadT < 2.0);
+                    const stride = !isVis ? 0 : (d2 < 1600 ? 1 : (d2 < 7225 ? 2 : 4));
+                    rec._animTick = ((rec._animTick || i) + 1) | 0;
+                    if (mustStep || (stride > 0 && (stride === 1 || (rec._animTick % stride) === 0))) {
+                        rec.mixer.update(rec._animDt);
+                        rec._animDt = 0;
+                        rec._poseDirty = false;
+                    } else if (!isVis && rec._animDt > 1.5) {
+                        rec._animDt = 1.5;
+                    }
                 }
-                this.proceduralPose(rec, delta);
+                if (isVis || rec.state === 'dead') {
+                    this.proceduralPose(rec, delta);
+                }
                 if (rec.def.flyHeight) {
-                    const groundY = this.terrain.getHeightAt(rec.x, rec.z);
+                    if (rec._groundY === undefined || Math.abs(rec.x - rec._groundX) + Math.abs(rec.z - rec._groundZ) > 0.02) {
+                        rec._groundX = rec.x;
+                        rec._groundZ = rec.z;
+                        rec._groundY = this.terrain.getHeightAt(rec.x, rec.z);
+                    }
+                    const groundY = rec._groundY;
                     if (rec.state === 'dead') {
                         // Smoothly fall down to the ground upon death
                         const fallProgress = Math.min(1, rec.deadT / 0.6);
                         rec.y = groundY + rec.def.flyHeight * (1 - fallProgress);
-                    } else {
+                    } else if (isVis) {
                         rec.hoverT = (rec.hoverT || 0) + delta * 3.5;
                         const hoverBob = Math.sin(rec.hoverT) * 0.12;
                         rec.y = groundY + rec.def.flyHeight + hoverBob;
@@ -653,7 +683,7 @@
                 }
                 rec.group.position.set(rec.x, rec.y, rec.z);
                 rec.group.rotation.y = rec.yaw;
-                if (rec.def.tiltSpan && rec.state !== 'dead') this.alignToTerrain(rec, delta);
+                if (isVis && rec.def.tiltSpan && rec.state !== 'dead') this.alignToTerrain(rec, delta);
             }
             this.updateHpBars();
         }
@@ -782,16 +812,25 @@
         alignToTerrain(rec, dt) {
             const T = rec.def.tiltSpan, th = this.terrain;
             if (!th || !th.getHeightAt) return;
-            const sy = Math.sin(rec.yaw), cy = Math.cos(rec.yaw);
-            const H = (fz, rx) => th.getHeightAt(rec.x + sy * fz + cy * rx, rec.z + cy * fz - sy * rx);
-            // the four feet (hind pair at T[0], front pair at T[1]); fit a plane, then lift so no foot is below ground
-            const hHL = H(T[0], -T[2]), hHR = H(T[0], T[2]), hFL = H(T[1], -T[2]), hFR = H(T[1], T[2]);
-            const span = T[1] - T[0];
-            const pitch = -Math.atan2((hFL + hFR) / 2 - (hHL + hHR) / 2, span);
-            const roll = Math.atan2((hHR + hFR) / 2 - (hHL + hFL) / 2, 2 * T[2]);
-            const sp = Math.sin(pitch), sr = Math.sin(roll);
-            const off = (z, x) => -sp * z + sr * x;
-            const y0 = Math.max(hHL - off(T[0], -T[2]), hHR - off(T[0], T[2]), hFL - off(T[1], -T[2]), hFR - off(T[1], T[2]));
+            let pitch, roll, y0;
+            if (rec._tY0 !== undefined && Math.abs(rec.x - rec._tX) + Math.abs(rec.z - rec._tZ) + Math.abs(rec.yaw - rec._tYaw) < 0.015) {
+                pitch = rec._tPitch;
+                roll = rec._tRoll;
+                y0 = rec._tY0;
+            } else {
+                const sy = Math.sin(rec.yaw), cy = Math.cos(rec.yaw);
+                const H = (fz, rx) => th.getHeightAt(rec.x + sy * fz + cy * rx, rec.z + cy * fz - sy * rx);
+                // the four feet (hind pair at T[0], front pair at T[1]); fit a plane, then lift so no foot is below ground
+                const hHL = H(T[0], -T[2]), hHR = H(T[0], T[2]), hFL = H(T[1], -T[2]), hFR = H(T[1], T[2]);
+                const span = T[1] - T[0];
+                pitch = -Math.atan2((hFL + hFR) / 2 - (hHL + hHR) / 2, span);
+                roll = Math.atan2((hHR + hFR) / 2 - (hHL + hFL) / 2, 2 * T[2]);
+                const sp = Math.sin(pitch), sr = Math.sin(roll);
+                const off = (z, x) => -sp * z + sr * x;
+                y0 = Math.max(hHL - off(T[0], -T[2]), hHR - off(T[0], T[2]), hFL - off(T[1], -T[2]), hFR - off(T[1], T[2]));
+                rec._tX = rec.x; rec._tZ = rec.z; rec._tYaw = rec.yaw;
+                rec._tPitch = pitch; rec._tRoll = roll; rec._tY0 = y0;
+            }
             const k = Math.min(1, 6 * dt);
             rec.tiltX = (rec.tiltX || 0) + (pitch - (rec.tiltX || 0)) * k;
             rec.tiltZ = (rec.tiltZ || 0) + (roll - (rec.tiltZ || 0)) * k;

@@ -648,6 +648,7 @@
                 if (window.AveloraFire) {
                     const fire = new window.AveloraFire(g, { y: 1.3, size: 0.9 });
                     fire.group.position.set(0, 1.3, 0);
+                    fire._wx = bx; fire._wz = z0 + bz;
                     this.fires.push(fire);
                 }
                 const L = new THREE.PointLight(0xff8a2a, 2.8, 28.0, 1.6);
@@ -739,6 +740,7 @@
             if (window.AveloraFire) {
                 const fire = new window.AveloraFire(torchGroup, { y: 0.3, size: 0.38 });
                 fire.group.position.set(dirX * 0.34, 0.3, 0);
+                fire._wx = x; fire._wz = z;
                 this.fires.push(fire);
             }
 
@@ -900,9 +902,14 @@
                 this.gate.position.y = e * 4.1;
             }
 
-            // Обновление частиц пламени факелов
+            // Обновление частиц пламени факелов (только в радиусе 40 м от героя)
             for (let i = 0; i < this.fires.length; i++) {
-                this.fires[i].update(delta);
+                const f = this.fires[i];
+                if (heroPos && f._wx !== undefined) {
+                    const dx = f._wx - heroPos.x, dz = f._wz - heroPos.z;
+                    if (dx * dx + dz * dz > 1600) continue;
+                }
+                f.update(delta);
             }
 
             // Реалистичное мерцание света факелов

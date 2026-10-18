@@ -16,9 +16,9 @@
 (function () {
     const PROFILES = {
         // экономная (телефон): чёткость 1, лимит 30 кадров, тени без размытия, низкая анизотропия.
-        // Отражение воды — 512 и каждый кадр: при 30 FPS это те же 30 обновлений в секунду, что у ПК (60 FPS, раз в 2 кадра).
+        // Отражение воды — 256 и раз в 2 кадра (снижает нагрузку и нагрев GPU на телефоне).
         low:  { dpr: 1.0,  shadows: true, shadowMapSize: 1024, fpsCap: 30, treeShadowR: 20, treeLodR: 40, fogMul: 1.15, grassRadius: 38,  particles: 40,  vignette: false,
-                softShadows: false, aniso: 2, waterBuf: 512, waterThrottle: 1 },
+                softShadows: false, aniso: 2, waterBuf: 256, waterThrottle: 2 },
         high: { dpr: 1.25, shadows: true, shadowMapSize: 2048, fpsCap: 60, treeShadowR: 30, treeLodR: 55, fogMul: 1.0,  grassRadius: 55,  particles: 140, vignette: true,
                 softShadows: true, aniso: 8, waterBuf: 512, waterThrottle: 2 }
     };

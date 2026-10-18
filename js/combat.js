@@ -541,23 +541,29 @@
                 const pulse = 0.65 + 0.35 * Math.sin(this._ringAge * 3.5);
                 ring.material.opacity = 0.75 * pulse;
                 ring.material.color.setHex(currentSel.def.behavior === 'aggressive' ? TARGET_RING_COLOR_AGGRO : TARGET_RING_COLOR);
-                const gy = (g.terrain && g.terrain.getHeightAt) ? g.terrain.getHeightAt(currentSel.x, currentSel.z) : currentSel.y;
-                ring.position.set(currentSel.x, gy, currentSel.z);
-                ring.scale.set(1, 1, 1);
-
                 const r = Math.max(0.55, (currentSel.def.hitRadius || 0.4) * 1.15);
-                const pos = ring.geometry.attributes.position;
-                const base = ring.geometry.userData.basePositions;
-                if (pos && base) {
-                    const count = pos.count;
-                    const hasTerrain = Boolean(g.terrain && g.terrain.getHeightAt);
-                    for (let i = 0; i < count; i++) {
-                        const bx = base.getX(i) * r;
-                        const bz = base.getZ(i) * r;
-                        const wy = hasTerrain ? (g.terrain.getHeightAt(currentSel.x + bx, currentSel.z + bz) + 0.05) : (gy + 0.05);
-                        pos.setXYZ(i, bx, wy - gy, bz);
+                if (this._ringX === undefined ||
+                    Math.abs(currentSel.x - this._ringX) + Math.abs(currentSel.z - this._ringZ) + Math.abs(r - this._ringR) > 0.03) {
+                    this._ringX = currentSel.x;
+                    this._ringZ = currentSel.z;
+                    this._ringR = r;
+                    const gy = (g.terrain && g.terrain.getHeightAt) ? g.terrain.getHeightAt(currentSel.x, currentSel.z) : currentSel.y;
+                    ring.position.set(currentSel.x, gy, currentSel.z);
+                    ring.scale.set(1, 1, 1);
+
+                    const pos = ring.geometry.attributes.position;
+                    const base = ring.geometry.userData.basePositions;
+                    if (pos && base) {
+                        const count = pos.count;
+                        const hasTerrain = Boolean(g.terrain && g.terrain.getHeightAt);
+                        for (let i = 0; i < count; i++) {
+                            const bx = base.getX(i) * r;
+                            const bz = base.getZ(i) * r;
+                            const wy = hasTerrain ? (g.terrain.getHeightAt(currentSel.x + bx, currentSel.z + bz) + 0.05) : (gy + 0.05);
+                            pos.setXYZ(i, bx, wy - gy, bz);
+                        }
+                        pos.needsUpdate = true;
                     }
-                    pos.needsUpdate = true;
                 }
                 ring.visible = true;
             } else {
@@ -585,92 +591,104 @@
             const sel = this.selectedTarget;
             const cr = this.game.creatures;
             if (!sel || !cr || !cr.isAlive(sel)) {
-                frame.style.display = 'none';
-                frame.classList.remove('active', 'elite', 'boss');
-                if (this.targetPortraitWrap) {
-                    this.targetPortraitWrap.classList.remove('elite', 'boss', 'aggro', 'neutral');
+                if (this._targetIdShown !== null) {
+                    frame.style.display = 'none';
+                    frame.classList.remove('active', 'elite', 'boss');
+                    if (this.targetPortraitWrap) {
+                        this.targetPortraitWrap.classList.remove('elite', 'boss', 'aggro', 'neutral');
+                    }
+                    this._targetIdShown = null;
+                    this._targetHpShown = -1;
+                    this._targetMaxHpShown = -1;
+                    this._targetFxSig = '';
                 }
-                this._targetHpShown = -1;
-                this._targetMaxHpShown = -1;
                 return;
             }
 
-            frame.style.display = 'flex';
-            frame.classList.add('active');
-
             const def = sel.def || {};
-            const isAggro = def.behavior === 'aggressive';
-            const rank = sel.rank || def.rank || 'normal';
-
-            frame.classList.toggle('elite', rank === 'elite');
-            frame.classList.toggle('boss', rank === 'boss');
-
-            // Окантовка портрета: красная для агро, золотисто-желтая для мирных, плюс аура элиты/босса
-            if (this.targetPortraitWrap) {
-                this.targetPortraitWrap.classList.toggle('aggro', isAggro);
-                this.targetPortraitWrap.classList.toggle('neutral', !isAggro);
-                this.targetPortraitWrap.classList.toggle('elite', rank === 'elite');
-                this.targetPortraitWrap.classList.toggle('boss', rank === 'boss');
-            }
-
-            // Бейдж ранга (Элита / БОСС)
-            if (this.targetRankBadge) {
-                if (rank === 'elite') {
-                    this.targetRankBadge.style.display = 'inline-block';
-                    this.targetRankBadge.className = 'target-rank-badge elite';
-                    this.targetRankBadge.textContent = 'Элита';
-                } else if (rank === 'boss') {
-                    this.targetRankBadge.style.display = 'inline-block';
-                    this.targetRankBadge.className = 'target-rank-badge boss';
-                    this.targetRankBadge.textContent = 'БОСС';
-                } else {
-                    this.targetRankBadge.style.display = 'none';
-                }
-            }
-
-            // Портрет: используем отрендеренную 3D-морду из iconData (или эмодзи-фоллбек)
-            const iconData = def.iconData || '';
-            if (this.targetPortraitImg) {
-                if (iconData) {
-                    if (this.targetPortraitImg.dataset.iconKey !== sel.type) {
-                        this.targetPortraitImg.dataset.iconKey = sel.type;
-                        this.targetPortraitImg.textContent = '';
-                        this.targetPortraitImg.style.backgroundImage = `url("${iconData}")`;
-                        this.targetPortraitImg.style.backgroundSize = 'cover';
-                    }
-                } else {
-                    delete this.targetPortraitImg.dataset.iconKey;
-                    this.targetPortraitImg.style.backgroundImage = 'none';
-                    const fallbackIcon = (def.icon) || CREATURE_ICONS[sel.type] || '👾';
-                    if (this.targetPortraitImg.textContent !== fallbackIcon) {
-                        this.targetPortraitImg.textContent = fallbackIcon;
-                    }
-                }
-            }
-
-            // Уровень цели и цветовой класс опасности (относительно уровня героя)
             const heroLvl = (this.game.hero && this.game.hero.level) || 1;
-            const lvl = sel.level || def.level || 1;
-            const diff = lvl - heroLvl;
-            let threatClass = 'lvl-normal';
-            if (diff <= -4) threatClass = 'lvl-trivial';
-            else if (diff <= -2) threatClass = 'lvl-easy';
-            else if (diff <= 1) threatClass = 'lvl-normal';
-            else if (diff <= 3) threatClass = 'lvl-hard';
-            else threatClass = 'lvl-deadly';
+            if (this._targetIdShown !== sel.id || this._targetHeroLvlShown !== heroLvl) {
+                this._targetIdShown = sel.id;
+                this._targetHeroLvlShown = heroLvl;
+                this._targetHpShown = -1;
+                this._targetMaxHpShown = -1;
+                this._targetFxSig = '';
 
-            if (this.targetLevelBadge) {
-                this.targetLevelBadge.className = `target-level-badge ${threatClass}`;
-                const label = String(lvl);
-                if (this.targetLevelBadge.textContent !== label) {
-                    this.targetLevelBadge.textContent = label;
+                frame.style.display = 'flex';
+                frame.classList.add('active');
+
+                const isAggro = def.behavior === 'aggressive';
+                const rank = sel.rank || def.rank || 'normal';
+
+                frame.classList.toggle('elite', rank === 'elite');
+                frame.classList.toggle('boss', rank === 'boss');
+
+                // Окантовка портрета: красная для агро, золотисто-желтая для мирных, плюс аура элиты/босса
+                if (this.targetPortraitWrap) {
+                    this.targetPortraitWrap.classList.toggle('aggro', isAggro);
+                    this.targetPortraitWrap.classList.toggle('neutral', !isAggro);
+                    this.targetPortraitWrap.classList.toggle('elite', rank === 'elite');
+                    this.targetPortraitWrap.classList.toggle('boss', rank === 'boss');
                 }
-                this.targetLevelBadge.title = `Уровень цели: ${lvl}` + (rank !== 'normal' ? ` (${rank})` : '');
-            }
 
-            const name = def.name || sel.type;
-            if (this.targetName && this.targetName.textContent !== name) {
-                this.targetName.textContent = name;
+                // Бейдж ранга (Элита / БОСС)
+                if (this.targetRankBadge) {
+                    if (rank === 'elite') {
+                        this.targetRankBadge.style.display = 'inline-block';
+                        this.targetRankBadge.className = 'target-rank-badge elite';
+                        this.targetRankBadge.textContent = 'Элита';
+                    } else if (rank === 'boss') {
+                        this.targetRankBadge.style.display = 'inline-block';
+                        this.targetRankBadge.className = 'target-rank-badge boss';
+                        this.targetRankBadge.textContent = 'БОСС';
+                    } else {
+                        this.targetRankBadge.style.display = 'none';
+                    }
+                }
+
+                // Портрет: используем отрендеренную 3D-морду из iconData (или эмодзи-фоллбек)
+                const iconData = def.iconData || '';
+                if (this.targetPortraitImg) {
+                    if (iconData) {
+                        if (this.targetPortraitImg.dataset.iconKey !== sel.type) {
+                            this.targetPortraitImg.dataset.iconKey = sel.type;
+                            this.targetPortraitImg.textContent = '';
+                            this.targetPortraitImg.style.backgroundImage = `url("${iconData}")`;
+                            this.targetPortraitImg.style.backgroundSize = 'cover';
+                        }
+                    } else {
+                        delete this.targetPortraitImg.dataset.iconKey;
+                        this.targetPortraitImg.style.backgroundImage = 'none';
+                        const fallbackIcon = (def.icon) || CREATURE_ICONS[sel.type] || '👾';
+                        if (this.targetPortraitImg.textContent !== fallbackIcon) {
+                            this.targetPortraitImg.textContent = fallbackIcon;
+                        }
+                    }
+                }
+
+                // Уровень цели и цветовой класс опасности (относительно уровня героя)
+                const lvl = sel.level || def.level || 1;
+                const diff = lvl - heroLvl;
+                let threatClass = 'lvl-normal';
+                if (diff <= -4) threatClass = 'lvl-trivial';
+                else if (diff <= -2) threatClass = 'lvl-easy';
+                else if (diff <= 1) threatClass = 'lvl-normal';
+                else if (diff <= 3) threatClass = 'lvl-hard';
+                else threatClass = 'lvl-deadly';
+
+                if (this.targetLevelBadge) {
+                    this.targetLevelBadge.className = `target-level-badge ${threatClass}`;
+                    const label = String(lvl);
+                    if (this.targetLevelBadge.textContent !== label) {
+                        this.targetLevelBadge.textContent = label;
+                    }
+                    this.targetLevelBadge.title = `Уровень цели: ${lvl}` + (rank !== 'normal' ? ` (${rank})` : '');
+                }
+
+                const name = def.name || sel.type;
+                if (this.targetName && this.targetName.textContent !== name) {
+                    this.targetName.textContent = name;
+                }
             }
 
             // Здоровье моба
@@ -692,31 +710,37 @@
         renderTargetEffects(sel) {
             const bar = this.targetStatusBar;
             if (!bar) return;
+            const stunSec = sel.stunT > 0 ? Math.ceil(sel.stunT) : 0;
+            const slowSec = sel.slowT > 0 ? Math.ceil(sel.slowT) : 0;
+            const sig = `${stunSec}:${slowSec}`;
+            if (sig === this._targetFxSig) return;
+            this._targetFxSig = sig;
+
+            if (!stunSec && !slowSec) {
+                if (bar.style.display !== 'none') bar.style.display = 'none';
+                return;
+            }
+
             const effects = [];
-            if (sel.stunT > 0) {
+            if (stunSec > 0) {
                 effects.push({
                     id: 'stun',
                     kind: 'debuff',
                     name: 'Оглушение',
                     icon: '⚡',
                     t: sel.stunT,
-                    color: '#ffc83b'
+                    sec: stunSec
                 });
             }
-            if (sel.slowT > 0) {
+            if (slowSec > 0) {
                 effects.push({
                     id: 'slow',
                     kind: 'debuff',
                     name: 'Замедление',
                     icon: '❄️',
                     t: sel.slowT,
-                    color: '#6cd8ff'
+                    sec: slowSec
                 });
-            }
-
-            if (!effects.length) {
-                if (bar.style.display !== 'none') bar.style.display = 'none';
-                return;
             }
 
             if (bar.style.display === 'none') bar.style.display = 'flex';
@@ -730,7 +754,7 @@
                 iconSpan.textContent = ef.icon;
                 const tm = document.createElement('span');
                 tm.className = 'status-fx-time';
-                tm.textContent = Math.ceil(ef.t);
+                tm.textContent = ef.sec;
                 el.append(iconSpan, tm);
                 bar.appendChild(el);
             });

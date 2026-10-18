@@ -164,7 +164,7 @@ class AveloraGame {
         this.updateCameraPosition(true);
 
         // Renderer setup
-        this.renderer = new THREE.WebGLRenderer({ antialias: !(window.GFX && window.GFX.aa === false), powerPreference: 'high-performance' });
+        this.renderer = new THREE.WebGLRenderer({ antialias: !(window.GFX && window.GFX.aa === false), powerPreference: (window.GFX && window.GFX.isPhone) ? 'default' : 'high-performance' });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.0));
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -451,7 +451,7 @@ class AveloraGame {
         this.applyLocationCamera(this.location);
         this.updateCameraPosition(true);
 
-        const minLoadTime = new Promise(r => setTimeout(r, 450));
+        const minLoadTime = new Promise(r => setTimeout(r, 80));
 
         await Promise.all([
             characterLoaded,
@@ -1046,6 +1046,10 @@ class AveloraGame {
         document.body.classList.toggle('gfx-high', G.tier === 'high');
         // Отражение воды (lib/Water.js читает AVELORA_WOPT.throttle каждый кадр): раз в N кадров
         if (window.AVELORA_WOPT && G.waterThrottle) window.AVELORA_WOPT.throttle = G.waterThrottle;
+        if (this.environment && this.character && this.character.position) {
+            this.environment._cullT = 1;
+            this.environment.updateCulling(0, this.character.position);
+        }
         this.needsRender = true;
     }
 
@@ -2251,19 +2255,20 @@ class AveloraGame {
             this.camera.lookAt(this.cameraTarget.x, this.cameraTarget.y + 1.2, this.cameraTarget.z);
         }
 
-        // Keep sun shadow camera focused near character
+        // Keep sun shadow camera focused near character (snapped to shadow texel grid to prevent shadow edge shimmering)
         if (this.sunLight) {
-            this.sunLight.position.copy(this.cameraTarget).add(SUN_OFFSET);
-
-            // Shadow area follows zoom: only what the camera can see casts shadows
-            // (fewer objects in the shadow pass + sharper shadows from the same shadow map)
             const d = Math.max(20, Math.min(46, this.cameraDistance * 1.05 + 4));
             const sc = this.sunLight.shadow.camera;
             if (Math.abs(sc.right - d) > 0.5) {
                 sc.left = -d; sc.right = d; sc.top = d; sc.bottom = -d;
                 sc.updateProjectionMatrix();
             }
-            this.sunLight.target.position.copy(this.cameraTarget);
+            const mapW = (this.sunLight.shadow && this.sunLight.shadow.mapSize && this.sunLight.shadow.mapSize.width) || 1024;
+            const snap = Math.max(0.05, (2 * d) / mapW);
+            const sx = Math.round(this.cameraTarget.x / snap) * snap;
+            const sz = Math.round(this.cameraTarget.z / snap) * snap;
+            this.sunLight.target.position.set(sx, this.cameraTarget.y, sz);
+            this.sunLight.position.set(sx + SUN_OFFSET.x, this.cameraTarget.y + SUN_OFFSET.y, sz + SUN_OFFSET.z);
             this.sunLight.target.updateMatrixWorld();
         }
 
@@ -2497,14 +2502,21 @@ class AveloraGame {
         if (this.coordsEl && this.character) {
             const p = this.character.position;
             const name = this.currentCharacterConfig ? this.currentCharacterConfig.name : '';
-            this.coordsEl.textContent = `${name ? name + '  ' : ''}X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
+            const text = `${name ? name + '  ' : ''}X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
+            if (this._hudCoordsText !== text) {
+                this._hudCoordsText = text;
+                this.coordsEl.textContent = text;
+            }
         }
 
         // Update compass needle orientation (pointing North)
-        const needle = document.getElementById('compass-needle');
+        const needle = this._compassNeedleEl || (this._compassNeedleEl = document.getElementById('compass-needle'));
         if (needle) {
-            const deg = -(this.cameraAngle) * (180 / Math.PI);
-            needle.style.transform = `rotate(${deg.toFixed(1)}deg)`;
+            const degStr = (-(this.cameraAngle) * (180 / Math.PI)).toFixed(1);
+            if (this._compassDegStr !== degStr) {
+                this._compassDegStr = degStr;
+                needle.style.transform = `rotate(${degStr}deg)`;
+            }
         }
     }
 

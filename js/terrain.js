@@ -434,23 +434,42 @@ class LakesideTerrain {
         const normAttr = geo.attributes.normal;
         this._rawOnly = true; // mesh shows the real channel under bridges
 
-        // Set heights and analytical continuous normals (eliminates all faceting/squares)
+        // Set heights once per vertex, then derive smooth normals from grid neighbors (avoids 4x getHeightAt per vertex)
+        const cols = meshSegmentsX + 1;
+        const rows = meshSegmentsZ + 1;
+        const rawHeights = new Float32Array(posAttr.count);
         for (let i = 0; i < posAttr.count; i++) {
             const x = posAttr.getX(i);
             const z = posAttr.getZ(i);
-            let y = this.getHeightAt(x, z);
+            const y = this.getHeightAt(x, z);
+            rawHeights[i] = y;
 
             // Perimeter skirt: pull the outermost boundary vertices down below ground (-6m)
             // This forms a solid vertical rock back-wall, eliminating any open cross-section/void
             const atOuterEdge = Math.abs(x) >= (this.halfX - 0.25) || Math.abs(z) >= (this.halfZ - 0.25);
-            if (atOuterEdge) {
-                y = -6.0;
+            posAttr.setY(i, atOuterEdge ? -6.0 : y);
+        }
+
+        const stepX = meshSizeX / meshSegmentsX;
+        const stepZ = meshSizeZ / meshSegmentsZ;
+        for (let rz = 0; rz < rows; rz++) {
+            const rU = rz > 0 ? rz - 1 : rz;
+            const rD = rz < rows - 1 ? rz + 1 : rz;
+            const dz = (rD - rU) * stepZ;
+            for (let cx = 0; cx < cols; cx++) {
+                const cL = cx > 0 ? cx - 1 : cx;
+                const cR = cx < cols - 1 ? cx + 1 : cx;
+                const dx = (cR - cL) * stepX;
+                const i = rz * cols + cx;
+                const hL = rawHeights[rz * cols + cL];
+                const hR = rawHeights[rz * cols + cR];
+                const hU = rawHeights[rU * cols + cx];
+                const hD = rawHeights[rD * cols + cx];
+                const nx = (hL - hR) / dx;
+                const nz = (hU - hD) / dz;
+                const invLen = 1.0 / Math.sqrt(nx * nx + 1.0 + nz * nz);
+                normAttr.setXYZ(i, nx * invLen, invLen, nz * invLen);
             }
-
-            posAttr.setY(i, y);
-
-            const n = this.getNormalAt(x, z);
-            normAttr.setXYZ(i, n.x, n.y, n.z);
         }
 
         this._rawOnly = false;
@@ -523,7 +542,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v23_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v24_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
@@ -648,25 +667,17 @@ class LakesideTerrain {
                 vec2 uvRockMacro = vWorldPosition.xz * 0.22 + vec2(vWorldPosition.y * 0.10, 0.0);
                 vec2 uvRockMicro = vWorldPosition.xz * 0.68 + vec2(0.0, vWorldPosition.y * 0.35);
 
-                vec4 colBeach      = texture2D(uBeachDiff, uvShore);
-                vec4 colGrass      = texture2D(uGrassDiff, uvGrass);
-                vec4 colDirtTrail  = texture2D(uTrailDiff, uvDirtTrail);
-                vec4 colStoneTrail = texture2D(uStoneTrailDiff, uvStoneTrail);
-                vec4 colRock1      = texture2D(uRockDiff, uvRockMacro);
-                vec4 colRock2      = texture2D(uRockDiff, uvRockMicro);
-                vec3 rockTex       = mix(colRock1.rgb, colRock2.rgb * 1.15, 0.50);
+                vec4 colGrass = texture2D(uGrassDiff, uvGrass);
 
                 // Shore weight:
-                // Для открытого моря (uWaterType ~ 1.0): широкий песчаный пляж Y in [0.12, 0.85]
-                // Для озера и реки (uWaterType == 0 или 2): трава/подстилка подходят почти до самой воды,
-                // открытая влажная галька/песок занимает только узкую полоску у уреза воды
                 float shoreWeight;
                 if (uWaterType > 0.5 && uWaterType < 1.5) {
                     shoreWeight = 1.0 - smoothstep(0.12, 0.85, vWorldPosition.y);
                 } else {
-                    float shoreEdgeN = avNoise(vWorldPosition.xz * 0.45) * 0.05;
+                    float shoreEdgeN = (vWorldPosition.y < 0.35) ? avNoise(vWorldPosition.xz * 0.45) * 0.05 : 0.0;
                     shoreWeight = 1.0 - smoothstep(0.02, 0.20 + shoreEdgeN, vWorldPosition.y);
                 }
+                vec3 colBeachRgb = (shoreWeight > 0.0005) ? texture2D(uBeachDiff, uvShore).rgb : vec3(0.0);
 
                 // Rocky outcrop weight: moderate slope (normal.y < 0.90)
                 float cliffWeight = 1.0 - smoothstep(0.70, 0.90, vWorldNormal.y);
@@ -681,12 +692,17 @@ class LakesideTerrain {
                     roadMask *= smoothstep(0.0, 5.0, vWorldPosition.x);
                     roadMask *= 1.0 - smoothstep(49.0, 53.0, vWorldPosition.x);
 
-                    vec3 baseCol = mix(colGrass.rgb, colDirtTrail.rgb, roadMask * 0.95);
-                    terrainColor = mix(baseCol, colBeach.rgb, shoreWeight);
-                    terrainColor = mix(terrainColor, rockTex, cliffWeight * 0.80);
+                    vec3 colDirtRgb = (roadMask > 0.0005) ? texture2D(uTrailDiff, uvDirtTrail).rgb : colGrass.rgb;
+                    vec3 baseCol = mix(colGrass.rgb, colDirtRgb, roadMask * 0.95);
+                    terrainColor = mix(baseCol, colBeachRgb, shoreWeight);
+                    if (cliffWeight > 0.0005) {
+                        vec3 rockTex = mix(texture2D(uRockDiff, uvRockMacro).rgb, texture2D(uRockDiff, uvRockMicro).rgb * 1.15, 0.50);
+                        terrainColor = mix(terrainColor, rockTex, cliffWeight * 0.80);
+                    }
                     terrainColor = pow(terrainColor, vec3(1.10));
                 } else if (uBiome > 1.5) {
                     // === BIOME: VOLCANIC (Future Extensibility) ===
+                    vec3 rockTex = mix(texture2D(uRockDiff, uvRockMacro).rgb, texture2D(uRockDiff, uvRockMicro).rgb * 1.15, 0.50);
                     vec3 ashCol = rockTex * 0.35;
                     vec3 lavaGlow = vec3(1.0, 0.35, 0.05);
                     float lavaCracks = smoothstep(0.85, 0.98, sin(vWorldPosition.x * 0.25) * cos(vWorldPosition.z * 0.25));
@@ -705,26 +721,29 @@ class LakesideTerrain {
                     // 2) Грунтовая дорожка от точки спавна к Лираэль и водопаду (uDirtSeg)
                     vec2 pathD = texture2D(uPathDist, (vWorldPosition.xz - uPathRect.xy) * uPathRect.zw).rg * PATH_DIST_MAX;
                     float dirtPathD = pathD.x;
-                    float dirtEdgeNoise = avNoise(vWorldPosition.xz * 1.3) * 0.35 + sin(vWorldPosition.x * 0.8 + vWorldPosition.z * 0.7) * 0.18;
-                    float dirtHalfW = (uDirtWidth * 0.5) + dirtEdgeNoise;
-                    float dirtMask = (uDirtCount > 0) ? 1.0 - smoothstep(dirtHalfW - 0.45, dirtHalfW + 0.55, dirtPathD) : 0.0;
+                    float dirtMask = 0.0;
+                    if (uDirtCount > 0 && dirtPathD < uDirtWidth * 0.5 + 1.2) {
+                        float dirtEdgeNoise = avNoise(vWorldPosition.xz * 1.3) * 0.35 + sin(vWorldPosition.x * 0.8 + vWorldPosition.z * 0.7) * 0.18;
+                        float dirtHalfW = (uDirtWidth * 0.5) + dirtEdgeNoise;
+                        dirtMask = 1.0 - smoothstep(dirtHalfW - 0.45, dirtHalfW + 0.55, dirtPathD);
+                    }
                     if (uGroundMix > 4.5) passTrailMask = 0.0;   // саванна: зашитой в шейдер тропы стартовой локации нет
                     passTrailMask = max(passTrailMask, dirtMask * 0.95 / 0.88);
 
                     // 3) Каменная тропа от водопада (120, 4) до озера в центре (-18, -16) (uStoneSeg)
                     float stonePathD = pathD.y;
+                    float stoneMask = 0.0;
+                    float shoulderMask = 0.0;
+                    if (uStoneCount > 0 && stonePathD < uStoneWidth * 0.5 + 2.0) {
+                        float stoneEdgeNoise = avNoise(vWorldPosition.xz * 1.4) * 0.42 + sin(vWorldPosition.x * 0.85 + vWorldPosition.z * 0.65) * 0.24;
+                        float stoneHalfW = (uStoneWidth * 0.5) + stoneEdgeNoise;
+                        stoneMask = 1.0 - smoothstep(stoneHalfW * 0.55, stoneHalfW + 0.35, stonePathD);
+                        shoulderMask = 1.0 - smoothstep(stoneHalfW + 0.25, stoneHalfW + 1.25, stonePathD);
+                    }
 
-                    // Живой непрямой край каменной тропы
-                    float stoneEdgeNoise = avNoise(vWorldPosition.xz * 1.4) * 0.42 + sin(vWorldPosition.x * 0.85 + vWorldPosition.z * 0.65) * 0.24;
-                    float stoneHalfW = (uStoneWidth * 0.5) + stoneEdgeNoise;
-
-                    // Центр — старинная каменная брусчатка
-                    float stoneMask = (uStoneCount > 0) ? 1.0 - smoothstep(stoneHalfW * 0.55, stoneHalfW + 0.35, stonePathD) : 0.0;
-                    // Обочина каменной дороги — земляная вытоптанная полоса
-                    float shoulderMask = (uStoneCount > 0) ? 1.0 - smoothstep(stoneHalfW + 0.25, stoneHalfW + 1.25, stonePathD) : 0.0;
-
-                    // Центр — старинная каменная мостовая Poly Haven (без шахматных узоров)
-                    vec3 centerPath = colStoneTrail.rgb;
+                    // Центр — старинная каменная мостовая Poly Haven (читаем текстуру только на тропе)
+                    vec3 centerPath = (stoneMask > 0.0005) ? texture2D(uStoneTrailDiff, uvStoneTrail).rgb : vec3(0.0);
+                    vec3 colDirtRgb = (passTrailMask > 0.0005 || shoulderMask > 0.0005 || uGroundMix > 4.5) ? texture2D(uTrailDiff, uvDirtTrail).rgb : vec3(0.0);
 
                     // Смешивание слоев покрытия:
                     // 1) Для 'camp' (uGroundMix > 2.5): сочная зелёная трава на полянке (где нет леса) + лесная подстилка в лесу
@@ -740,7 +759,7 @@ class LakesideTerrain {
                         vec3 dryGold  = sGray * vec3(1.05, 0.68, 0.24);
                         vec3 dryPale  = sGray * vec3(1.25, 0.90, 0.38);
                         vec3 greenG   = sTex * vec3(0.55, 0.60, 0.22);
-                        vec3 redSoil  = colDirtTrail.rgb * vec3(1.06, 0.60, 0.40);
+                        vec3 redSoil  = colDirtRgb * vec3(1.06, 0.60, 0.40);
                         float sA = avNoise(gxz * 0.030) * 0.65 + avNoise(gxz * 0.085 + 17.0) * 0.35;
                         groundCol = mix(dryGold, dryPale, smoothstep(0.35, 0.75, sA));
                         // свежая трава в низинах у воды и островками
@@ -753,11 +772,17 @@ class LakesideTerrain {
                         float sv = avNoise(gxz * 0.017 + 3.0) - 0.5;
                         groundCol *= vec3(1.0 + sv * 0.10, 1.0, 1.0 - sv * 0.14);
                         float aoMulS = 1.0;
-                        for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
-                            vec4 an = uAO[ai];
-                            if (an.z > 0.0) {
-                                float ad = length(gxz - an.xy) / an.z;
-                                aoMulS *= 1.0 - an.w * 0.40 * (1.0 - smoothstep(0.15, 1.0, ad));
+                        vec2 aoD0S = gxz - uAO[0].xy;
+                        if (uAO[0].z > 0.0 && dot(aoD0S, aoD0S) < 2800.0) {
+                            for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
+                                vec4 an = uAO[ai];
+                                vec2 adVec = gxz - an.xy;
+                                float r2 = an.z * an.z;
+                                float d2 = dot(adVec, adVec);
+                                if (d2 < r2 && r2 > 0.0) {
+                                    float ad = sqrt(d2) / an.z;
+                                    aoMulS *= 1.0 - an.w * 0.40 * (1.0 - smoothstep(0.15, 1.0, ad));
+                                }
                             }
                         }
                         groundCol *= max(aoMulS, 0.6);
@@ -824,51 +849,65 @@ class LakesideTerrain {
                         groundCol *= vec3(1.0 + cv * 0.12, 1.0, 1.0 - cv * 0.10);
                         // мягкое затемнение у оснований деревьев/камней (по рельефу, без резких краёв)
                         float aoMul = 1.0;
-                        for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
-                            vec4 an = uAO[ai];
-                            if (an.z > 0.0) {
-                                float ad = length(gxz - an.xy) / an.z;
-                                aoMul *= 1.0 - an.w * 0.45 * (1.0 - smoothstep(0.15, 1.0, ad));
+                        vec2 aoD0 = gxz - uAO[0].xy;
+                        if (uAO[0].z > 0.0 && dot(aoD0, aoD0) < 2800.0) {
+                            for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
+                                vec4 an = uAO[ai];
+                                vec2 adVec = gxz - an.xy;
+                                float r2 = an.z * an.z;
+                                float d2 = dot(adVec, adVec);
+                                if (d2 < r2 && r2 > 0.0) {
+                                    float ad = sqrt(d2) / an.z;
+                                    aoMul *= 1.0 - an.w * 0.45 * (1.0 - smoothstep(0.15, 1.0, ad));
+                                }
                             }
                         }
                         groundCol *= max(aoMul, 0.55);
                     }
 
                     // Сборка слоя каменной тропы: лесная подстилка -> земляная обочина -> чистая мостовая
-                    vec3 pathBlended = mix(groundCol, colDirtTrail.rgb, shoulderMask * 0.78);
+                    vec3 pathBlended = mix(groundCol, colDirtRgb, shoulderMask * 0.78);
                     pathBlended = mix(pathBlended, centerPath, stoneMask * 0.96);
 
                     // Смешивание с грунтовыми тропами (от спавна до лагеря и западной к перевалу)
-                    vec3 meadowBase = mix(pathBlended, colDirtTrail.rgb, passTrailMask * 0.88);
+                    vec3 meadowBase = mix(pathBlended, colDirtRgb, passTrailMask * 0.88);
 
                     // Скальные уступы на крутых склонах и на высоте горного массива
                     float altitudeRock = smoothstep(2.4, 4.6, vWorldPosition.y);
                     float totalRock = clamp(cliffWeight * 1.5 + altitudeRock * 1.3, 0.0, 1.0);
 
-                    // Выразительный скальный микрорельеф на пиках
-                    float peakAltitude = smoothstep(3.8, 8.5, vWorldPosition.y);
-                    float rockRelief = 0.82 + 0.38 * smoothstep(0.40, 0.95, vWorldNormal.y);
-                    vec3 peakRock = rockTex * rockRelief;
-                    peakRock = mix(peakRock, pow(peakRock, vec3(1.18)) * 1.12, peakAltitude * 0.80);
+                    vec3 baseCol = mix(meadowBase, colBeachRgb, shoreWeight);
+                    terrainColor = baseCol;
 
-                    if (uGroundMix > 4.5) peakRock = mix(peakRock, peakRock * vec3(1.50, 0.90, 0.62), 0.88);   // саванна: рыжий песчаник вместо серых гор
-                    vec3 baseCol = mix(meadowBase, colBeach.rgb, shoreWeight);
-                    terrainColor = mix(baseCol, peakRock, totalRock);
-                    terrainColor = pow(terrainColor, vec3(1.05));
-                    // Склон вокруг грота: тёмный серо-зелёный камень (под цвет модели), чтобы пещера «росла» из горы
-                    if (uCaveRock.w > 0.001) {
-                        float cd = length(vWorldPosition.xz - uCaveRock.xy);
-                        float ck = (1.0 - smoothstep(uCaveRock.z * 0.35, uCaveRock.z, cd)) * uCaveRock.w;
-                        float ch = smoothstep(1.7, 3.0, vWorldPosition.y);
-                        float cn = avNoise(vWorldPosition.xz * 0.35) * 0.5 + avNoise(vWorldPosition.xz * 1.1) * 0.5;
-                        vec3 caveRock = rockTex * vec3(0.46, 0.47, 0.44) * (0.85 + 0.30 * cn);
-                        caveRock = mix(caveRock, caveRock * vec3(0.80, 1.00, 0.70), smoothstep(0.55, 0.85, vWorldNormal.y) * 0.5);
-                        terrainColor = mix(terrainColor, caveRock, ck * max(ch, totalRock));
-                        // Внутри грота земля не должна просвечивать светлым сквозь щели модели: тёмная заливка по контуру пещеры
-                        vec2 cin = vWorldPosition.xz - uCaveRock.xy;
-                        float inside = (1.0 - smoothstep(2.6, 3.6, abs(cin.y))) * smoothstep(-3.6, -2.4, cin.x) * (1.0 - smoothstep(4.4, 5.6, cin.x));
-                        inside *= 1.0 - smoothstep(1.9, 2.7, vWorldPosition.y);   // только низкий пол пещеры, не склон над ней
-                        terrainColor *= mix(1.0, 0.10, inside);
+                    vec2 caveDiff = vWorldPosition.xz - uCaveRock.xy;
+                    bool nearCave = (uCaveRock.w > 0.001 && dot(caveDiff, caveDiff) < uCaveRock.z * uCaveRock.z);
+                    if (totalRock > 0.0005 || nearCave) {
+                        vec3 rockTex = mix(texture2D(uRockDiff, uvRockMacro).rgb, texture2D(uRockDiff, uvRockMicro).rgb * 1.15, 0.50);
+                        // Выразительный скальный микрорельеф на пиках
+                        float peakAltitude = smoothstep(3.8, 8.5, vWorldPosition.y);
+                        float rockRelief = 0.82 + 0.38 * smoothstep(0.40, 0.95, vWorldNormal.y);
+                        vec3 peakRock = rockTex * rockRelief;
+                        peakRock = mix(peakRock, pow(peakRock, vec3(1.18)) * 1.12, peakAltitude * 0.80);
+
+                        if (uGroundMix > 4.5) peakRock = mix(peakRock, peakRock * vec3(1.50, 0.90, 0.62), 0.88);   // саванна: рыжий песчаник вместо серых гор
+                        terrainColor = mix(baseCol, peakRock, totalRock);
+                        terrainColor = pow(terrainColor, vec3(1.05));
+                        // Склон вокруг грота: тёмный серо-зелёный камень (под цвет модели), чтобы пещера «росла» из горы
+                        if (nearCave) {
+                            float cd = sqrt(dot(caveDiff, caveDiff));
+                            float ck = (1.0 - smoothstep(uCaveRock.z * 0.35, uCaveRock.z, cd)) * uCaveRock.w;
+                            float ch = smoothstep(1.7, 3.0, vWorldPosition.y);
+                            float cn = avNoise(vWorldPosition.xz * 0.35) * 0.5 + avNoise(vWorldPosition.xz * 1.1) * 0.5;
+                            vec3 caveRock = rockTex * vec3(0.46, 0.47, 0.44) * (0.85 + 0.30 * cn);
+                            caveRock = mix(caveRock, caveRock * vec3(0.80, 1.00, 0.70), smoothstep(0.55, 0.85, vWorldNormal.y) * 0.5);
+                            terrainColor = mix(terrainColor, caveRock, ck * max(ch, totalRock));
+                            // Внутри грота земля не должна просвечивать светлым сквозь щели модели: тёмная заливка по контуру пещеры
+                            float inside = (1.0 - smoothstep(2.6, 3.6, abs(caveDiff.y))) * smoothstep(-3.6, -2.4, caveDiff.x) * (1.0 - smoothstep(4.4, 5.6, caveDiff.x));
+                            inside *= 1.0 - smoothstep(1.9, 2.7, vWorldPosition.y);   // только низкий пол пещеры, не склон над ней
+                            terrainColor *= mix(1.0, 0.10, inside);
+                        }
+                    } else {
+                        terrainColor = pow(terrainColor, vec3(1.05));
                     }
                 }
 

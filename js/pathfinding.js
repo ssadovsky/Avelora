@@ -138,23 +138,19 @@ class DiabloPathfinder {
         return null;
     }
 
-    isBaseBlocked(wx, wz) {
-        const height = this.terrain.getHeightAt(wx, wz);
-        const slope = this.terrain.getSlopeAt(wx, wz);
-
-        // Water level is at Y = 0.0; shallow wading allowed down to -0.42m (walk through shore and reeds)
-        const isWater = height < -0.42;
-        // Cliffs too steep to walk (slope > 0.36 = angle > ~35 deg, or mountain barrier > 4.2m)
-        const isCliff = slope > 0.36 || height > 4.2;
-
+    isBaseBlocked(wx, wz, preHeight, skipSlope) {
         // Keep a safe non-walkable rim along the map edge (player cannot reach the world edge)
         const edgeMargin = 4.0;
-        const isEdge = Math.abs(wx) > this.halfWorldX - edgeMargin || Math.abs(wz) > this.halfWorldZ - edgeMargin;
+        if (Math.abs(wx) > this.halfWorldX - edgeMargin || Math.abs(wz) > this.halfWorldZ - edgeMargin) return true;
 
         // In western pass: portal is at X = -138.0. Player cannot walk past the portal into the back cliff wall
-        const isPastPortal = wx < -138.8 && Math.abs(wz - 8.0) < 14.0;
+        if (wx < -138.8 && Math.abs(wz - 8.0) < 14.0) return true;
 
-        if (isWater || isCliff || isEdge || isPastPortal) return true;
+        const height = preHeight !== undefined ? preHeight : this.terrain.getHeightAt(wx, wz);
+
+        // Water level is at Y = 0.0; shallow wading allowed down to -0.42m (walk through shore and reeds)
+        // Mountain barrier > 4.2m
+        if (height < -0.42 || height > 4.2) return true;
 
         // Bridge railings: along the deck only the strip between the rails is walkable
         const br = this.terrain.bridges;
@@ -169,6 +165,9 @@ class DiabloPathfinder {
                 }
             }
         }
+
+        // Cliffs too steep to walk (slope > 0.36 = angle > ~35 deg)
+        if (!skipSlope && this.terrain.getSlopeAt(wx, wz) > 0.36) return true;
 
         return false;
     }
@@ -236,14 +235,49 @@ class DiabloPathfinder {
     }
 
     initGrid() {
-        for (let gz = 0; gz < this.gridSizeZ; gz++) {
-            for (let gx = 0; gx < this.gridSizeX; gx++) {
-                const wpos = this.gridToWorld(gx, gz);
-                if (this.isBaseBlocked(wpos.x, wpos.z)) {
-                    this.grid[this.getIndex(gx, gz)] = 1;
+        const nx = this.gridSizeX;
+        const nz = this.gridSizeZ;
+        const heights = new Float32Array(nx * nz);
+        const edgeMargin = 4.0;
+        const maxX = this.halfWorldX - edgeMargin;
+        const maxZ = this.halfWorldZ - edgeMargin;
+
+        for (let gz = 0; gz < nz; gz++) {
+            const wz = -this.halfWorldZ + (gz + 0.5) * this.cellHeight;
+            const zEdge = Math.abs(wz) > maxZ;
+            const rowOff = gz * nx;
+            for (let gx = 0; gx < nx; gx++) {
+                const wx = -this.halfWorldX + (gx + 0.5) * this.cellWidth;
+                if (zEdge || Math.abs(wx) > maxX || (wx < -138.8 && Math.abs(wz - 8.0) < 14.0)) {
+                    heights[rowOff + gx] = -999;
                 } else {
-                    this.grid[this.getIndex(gx, gz)] = 0;
+                    heights[rowOff + gx] = this.terrain.getHeightAt(wx, wz);
                 }
+            }
+        }
+
+        for (let gz = 0; gz < nz; gz++) {
+            const wz = -this.halfWorldZ + (gz + 0.5) * this.cellHeight;
+            const rowOff = gz * nx;
+            const inZ = gz > 0 && gz < nz - 1;
+            for (let gx = 0; gx < nx; gx++) {
+                const idx = rowOff + gx;
+                const h = heights[idx];
+                if (h < -0.42 || h > 4.2) {
+                    this.grid[idx] = 1;
+                    continue;
+                }
+                const wx = -this.halfWorldX + (gx + 0.5) * this.cellWidth;
+                let flat = false;
+                if (inZ && gx > 0 && gx < nx - 1 && h > 0.05 && h < 3.6) {
+                    const hL = heights[idx - 1], hR = heights[idx + 1];
+                    const hD = heights[idx - nx], hU = heights[idx + nx];
+                    if (Math.abs(hR - hL) < 0.22 && Math.abs(hU - hD) < 0.22 &&
+                        Math.abs(hR + hL - 2 * h) < 0.10 && Math.abs(hU + hD - 2 * h) < 0.10) {
+                        flat = true;
+                    }
+                }
+                this.grid[idx] = this.isBaseBlocked(wx, wz, h, flat) ? 1 : 0;
             }
         }
     }
