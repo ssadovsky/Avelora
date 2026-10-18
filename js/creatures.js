@@ -499,6 +499,34 @@
         // -----------------------------------------------------------
         // Per-frame
         // -----------------------------------------------------------
+        /**
+         * Существа вне кадра не рисуются (2026-10-18). Раньше рисовались все существа карты каждый кадр —
+         * в «Опушке» ~89 штук по 20–50 тыс. треугольников, из них на экране обычно 5–10.
+         * Проверка — сфера вокруг существа (с запасом на анимацию и тень) против пирамиды камеры; вызывается
+         * из main.js сразу после камеры, поэтому при резком повороте ничего не «выскакивает».
+         */
+        cullToCamera(cam) {
+            if (this.disposed || !cam) return;
+            if (!this._fr) { this._fr = new THREE.Frustum(); this._fm = new THREE.Matrix4(); this._fs = new THREE.Sphere(); }
+            cam.updateMatrixWorld();
+            this._fm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+            this._fr.setFromProjectionMatrix(this._fm);
+            const s = this._fs;
+            for (let i = 0; i < this.list.length; i++) {
+                const rec = this.list[i];
+                if (!rec.group) continue;
+                let vis = rec._inRange !== false;
+                if (vis) {
+                    const h = Math.max(0.5, rec.height || 1);
+                    const p = rec.group.position;
+                    s.center.set(p.x, p.y + h * 0.5, p.z);
+                    s.radius = h * 1.2 + (rec.bodyR || 0.5) * 2 + 2.5;   // запас: лапы/хвост в анимации, тень
+                    vis = this._fr.intersectsSphere(s);
+                }
+                if (rec.group.visible !== vis) rec.group.visible = vis;
+            }
+        }
+
         update(delta) {
             if (this.disposed) return;
             const g = this.game;
@@ -519,14 +547,14 @@
                 const rec = this.list[i];
                 if (!rec.group) continue;
 
-                // Дальность прорисовки: у существ отключён frustumCulled (skinned bounds), поэтому без этого все
-                // существа карты рисуются всегда (30–50k треугольников каждое, ещё раз в проходе теней).
+                // Дальность прорисовки: у существ отключён frustumCulled (skinned bounds), поэтому отрисовку
+                // прячет cullToCamera() (main.js, после камеры) — по сфере вокруг существа и кадру камеры.
                 // ИИ и анимация идут как обычно — прячется только отрисовка. Тень — только вблизи.
                 if (c && c.position) {
                     const dx = rec.group.position.x - c.position.x, dz = rec.group.position.z - c.position.z;
                     const d2 = dx * dx + dz * dz;
                     const vis = d2 < CREATURE_DRAW_DIST * CREATURE_DRAW_DIST;
-                    if (rec.group.visible !== vis) rec.group.visible = vis;
+                    rec._inRange = vis;
                     if (vis) {
                         const sh = d2 < CREATURE_SHADOW_DIST * CREATURE_SHADOW_DIST;
                         if (rec._shadowOn !== sh) {

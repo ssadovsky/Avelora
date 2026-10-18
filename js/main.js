@@ -2678,6 +2678,7 @@ class AveloraGame {
 
         // Update camera and HUD
         this.updateCameraPosition(false, delta);
+        if (this.creatures && this.creatures.cullToCamera) this.creatures.cullToCamera(this.camera);   // существа вне кадра не рисуются
         this.updateHUD();
         this.updateWorldLabels();
     }
