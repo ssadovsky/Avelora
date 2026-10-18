@@ -2578,13 +2578,15 @@ class AveloraGame {
         requestAnimationFrame(this.animate);
 
         // Лимит кадров (GFX.fpsCap, 0 = без лимита): без него на мониторах 120+ Гц GPU рисует 100+ FPS и висит на 80-95%.
+        // Расписание: каждый показанный кадр сдвигает _nextFrameAt ровно на 1000/fpsCap, поэтому средний FPS равен лимиту
+        // на любой частоте монитора (75/144/165 Гц и т.д.); допуск 3 мс только сглаживает дрожание rAF и не накапливается.
         // Пропущенный кадр не трогает clock, поэтому delta копится и скорость симуляции не меняется.
         if (!this.isPaused && window.GFX && window.GFX.fpsCap > 0) {
             const nowMs = performance.now();
             const minMs = 1000 / window.GFX.fpsCap;
-            const since = nowMs - (this._lastFrameMs || 0);
-            if (since < minMs - 4) return;               // допуск 4 мс под частоту обновления монитора
-            this._lastFrameMs = nowMs - Math.min(since % minMs, 4);
+            if (this._capMs !== minMs) { this._capMs = minMs; this._nextFrameAt = 0; }   // смена профиля — расписание заново
+            if (nowMs < (this._nextFrameAt || 0) - 3) return;
+            this._nextFrameAt = (nowMs > (this._nextFrameAt || 0) + minMs) ? nowMs + minMs : this._nextFrameAt + minMs;   // после паузы/лага — без «догоняющей» серии кадров
         }
 
         const delta = Math.min(this.clock.getDelta(), 0.1);

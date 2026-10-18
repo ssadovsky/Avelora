@@ -41,10 +41,7 @@ The game is completely standalone, highly optimized, and follows strict serverle
 4. **Characters & 3D Standards (Golden Mean / Золотая середина)**:
    - **Target Devices**: Modern smartphones (Samsung Galaxy S20, S21 Ultra, S25) and PC. Old devices like Galaxy S10 are dropped and not targeted.
    - **Character Polycount**: ~50k–60k triangles (AzureArchmage set to ~58k polys). Full PBR textures, colors, roughness, and metalness must be preserved. Do not override materials with dull warrior settings.
-   - **Creatures Budget**:
-     - Boars: ~35k–45k triangles
-     - Fawns: ~25k–30k triangles
-     - Small creatures (Rats): ~12k–18k triangles
+   - **Creatures Budget** (обновлено 2026-10-18, прежние 12k–45k больше не действуют — см. «Бюджет треугольников» после §6): крупные ~15–20k, мелкие ~8–14k треугольников.
    - **Mage (AzureArchmage) Rig & Build Rules (Preventing Backwards Running)**:
      - **CRITICAL**: The base Mixamo Agree_Gesture pose has `mixamorig:Hips` rotated ~ -16.1° in yaw. In `temp_work/build_perfect_mage.py`, Hips yaw **MUST** be zeroed out to 0.0° (`clean_hips_q = Euler((hips_eul.x, 0.0, hips_eul.z))`). Missing this causes the sideways-movement backwards running bug when blending Idle and Running!
      - In `characters.js`: Mage uses `facingOffset: Math.PI` and `cast: 'Cast'`.
@@ -171,6 +168,19 @@ grass: [
    ```
 5. `js/assets/m/<id>.js`, `js/assets/index.js` and the `?v=` of `js/assets/index.js` in `Avelora.html` are updated automatically.
 6. Reference in code: textures via `window.GAME_ASSETS.textures.<id>`; models only after `await AveloraAssets.ensure('<id>')` (then `GAME_ASSETS.models` / `LakesideEnvironment.getModelBuffer`).
+
+---
+
+### Бюджет треугольников и правила добавления объектов (2026-10-18)
+Главный расход GPU на телефоне и ПК — число треугольников за кадр (счётчик `tri` в панели FPS: «Настройки → счётчик FPS»). Ориентир после облегчения: типичный вид ~2–3,5 млн на ПК и ~1,6–2,2 млн на экономном профиле; рост выше этого — повод облегчать, а не добавлять.
+1. **Бюджет на экземпляр** (треугольников у ближней модели): дерево — не больше ~45k (витринные дубы/вяз) и ~25–35k для обычных; крупное существо — до ~15–20k; мелкое существо (крыса, пчела, паук) — до ~8–14k; куст, папоротник, цветок, трава — 1–3k (их сотни экземпляров, смотри на сумму: треугольники × число экземпляров в видимых участках); предмет/постройка в мире — до ~5–10k. Исключение — главный герой (маг, ~58k): он один в кадре.
+2. **Любая модель тяжелее ~30k** (или такая, что размножается instancing'ом) перед добавлением в `build_assets.py` проходит `temp_work/lighten/lighten.mjs` (см. README там). Для листвы — `keep` + `grow`, а не простое удаление: крона не должна редеть. Скелет, веса и анимации сохраняются. Оригинал держим в git; копии `*.full.glb` в репозиторий не кладём (`.gitignore`).
+3. **Деревья и всё, что стоит на горизонте** — обязательна дальняя версия `<имя>_far.glb` рядом с моделью (`"__strip":1`: тот же состав мешей, ~1/3–1/2 треугольников, без текстур, листва реже, но листья крупнее). Дальние деревья не должны быть лысыми, горизонт не должен быть пустым. Переключение по `GFX.treeLodR` (ПК 55 м, экономная 40 м).
+4. **Существа вне кадра не рисуются** (`cullToCamera`); новые типы существ ничего для этого делать не должны, но и не должны выставлять `frustumCulled`/`visible` в обход.
+5. **Тени и отражение**: новый объект с тенью — через существующие радиусы (`treeShadowR`, shadowMap профиля); в отражение воды (дальность 50 м) попадает только то, что уже в нём есть, лишних слоёв не добавлять.
+6. **Новый материал/шейдер** — без циклов по десяткам источников и без лишних выборок текстур в фрагментном шейдере (дорогая попиксельная отрисовка — вторая причина нагрева телефона). Новые текстуры — размером под реальный экранный размер (обычно ≤ 1024–2048).
+7. **Проверка**: до и после добавления посмотреть `tri` и `calls` в панели FPS на ПК и на экономном профиле (в настройках «Экономная графика»), с камерой, смотрящей в самое населённое место. Если `tri` вырос больше чем на ~5% из-за одного типа объекта — облегчить.
+8. **Лимит кадров**: ПК всегда ровно 60 FPS при любой частоте монитора (75/120/144/165/240 Гц), телефон и экономный профиль — 30. Реализация в `animate()` (`js/main.js`): расписание `_nextFrameAt` сдвигается на `1000/fpsCap` на каждый показанный кадр, допуск 3 мс не накапливается. Не возвращать схему «пропускать кадр, если прошло меньше N мс с последнего»: на мониторах 144–165 Гц она давала 66–72 FPS.
 
 ---
 

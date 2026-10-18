@@ -2587,7 +2587,7 @@
         #player-frame { top: 14px; left: 18px; }
         #target-frame {
             top: calc(14px + (var(--hero-pcy) - var(--pcy)) * var(--u));
-            left: calc(18px + var(--hero-w) * var(--u) + 4px);
+            left: calc(18px + var(--hero-w) * var(--u) + 18px);
             display: none;
         }
         body.touch-ui #player-frame {
@@ -2596,7 +2596,7 @@
         }
         body.touch-ui #target-frame {
             top: calc(max(env(safe-area-inset-top, 0px), 6px) + (var(--hero-pcy) - var(--pcy)) * var(--u));
-            left: calc(max(env(safe-area-inset-left, 0px), 8px) + var(--hero-w) * var(--u) + 2px);
+            left: calc(max(env(safe-area-inset-left, 0px), 8px) + var(--hero-w) * var(--u) + 10px);
         }
         #target-frame.active { display: block; }
 
