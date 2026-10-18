@@ -10,7 +10,7 @@ The game is completely standalone, highly optimized, and follows strict serverle
 ### 🚨 STRICT SERVERLESS EXECUTION (`file://`)
 - The game **MUST** launch by simply double-clicking `Avelora.html` from local disk in ANY browser (Chrome, Edge, Firefox).
 - **NEVER** use `fetch()`, `XMLHttpRequest` to local files, or standard `GLTFLoader.load('path.glb')`.
-- All binary assets (3D models, textures, heightmaps) **MUST** be loaded as **Base64 Data URLs** via `js/assets_data.js`.
+- All binary assets (3D models, textures, heightmaps) **MUST** be loaded as **Base64 inside JS files**: textures in `js/assets/textures.js`, every 3D model in its own `js/assets/m/<key>.js`, injected on demand with a plain `<script>` tag by `js/asset_loader.js` (works on `file://`).
 - **NEVER** require the user to run `python -m http.server`, `node server.js`, or any local web server.
 
 ---
@@ -63,7 +63,7 @@ The game is completely standalone, highly optimized, and follows strict serverle
 These files are executed directly by the browser when opening `Avelora.html`:
 - `Avelora.html` — Entry point, Diablo HUD (transparent coords readout, compass button, skill bar: ☰ menu button, 10 hotbar slots, skills 📖 button (inline SVG, hidden for characters without skills), inventory 🎒 button last; inventory & skills panels, item tooltip, drag ghost, HP bar), Escape pause menu (with control hints), canvas, and script tags.
 - `js/` — Game engine scripts, data bundles, and configs:
-  - `js/assets_data.js` — All binary models and textures serialized as Base64 strings in `window.GAME_ASSETS` (incl. `content/` models under keys like `'items/stone'`).
+  - `js/assets/textures.js` + `js/assets/m/*.js` + `js/assets/index.js` — **Generated** by `temp_work/build_assets.py`: textures (loaded up front) and one file per 3D model (incl. `content/` models under keys like `'items/stone'`), loaded on demand by `js/asset_loader.js` (`AveloraAssets.ensure(key)`). `js/assets_data.js` is an empty legacy stub.
   - `js/content_data.js` — **Generated** from `content/**` by `temp_work/build_assets.py`: `window.GAME_CONTENT = {items, props, skills, characters}`. Never edit by hand — see §7b.
   - `js/world_data.js` — **Level Design Registry**. `window.LOCATIONS`: every location (terrain, water, spawns, exits, groups, decorations).
   - `js/location_groups.js` — **Prefab groups** (`forest`, `reeds`, `rocks`, `meadow`). Expands a one-line group config into individual, seeded, terrain-aware objects (`expandLocationObjects()`).
@@ -169,8 +169,8 @@ grass: [
    cd temp_work
    python build_assets.py
    ```
-5. `assets_data.js` in project root will be updated automatically.
-6. Reference in code using `window.GAME_ASSETS.models.<id>` or `window.GAME_ASSETS.textures.<id>`.
+5. `js/assets/m/<id>.js`, `js/assets/index.js` and the `?v=` of `js/assets/index.js` in `Avelora.html` are updated automatically.
+6. Reference in code: textures via `window.GAME_ASSETS.textures.<id>`; models only after `await AveloraAssets.ensure('<id>')` (then `GAME_ASSETS.models` / `LakesideEnvironment.getModelBuffer`).
 
 ---
 
@@ -222,12 +222,11 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
   with `cameraDistance` instead of always covering the maximum zoom-out. Zoomed in, this shrinks
   the shadow pass's object count and sharpens shadows for free.
 - **The water reflection pass is the single most expensive thing on screen** (it re-renders the
-  visible scene into a 512×512 render target every frame). It's created once per session, not per
-  location; `waterBody.type: 'none'` is the only way to skip it.
-- **`assets_data.js` is ~19 MB and loads entirely up front**, for every location. Adding a new
-  model/texture grows the load time of every location, not just the one that uses it. Keep new
-  assets small (§6) and prefer reusing existing models via `groups`/`decorations` over adding new
-  ones for minor variety.
+  scene into a 512×512 render target, every 2nd frame on PC). Since 2026-10-18 it is skipped when no
+  real water is in view and only sees 50 m — see «Мобильный профиль, вода, земля и подгрузка моделей» below.
+- **Models load per location** (since 2026-10-18, `js/asset_loader.js`): a new model only costs
+  the locations that use it. Textures (`js/assets/textures.js`) still load up front for every
+  location — keep them small (§6).
 - No FPS numbers are recorded here — they haven't been measured on real hardware. Re-measure on a
   real mid-range Android device (not just desktop swiftshader) before trusting any number.
 - **Alpha-cutout foliage should not cast shadows** (fixed 2026-09-24 for `reeds`/`ferns`,
@@ -270,6 +269,14 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
   paused, since it measures the render loop itself, not game simulation (same "bookkeeping, not
   gameplay" exemption from the Date.now()/setTimeout ban as `AUTOSAVE_INTERVAL_MS`).
 
+### Мобильный профиль, вода, земля и подгрузка моделей (2026-10-18)
+- **Качество графики** (`js/gfx_profile.js`): два профиля. `high` — полная графика ПК, по умолчанию на ПК. `low` — экономная: `dpr 1`, `fpsCap 30`, тени `PCFShadowMap` вместо `PCFSoftShadowMap` (`softShadows: false`), анизотропия земли 2 (`aniso`), отражение воды 512 и каждый кадр (`waterBuf`, `waterThrottle`; при 30 FPS это 30 обновлений в секунду, как на ПК). На телефоне/планшете (`pointer: coarse`) всегда `low`; на ПК — если в настройках включена «Экономная графика» (`localStorage 'avelora_gfx_quality' = 'eco'`, `GFX.setQuality`, применяется сразу через `applyGraphicsProfile`; на телефоне строки нет). Ширина окна и параметры адресной строки (`?gfx=`) больше не влияют. Счётчик FPS тоже запоминается (`'avelora_fps_counter'`).
+- **Отражение воды** (`js/water.js` `updateMirrorActive`, `js/lib/Water.js`): рисуется только когда настоящая вода (рельеф ниже уровня воды, точки по сетке 3 м, строятся один раз на локацию) в кадре в пределах 90 м или ближе 18 м к герою; иначе текстура один раз заливается цветом неба (`water.mirrorActive = false`). Камера отражения видит только 50 м (`AVELORA_WOPT.far`), поэтому дальние деревья и существа в отражение не попадают. Небо (`buildSkyDome`) всегда рисуется на дальней плоскости — так оно не обрезается этими 50 м. Координат воды в коде нет.
+- **Шейдер земли** (`js/terrain.js`): затемнение у оснований деревьев — 16 ближайших якорей (`TERRAIN_AO_N`, было 48). Расстояние до троп считается один раз на локацию в текстуру `uPathDist` (R — грунтовые, G — каменные, 2 px/м, `_buildPathDistTexture`), вместо цикла по 2×16 отрезкам в каждом пикселе. Отрезки и ширины прежние (`terrain.paths`), вид не изменился.
+- **Модели подгружаются по требованию** (`js/asset_loader.js`): каждая модель — свой файл `js/assets/m/<key>.js` (`AveloraAssets.put(key, base64)`, `/` в ключе → `__`), список — `js/assets/index.js`. Подключаются обычным `<script>`, поэтому `file://` (двойной клик) работает. Грузится ровно то, что код локации запросил (списков «локация → модели» нет); под экраном загрузки `main.js` ждёт `AveloraAssets.idle()`, затем `evictUnused()` выгружает модели прошлой локации и раскодированные буферы. На старте JS-память ~60 МБ вместо ~670 МБ. Текстуры (`js/assets/textures.js`) по-прежнему грузятся сразу.
+- **Правило для кода**: перед чтением `GAME_ASSETS.models[key]` / `LakesideEnvironment.getModelBuffer(key)` дождаться `AveloraAssets.ensure(key)` (Promise). Уже сделано в `environment.loadModel`, `creatures.loadTemplate`, `items.parseModel`, `world_objects.attachNpcModel`, `grotto/_loadModel`, `waterfall.loadModel`, `character.init`. Новый код, который берёт модель напрямую, должен делать так же, иначе модель может оказаться не загруженной.
+- **Сборка**: `python temp_work/build_assets.py` пишет `js/assets/m/*.js` (только изменившиеся), `js/assets/index.js` и сам обновляет `?v=` у `js/assets/index.js` в `Avelora.html` (`temp_work/asset_split.py`). Старые общие файлы `js/assets/environment.js`, `characters.js`, `creatures.js`, `props.js` больше не используются и удаляются сборкой. Новая модель — как раньше: в словарь `models` в `build_assets.py` или `model.glb` в `content/`.
+
 ## 7b. Items, inventory, hotbar & skills
 
 **Data lives in `content/`, engine code in the root JS files.** Full field reference and
@@ -280,7 +287,7 @@ Full player-facing guide: `docs/world_data_help.txt`. Summary for future coding 
   ignored), `content/characters/<charId>/skills.json` (`{"skills": [...]}` — no file = no
   skills, skills button hidden). Folder name = `id`. After ANY edit run
   `python temp_work/build_assets.py` (file:// can't fetch JSON → it's bundled into
-  `content_data.js`; models go to `assets_data.js` as `'<category>/<id>'`).
+  `content_data.js`; models go to `js/assets/m/` as `'<category>/<id>'`).
 - **Missing assets never break the game**: no model → small neutral fallback mesh
   (`AveloraItems.makeFallback`), no icon → first-letter tile (`ui_hotbar.js makeIcon`).
 - **Model conventions**: glTF +Y up, meters; top-level `variant_0..N`; ground items/props

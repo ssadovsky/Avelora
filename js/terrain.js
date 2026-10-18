@@ -8,6 +8,14 @@
  *             (water.js) covers the whole map at Y = 0; land above 0 simply hides it.
  * Smooth beach, rolling meadow (0.4m to 1.8m), seamless photographic PBR textures
  */
+// Затемнение земли у оснований деревьев/камней: столько ближайших якорей (environment.updateContactAO) перебирает
+// шейдер в каждом пикселе. Было 48; 16 ближайших к герою визуально то же, а пиксель заметно дешевле (телефон).
+const TERRAIN_AO_N = 16;
+// Текстура расстояния до троп хранит расстояние до PATH_DIST_MAX м (дальше маски троп всё равно нулевые)
+const PATH_DIST_MAX = 8.0;
+const PATH_DIST_PX_PER_M = 2;
+window.TERRAIN_AO_N = TERRAIN_AO_N;
+
 class LakesideTerrain {
     constructor(scene, options = {}, location = null) {
         this.scene = scene;
@@ -485,13 +493,13 @@ class LakesideTerrain {
         // 3: 'camp' (homeCamp: сочная зелёная трава на полянке без леса + лесная подстилка в лесу)
         const groundMode = (this.groundSet === 'savanna') ? 5 : (this.groundSet === 'baseForest') ? 4 : (this.groundSet === 'camp') ? 3 : ((this.groundSet === 'grass2') ? 2 : (this.groundSet === 'moss2' ? 1 : 0));
         const mixGround = groundMode > 0 && !!assets.meadowGrassDiff;
-        this.contactAO = []; for (let i = 0; i < 48; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[48] is declared in every variant: always give it 48 entries (empty array crashes the uniform upload)
+        this.contactAO = []; for (let i = 0; i < TERRAIN_AO_N; i++) this.contactAO.push(new THREE.Vector4(0, 0, 0, 0)); // uAO[TERRAIN_AO_N] is declared in every variant: always give it that many entries (empty array crashes the uniform upload)
         const grass2Diff = mixGround ? texLoader.load(assets.meadowGrassDiff) : grassDiff;
         this.textures = [grassDiff, grassNor, trailDiff, stoneTrailDiff, rockDiff, rockNor, beachDiff, grass2Diff];
         this.textures.forEach(tex => {
             tex.wrapS = THREE.RepeatWrapping;
             tex.wrapT = THREE.RepeatWrapping;
-            tex.anisotropy = 8;
+            tex.anisotropy = (window.GFX && window.GFX.aniso) || 8;   // телефон: 2 (gfx_profile.js MOBILE)
         });
 
         grassDiff.repeat.set(20, 20);
@@ -515,7 +523,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v22_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v23_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
@@ -567,6 +575,11 @@ class LakesideTerrain {
             shader.uniforms.uStoneCount = { value: nStone };
             shader.uniforms.uStoneWidth = { value: stoneWidth };
 
+            // Расстояние до троп считается один раз на локацию в текстуру (раньше — циклом по 2×16 отрезкам в каждом пикселе)
+            const pathTex = this._buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone);
+            shader.uniforms.uPathDist = { value: pathTex.texture };
+            shader.uniforms.uPathRect = { value: pathTex.rect };
+
             shader.vertexShader = `
                 varying vec3 vWorldPosition;
                 varying vec3 vWorldNormal;
@@ -582,10 +595,14 @@ class LakesideTerrain {
             );
 
             shader.fragmentShader = `
+                #define TERRAIN_AO_N ${TERRAIN_AO_N}
+                #define PATH_DIST_MAX ${PATH_DIST_MAX.toFixed(1)}
                 uniform sampler2D uGrassDiff;
                 uniform sampler2D uGrass2Diff;
                 uniform float uGroundMix;
-                uniform vec4 uAO[48];
+                uniform vec4 uAO[TERRAIN_AO_N];
+                uniform sampler2D uPathDist;
+                uniform vec4 uPathRect;
                 uniform sampler2D uForestMap;
                 uniform vec4 uCaveRock;
                 uniform vec4 uForestRect;
@@ -596,10 +613,8 @@ class LakesideTerrain {
                 uniform sampler2D uBeachDiff;
                 uniform float uBiome;
                 uniform float uWaterType;
-                uniform vec4 uDirtSeg[16];
                 uniform int uDirtCount;
                 uniform float uDirtWidth;
-                uniform vec4 uStoneSeg[16];
                 uniform int uStoneCount;
                 uniform float uStoneWidth;
 
@@ -688,14 +703,8 @@ class LakesideTerrain {
                     passTrailMask *= (1.0 - smoothstep(-148.0, -140.0, vWorldPosition.x));
 
                     // 2) Грунтовая дорожка от точки спавна к Лираэль и водопаду (uDirtSeg)
-                    float dirtPathD = 1e5;
-                    for (int pi = 0; pi < 16; pi++) {
-                        if (pi >= uDirtCount) break;
-                        vec2 pa = uDirtSeg[pi].xy, pb = uDirtSeg[pi].zw;
-                        vec2 pab = pb - pa;
-                        float pt = clamp(dot(vWorldPosition.xz - pa, pab) / max(dot(pab, pab), 1e-4), 0.0, 1.0);
-                        dirtPathD = min(dirtPathD, length(vWorldPosition.xz - (pa + pab * pt)));
-                    }
+                    vec2 pathD = texture2D(uPathDist, (vWorldPosition.xz - uPathRect.xy) * uPathRect.zw).rg * PATH_DIST_MAX;
+                    float dirtPathD = pathD.x;
                     float dirtEdgeNoise = avNoise(vWorldPosition.xz * 1.3) * 0.35 + sin(vWorldPosition.x * 0.8 + vWorldPosition.z * 0.7) * 0.18;
                     float dirtHalfW = (uDirtWidth * 0.5) + dirtEdgeNoise;
                     float dirtMask = (uDirtCount > 0) ? 1.0 - smoothstep(dirtHalfW - 0.45, dirtHalfW + 0.55, dirtPathD) : 0.0;
@@ -703,14 +712,7 @@ class LakesideTerrain {
                     passTrailMask = max(passTrailMask, dirtMask * 0.95 / 0.88);
 
                     // 3) Каменная тропа от водопада (120, 4) до озера в центре (-18, -16) (uStoneSeg)
-                    float stonePathD = 1e5;
-                    for (int pi = 0; pi < 16; pi++) {
-                        if (pi >= uStoneCount) break;
-                        vec2 pa = uStoneSeg[pi].xy, pb = uStoneSeg[pi].zw;
-                        vec2 pab = pb - pa;
-                        float pt = clamp(dot(vWorldPosition.xz - pa, pab) / max(dot(pab, pab), 1e-4), 0.0, 1.0);
-                        stonePathD = min(stonePathD, length(vWorldPosition.xz - (pa + pab * pt)));
-                    }
+                    float stonePathD = pathD.y;
 
                     // Живой непрямой край каменной тропы
                     float stoneEdgeNoise = avNoise(vWorldPosition.xz * 1.4) * 0.42 + sin(vWorldPosition.x * 0.85 + vWorldPosition.z * 0.65) * 0.24;
@@ -751,7 +753,7 @@ class LakesideTerrain {
                         float sv = avNoise(gxz * 0.017 + 3.0) - 0.5;
                         groundCol *= vec3(1.0 + sv * 0.10, 1.0, 1.0 - sv * 0.14);
                         float aoMulS = 1.0;
-                        for (int ai = 0; ai < 48; ai++) {
+                        for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
                             vec4 an = uAO[ai];
                             if (an.z > 0.0) {
                                 float ad = length(gxz - an.xy) / an.z;
@@ -822,7 +824,7 @@ class LakesideTerrain {
                         groundCol *= vec3(1.0 + cv * 0.12, 1.0, 1.0 - cv * 0.10);
                         // мягкое затемнение у оснований деревьев/камней (по рельефу, без резких краёв)
                         float aoMul = 1.0;
-                        for (int ai = 0; ai < 48; ai++) {
+                        for (int ai = 0; ai < TERRAIN_AO_N; ai++) {
                             vec4 an = uAO[ai];
                             if (an.z > 0.0) {
                                 float ad = length(gxz - an.xy) / an.z;
@@ -891,9 +893,75 @@ class LakesideTerrain {
         this.scene.add(this.mesh);
     }
 
+    /**
+     * Текстура расстояний до троп (R — грунтовые, G — каменные; 0..PATH_DIST_MAX м → 0..255), 2 пикселя на метр,
+     * только по прямоугольнику вокруг троп. Строится один раз на локацию; шейдер берёт одно чтение вместо цикла
+     * по отрезкам в каждом пикселе. Отрезки и ширины — те же, что раньше шли в uniform-массивы, вид не меняется.
+     */
+    _buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone) {
+        if (this._pathTex) return this._pathTex;
+        const segs = [];
+        for (let i = 0; i < nDirt; i++) segs.push([dirtSegs[i], 0]);
+        for (let i = 0; i < nStone; i++) segs.push([stoneSegs[i], 1]);
+        let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+        segs.forEach(([v]) => {
+            minX = Math.min(minX, v.x, v.z); maxX = Math.max(maxX, v.x, v.z);
+            minZ = Math.min(minZ, v.y, v.w); maxZ = Math.max(maxZ, v.y, v.w);
+        });
+        let W = 1, H = 1, data;
+        if (!segs.length) {
+            minX = minZ = 0; maxX = maxZ = 1;
+            data = new Uint8Array([255, 255, 0, 255]);
+        } else {
+            const pad = PATH_DIST_MAX + 1;
+            minX -= pad; minZ -= pad; maxX += pad; maxZ += pad;
+            W = Math.min(2048, Math.max(2, Math.ceil((maxX - minX) * PATH_DIST_PX_PER_M)));
+            H = Math.min(2048, Math.max(2, Math.ceil((maxZ - minZ) * PATH_DIST_PX_PER_M)));
+            data = new Uint8Array(W * H * 4);
+            const dist = [new Float32Array(W * H).fill(PATH_DIST_MAX), new Float32Array(W * H).fill(PATH_DIST_MAX)];
+            const sx = (maxX - minX) / W, sz = (maxZ - minZ) / H;
+            // каждый отрезок обновляет только пиксели в своей рамке ± PATH_DIST_MAX
+            segs.forEach(([v, ch]) => {
+                const ax = v.x, az = v.y, bx = v.z, bz = v.w;
+                const abx = bx - ax, abz = bz - az, ab2 = Math.max(abx * abx + abz * abz, 1e-4);
+                const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - PATH_DIST_MAX - minX) / sx));
+                const i1 = Math.min(W - 1, Math.ceil((Math.max(ax, bx) + PATH_DIST_MAX - minX) / sx));
+                const j0 = Math.max(0, Math.floor((Math.min(az, bz) - PATH_DIST_MAX - minZ) / sz));
+                const j1 = Math.min(H - 1, Math.ceil((Math.max(az, bz) + PATH_DIST_MAX - minZ) / sz));
+                const D = dist[ch];
+                for (let j = j0; j <= j1; j++) {
+                    const pz = minZ + (j + 0.5) * sz;
+                    for (let i = i0; i <= i1; i++) {
+                        const px = minX + (i + 0.5) * sx;
+                        let t = ((px - ax) * abx + (pz - az) * abz) / ab2;
+                        t = t < 0 ? 0 : (t > 1 ? 1 : t);
+                        const dx = px - (ax + abx * t), dz = pz - (az + abz * t);
+                        const d = Math.sqrt(dx * dx + dz * dz);
+                        const k = j * W + i;
+                        if (d < D[k]) D[k] = d;
+                    }
+                }
+            });
+            for (let k = 0; k < W * H; k++) {
+                data[k * 4] = Math.round(Math.min(1, dist[0][k] / PATH_DIST_MAX) * 255);
+                data[k * 4 + 1] = Math.round(Math.min(1, dist[1][k] / PATH_DIST_MAX) * 255);
+                data[k * 4 + 3] = 255;
+            }
+        }
+        const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat);
+        tex.magFilter = THREE.LinearFilter;
+        tex.minFilter = THREE.LinearFilter;
+        tex.generateMipmaps = false;
+        tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.needsUpdate = true;
+        this._pathTex = { texture: tex, rect: new THREE.Vector4(minX, minZ, 1 / (maxX - minX), 1 / (maxZ - minZ)) };
+        return this._pathTex;
+    }
+
     // Textures bound via custom uniforms are not reachable from material properties
     dispose() {
         (this.textures || []).forEach(t => t.dispose());
+        if (this._pathTex) { this._pathTex.texture.dispose(); this._pathTex = null; }
     }
 }
 

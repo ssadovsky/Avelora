@@ -35,9 +35,10 @@ class LakesideWater {
 
         const sunDir = this.sunLight.position.clone().normalize();
 
+        const buf = (window.GFX && window.GFX.waterBuf) || 512;   // телефон: 256 (gfx_profile.js MOBILE)
         this.water = new THREE.Water(new THREE.PlaneGeometry(1, 1), {
-            textureWidth: 512,
-            textureHeight: 512,
+            textureWidth: buf,
+            textureHeight: buf,
             waterNormals: waterNormals,
             sunDirection: sunDir,
             sunColor: 0xfff6e6,
@@ -77,6 +78,9 @@ class LakesideWater {
         U['size'].value = ripple.size;
         U['distortionScale'].value = ripple.distortionScale;
         this.timeSpeed = ripple.timeSpeed;
+        this._probe = null;          // точки воды пересчитываются по рельефу новой локации (updateMirrorActive)
+        this._probeTerrain = null;
+        this.water.mirrorActive = true;
         if (wType === 'none') {
             this.water.visible = false;
             return;
@@ -158,7 +162,62 @@ class LakesideWater {
         if (this.foamMesh) this.scene.add(this.foamMesh);
     }
 
+    /**
+     * Отражение рисуется, только когда настоящая вода (рельеф ниже уровня воды) есть в кадре рядом с камерой.
+     * Плоскость воды больше самого озера и почти всегда в кадре, поэтому проверяем по точкам рельефа, а не по плоскости.
+     * Точки воды строятся один раз на локацию (сетка 3 м), проверка — раз в 0,2 с. Без координат в коде: всё из рельефа.
+     */
+    updateMirrorActive(delta) {
+        const w = this.water;
+        if (!w || !w.visible) return;
+        const g = window.game;
+        const T = g && g.terrain, cam = g && g.camera;
+        if (!T || !cam || !T.getHeightAt) { w.mirrorActive = true; return; }
+        if (this._probeTerrain !== T) {
+            this._probeTerrain = T;
+            const pts = [];
+            const hx = (T.halfX !== undefined ? T.halfX : 60) + 6, hz = (T.halfZ !== undefined ? T.halfZ : 60) + 6;
+            const step = 3;
+            const gp = w.geometry.parameters || {};
+            const wx = (gp.width || 1e6) / 2, wz = (gp.height || 1e6) / 2;   // плоскость повернута: её height — это ось Z
+            for (let x = -hx; x <= hx; x += step) {
+                if (Math.abs(x - w.position.x) > wx) continue;
+                for (let z = -hz; z <= hz; z += step) {
+                    if (Math.abs(z - w.position.z) > wz) continue;
+                    if (T.getHeightAt(x, z) < w.position.y - 0.05) pts.push(x, z);
+                }
+            }
+            this._probe = new Float32Array(pts);
+            this._probeT = 1;
+        }
+        this._probeT = (this._probeT || 0) + delta;
+        if (this._probeT < 0.2) return;
+        this._probeT = 0;
+        const P = this._probe;
+        if (!P || !P.length) { w.mirrorActive = false; return; }
+        const VIS = 90, NEAR = 18;    // м: дальше 90 м вода в тумане и мелкая; ближе 18 м к герою — всегда
+        if (!this._frustum) { this._frustum = new THREE.Frustum(); this._pm = new THREE.Matrix4(); this._sph = new THREE.Sphere(new THREE.Vector3(), 2.5); }
+        cam.updateMatrixWorld();
+        this._pm.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+        this._frustum.setFromProjectionMatrix(this._pm);
+        const cx = cam.position.x, cz = cam.position.z;
+        const tx = g.cameraTarget ? g.cameraTarget.x : cx, tz = g.cameraTarget ? g.cameraTarget.z : cz;
+        const y = w.position.y, c = this._sph.center;
+        let active = false;
+        for (let i = 0; i < P.length; i += 2) {
+            const x = P[i], z = P[i + 1];
+            const dtx = x - tx, dtz = z - tz;
+            if (dtx * dtx + dtz * dtz < NEAR * NEAR) { active = true; break; }
+            const dx = x - cx, dz = z - cz;
+            if (dx * dx + dz * dz > VIS * VIS) continue;
+            c.set(x, y, z);
+            if (this._frustum.intersectsSphere(this._sph)) { active = true; break; }
+        }
+        w.mirrorActive = active;
+    }
+
     update(delta) {
+        this.updateMirrorActive(delta);
         this.elapsed += delta; // game time (stops on pause)
         if (this.water && this.water.material && this.water.material.uniforms['time']) {
             this.water.material.uniforms['time'].value += delta * this.timeSpeed;

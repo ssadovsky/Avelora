@@ -111,10 +111,17 @@ class LakesideEnvironment {
         return bytes.buffer;
     }
 
+    // Освобождает раскодированный буфер модели (asset_loader.js выгружает модели, не нужные текущей локации)
+    static dropModelBuffer(key) { delete GLB_BUFFER_CACHE[key]; }
+    // После загрузки локации раскодированные буферы не нужны (модели уже разобраны); при новой надобности —
+    // заново из base64 (дёшево). Экономит память на размер всех моделей локации.
+    static clearModelBuffers() { Object.keys(GLB_BUFFER_CACHE).forEach(k => { delete GLB_BUFFER_CACHE[k]; }); }
+
     loadModel(key, onLoaded) {
-        const buffer = LakesideEnvironment.getModelBuffer(key);
-        if (!buffer) return;
-        const p = new Promise((resolve) => {
+        // модель подгружается своим файлом js/assets/m/<key>.js (asset_loader.js); промис входит в this.ready
+        const p = (window.AveloraAssets ? window.AveloraAssets.ensure(key) : Promise.resolve(true)).then(() => new Promise((resolve) => {
+            const buffer = this.disposed ? null : LakesideEnvironment.getModelBuffer(key);
+            if (!buffer) { resolve(); return; }
             this.loader.parse(buffer, '', (gltf) => {
                 if (this.disposed) { resolve(); return; }
                 try { onLoaded(gltf); } catch (err) { console.error(`[Avelora] model "${key}"`, err); }
@@ -123,7 +130,7 @@ class LakesideEnvironment {
                 console.error(`[Avelora] failed to parse model "${key}"`, err);
                 resolve();
             });
-        });
+        }));
         this.pending.push(p);
     }
 
@@ -1048,7 +1055,7 @@ class LakesideEnvironment {
 
     /**
      * V2: мягкое затемнение земли у оснований деревьев, камней и руды рисуется шейдером земли (следует рельефу, без резких краёв).
-     * Берём 48 ближайших к игроку якорей раз в 0.3 c и отдаём в terrain.contactAO.
+     * Берём ближайшие к игроку якоря (сколько вмещает terrain.contactAO, TERRAIN_AO_N = 16) раз в 0.3 c и отдаём в terrain.contactAO.
      */
     updateContactAO(delta, playerPos) {
         const T = this.terrain;

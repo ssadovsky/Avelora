@@ -215,7 +215,9 @@
         // -----------------------------------------------------------
         loadTemplate(type, def) {
             if (this.templates[type]) return this.templates[type];
-            this.templates[type] = new Promise(resolve => {
+            // модель подгружается своим файлом (asset_loader.js), потом разбирается как раньше
+            const assetReady = (def.modelKey && window.AveloraAssets) ? window.AveloraAssets.ensure(def.modelKey) : Promise.resolve(true);
+            this.templates[type] = assetReady.then(() => new Promise(resolve => {
                 const buffer = def.modelKey && window.LakesideEnvironment
                     ? window.LakesideEnvironment.getModelBuffer(def.modelKey) : null;
                 const finish = (scene, clips) => {
@@ -257,7 +259,7 @@
                     console.warn(`[Avelora] creature model "${def.modelKey}" failed to parse — fallback`, err);
                     finish(null, null);
                 }
-            });
+            }));
             return this.templates[type];
         }
 

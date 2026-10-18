@@ -459,8 +459,10 @@ class AveloraGame {
             this.worldObjects ? this.worldObjects.ready : null,
             this.creatures ? this.creatures.ready : null,
             this.harvest ? this.harvest.ready : null,
+            window.AveloraAssets ? window.AveloraAssets.idle() : null,   // модели локации подгружены своими файлами
             minLoadTime
         ]);
+        if (window.AveloraAssets) window.AveloraAssets.evictUnused();   // модели прошлой локации — из памяти
         if (this.hero) this.hero.bind(this.gameState, characterConfig);
         if (this.combat) this.combat.bindCharacter(characterConfig); // full HP, no fight
         if (this.ui) {
@@ -557,6 +559,8 @@ class AveloraGame {
         if (!loc.id) loc.id = id;
         window.CURRENT_LOCATION = loc;
         this.location = loc;
+        // asset_loader.js: с этого момента считаем, какие модели нужны локации (остальные выгрузятся после загрузки)
+        if (window.AveloraAssets) window.AveloraAssets.beginLocation();
 
         const t = loc.terrain || {};
         const sizeX = t.sizeX || (Array.isArray(t.size) ? t.size[0] : t.size) || 120;
@@ -696,6 +700,8 @@ class AveloraGame {
                     vec4 worldPosition = modelMatrix * vec4(position, 1.0);
                     vWorldPosition = worldPosition.xyz;
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    // небо всегда на дальней плоскости: отражение воды рисуется с дальностью 50 м (lib/Water.js), небо при этом не обрезается
+                    gl_Position.z = gl_Position.w * 0.99999;
                 }
             `,
             fragmentShader: `
@@ -755,7 +761,9 @@ class AveloraGame {
         this.updateCameraPosition(true);
 
         await Promise.all([this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
-            this.creatures ? this.creatures.ready : null, this.harvest ? this.harvest.ready : null]);
+            this.creatures ? this.creatures.ready : null, this.harvest ? this.harvest.ready : null,
+            window.AveloraAssets ? window.AveloraAssets.idle() : null]);
+        if (window.AveloraAssets) window.AveloraAssets.evictUnused();   // модели прошлой локации — из памяти
         await nextFrame();
 
         this.clock.getDelta(); // don't count loading time as game time
@@ -1014,7 +1022,11 @@ class AveloraGame {
 
         const sun = this.sunLight;
         if (sun) {
-            const shadowsChanged = this.renderer.shadowMap.enabled !== G.shadows;
+            // Телефон (GFX.softShadows = false): обычный PCF вместо PCFSoft — заметно дешевле на каждый пиксель
+            const shadowType = G.softShadows === false ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+            const typeChanged = this.renderer.shadowMap.type !== shadowType;
+            this.renderer.shadowMap.type = shadowType;
+            const shadowsChanged = this.renderer.shadowMap.enabled !== G.shadows || typeChanged;
             this.renderer.shadowMap.enabled = G.shadows;
             sun.castShadow = G.shadows;
             if (sun.shadow.mapSize.width !== G.shadowMapSize) {
@@ -1032,6 +1044,8 @@ class AveloraGame {
         if (this.scene.fog && this._fogBase !== undefined) this.scene.fog.density = this._fogBase * G.fogMul;
         document.body.classList.toggle('gfx-low', G.tier === 'low');
         document.body.classList.toggle('gfx-high', G.tier === 'high');
+        // Отражение воды (lib/Water.js читает AVELORA_WOPT.throttle каждый кадр): раз в N кадров
+        if (window.AVELORA_WOPT && G.waterThrottle) window.AVELORA_WOPT.throttle = G.waterThrottle;
         this.needsRender = true;
     }
 
@@ -1260,21 +1274,40 @@ class AveloraGame {
             });
         }
 
-        // FPS counter toggle — session-only (never persisted), always off on
-        // load, lives in Settings.
-        this.fpsCounterEnabled = false;
+        // FPS counter toggle — lives in Settings, remembered in localStorage ('avelora_fps_counter').
         this.fpsEl = document.getElementById('fps-counter');
         const fpsToggle = document.getElementById('fps-toggle');
+        const setFpsCounter = (on) => {
+            this.fpsCounterEnabled = !!on;
+            if (this.fpsEl) {
+                this.fpsEl.style.display = this.fpsCounterEnabled ? 'block' : 'none';
+                if (!this.fpsCounterEnabled) this.fpsEl.textContent = '';
+            }
+            this._fpsSmoothed = undefined;
+            this._fpsAccum = 0;
+        };
+        let savedFps = false;
+        try { savedFps = localStorage.getItem('avelora_fps_counter') === 'true'; } catch (_) {}
+        setFpsCounter(savedFps);
         if (fpsToggle) {
-            fpsToggle.checked = false;
+            fpsToggle.checked = savedFps;
             fpsToggle.addEventListener('change', (e) => {
-                this.fpsCounterEnabled = e.target.checked;
-                if (this.fpsEl) {
-                    this.fpsEl.style.display = this.fpsCounterEnabled ? 'block' : 'none';
-                    if (!this.fpsCounterEnabled) this.fpsEl.textContent = '';
-                }
-                this._fpsSmoothed = undefined;
-                this._fpsAccum = 0;
+                setFpsCounter(e.target.checked);
+                try { localStorage.setItem('avelora_fps_counter', e.target.checked ? 'true' : 'false'); } catch (_) {}
+            });
+        }
+
+        // «Экономная графика» (только ПК; на телефоне всегда экономная и строки в настройках нет).
+        // Выбор запоминается (gfx_profile.js, 'avelora_gfx_quality'), по умолчанию — полная графика.
+        const gfxRow = document.getElementById('gfx-eco-row');
+        const gfxToggle = document.getElementById('gfx-eco-toggle');
+        const G0 = window.GFX;
+        if (gfxRow && G0 && G0.isPhone) gfxRow.style.display = 'none';
+        if (gfxToggle && G0) {
+            gfxToggle.checked = G0.quality() === 'eco';
+            gfxToggle.addEventListener('change', (e) => {
+                G0.setQuality(e.target.checked ? 'eco' : 'high');
+                this.applyGraphicsProfile();
             });
         }
 
@@ -2476,7 +2509,7 @@ class AveloraGame {
     }
 
     /**
-     * FPS counter — off by default and never persisted (see the Settings
+     * FPS counter — off by default, remembered in localStorage (see the Settings
      * toggle in setupEvents()); reflects the real render-loop rate, so it
      * deliberately keeps ticking even while paused (rAF still fires then),
      * unlike gameplay timers which must freeze — same "bookkeeping, not

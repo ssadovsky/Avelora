@@ -338,6 +338,14 @@
          * (content/npcs/<id>/model.glb, animations 'Idle' and 'Talk').
          */
         attachNpcModel(rec, p) {
+            // модель подгружается своим файлом (asset_loader.js); промис входит в this.ready
+            const run = () => this.attachNpcModelNow(rec, p);
+            const done = window.AveloraAssets ? window.AveloraAssets.ensure(rec.npc.modelKey).then(run) : run();
+            this.pending && this.pending.push && this.pending.push(Promise.resolve(done));
+        }
+
+        attachNpcModelNow(rec, p) {
+            if (this.disposed) return;
             const buffer = window.LakesideEnvironment && window.LakesideEnvironment.getModelBuffer(rec.npc.modelKey);
             if (!buffer) return;
             const done = new Promise(resolve => {
@@ -401,7 +409,7 @@
                     resolve();
                 }, err => { console.warn('[Avelora] npc model failed', err); resolve(); });
             });
-            this.pending && this.pending.push && this.pending.push(done);
+            return done;
         }
 
         setNpcAnim(rec, name) {

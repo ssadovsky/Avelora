@@ -96,6 +96,16 @@
          * owns the returned scene (and its geometries/materials).
          */
         parseModel(modelKey, callback) {
+            // модель подгружается своим файлом (asset_loader.js), колбэк — как раньше
+            if (modelKey && window.AveloraAssets && !(window.GAME_ASSETS && window.GAME_ASSETS.models[modelKey])) {
+                window.AveloraAssets.ensure(modelKey).then(() => this.parseModelNow(modelKey, callback));
+                return;
+            }
+            if (modelKey && window.AveloraAssets) window.AveloraAssets.ensure(modelKey); // отметить как нужную локации
+            this.parseModelNow(modelKey, callback);
+        },
+
+        parseModelNow(modelKey, callback) {
             const buffer = (modelKey && window.LakesideEnvironment)
                 ? window.LakesideEnvironment.getModelBuffer(modelKey) // decoded-buffer cache shared with environment.js
                 : null;

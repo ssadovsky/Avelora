@@ -56,6 +56,16 @@
         //  Загрузка GLB модели
         // ───────────────────────────────────────────
         _loadModel(key) {
+            // модель подгружается своим файлом (asset_loader.js)
+            if (window.AveloraAssets && !(window.GAME_ASSETS && window.GAME_ASSETS.models[key])) {
+                window.AveloraAssets.ensure(key).then(() => { if (!this._disposed) this._loadModelNow(key); });
+                return;
+            }
+            if (window.AveloraAssets) window.AveloraAssets.ensure(key);
+            this._loadModelNow(key);
+        }
+
+        _loadModelNow(key) {
             const b64 = window.GAME_ASSETS && window.GAME_ASSETS.models && window.GAME_ASSETS.models[key];
             if (!b64) {
                 console.warn(`[AveloraGrotto] Model "${key}" not found in GAME_ASSETS.models`);

@@ -111,6 +111,16 @@
         }
 
         loadModel(key) {
+            // модель подгружается своим файлом (asset_loader.js)
+            if (window.AveloraAssets && !(window.GAME_ASSETS && window.GAME_ASSETS.models[key])) {
+                window.AveloraAssets.ensure(key).then(() => { if (!this.disposed) this.loadModelNow(key); });
+                return;
+            }
+            if (window.AveloraAssets) window.AveloraAssets.ensure(key);
+            this.loadModelNow(key);
+        }
+
+        loadModelNow(key) {
             const b64 = window.GAME_ASSETS && window.GAME_ASSETS.models && window.GAME_ASSETS.models[key];
             if (!b64) {
                 console.warn(`[AveloraWaterfall] Model "${key}" not found in GAME_ASSETS.models`);

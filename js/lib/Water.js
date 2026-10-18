@@ -222,7 +222,28 @@
 			scope.material = material;
 
 			let _wFrame = 0;
+			// Avelora: water.js выставляет scope.mirrorActive = false, когда воды нет рядом в кадре —
+			// тогда отражение не перерисовывается, а текстура один раз заливается цветом неба (дальняя вода отражает небо).
+			scope.mirrorActive = true;
+			let _mirrorCleared = false;
+			const _cc = new THREE.Color();
 			scope.onBeforeRender = function ( renderer, scene, camera ) {
+
+				if ( scope.mirrorActive === false ) {
+					if ( ! _mirrorCleared ) {
+						const rt0 = renderer.getRenderTarget();
+						renderer.getClearColor( _cc );
+						const ca = renderer.getClearAlpha();
+						renderer.setRenderTarget( renderTarget );
+						renderer.setClearColor( ( scene.background && scene.background.isColor ) ? scene.background : 0x9fb8c8, 1 );
+						renderer.clear( true, true, false );
+						renderer.setRenderTarget( rt0 );
+						renderer.setClearColor( _cc, ca );
+						_mirrorCleared = true;
+					}
+					return;
+				}
+				_mirrorCleared = false;
 
 				if ( window.AVELORA_WOPT.throttle > 1 && ( _wFrame++ % window.AVELORA_WOPT.throttle ) !== 0 ) return;
 
@@ -248,10 +269,17 @@
 				mirrorCamera.up.applyMatrix4( rotationMatrix );
 				mirrorCamera.up.reflect( normal );
 				mirrorCamera.lookAt( target );
-				mirrorCamera.far = camera.far; // Used in WebGLBackground
+				// Avelora: отражение видит только ближние 50 м от камеры (раньше отражалась вся карта на 600 м)
+				const mirrorFar = Math.min( camera.far, ( window.AVELORA_WOPT && window.AVELORA_WOPT.far ) || 50 );
+				mirrorCamera.far = mirrorFar; // Used in WebGLBackground
 
 				mirrorCamera.updateMatrixWorld();
 				mirrorCamera.projectionMatrix.copy( camera.projectionMatrix ); // Update the texture matrix
+				if ( mirrorFar < camera.far && camera.isPerspectiveCamera ) {
+					const pe = mirrorCamera.projectionMatrix.elements, n = camera.near;
+					pe[ 10 ] = - ( mirrorFar + n ) / ( mirrorFar - n );
+					pe[ 14 ] = - 2 * mirrorFar * n / ( mirrorFar - n );
+				}
 
 				textureMatrix.set( 0.5, 0.0, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0 );
 				textureMatrix.multiply( mirrorCamera.projectionMatrix );

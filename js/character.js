@@ -156,6 +156,17 @@ class MedievalCharacter {
     }
 
     init() {
+        // модель героя подгружается своим файлом (asset_loader.js)
+        const modelKey = this.config.modelKey;
+        if (window.AveloraAssets && !(window.GAME_ASSETS.models[modelKey])) {
+            window.AveloraAssets.ensure(modelKey).then(() => { if (!this._disposed) this.initNow(); });
+            return;
+        }
+        if (window.AveloraAssets) window.AveloraAssets.ensure(modelKey);
+        this.initNow();
+    }
+
+    initNow() {
         const loader = new THREE.GLTFLoader();
         const modelKey = this.config.modelKey;
         const b64 = window.GAME_ASSETS.models[modelKey];
@@ -1225,6 +1236,7 @@ class MedievalCharacter {
 
     /** Releases the mesh/materials/mixer — call when switching to a different character. */
     dispose() {
+        this._disposed = true;
         if (this.handItemPending) { MedievalCharacter.disposeObject(this.handItemPending); this.handItemPending = null; }
         this.handItem = null; // lives under the bone -> disposed with the mesh below
         this.heldStaffGlow = null;
