@@ -1,10 +1,10 @@
 {
   "id": "minotaur",
   "name": "Железнокожий минотавр",
-  "hp": 220,
+  "hp": 30,
   "damage": [
-    14,
-    22
+    3,
+    5
   ],
   "attackRange": 2.0,
   "attackCooldown": 2.2,
@@ -12,7 +12,7 @@
   "runSpeed": 4.2,
   "behavior": "retaliate",
   "aggroRadius": 0,
-  "leashRadius": 18,
+  "leashRadius": 36,
   "wanderRadius": 6,
   "respawnMinutes": 600,
   "hitRadius": 1.5,
@@ -23,14 +23,14 @@
       "count": 5
     }
   ],
-  "xp": 180,
-  "level": 9,
+  "xp": 15,
+  "level": 3,
   "idlePause": [
     4,
     10
   ],
   "gold": [
-    200,
-    200
+    4,
+    8
   ]
 }

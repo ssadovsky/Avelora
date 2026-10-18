@@ -1,10 +1,10 @@
 {
   "id": "kobold",
   "name": "Кобольд-рудокоп",
-  "hp": 45,
+  "hp": 35,
   "damage": [
-    4,
-    8
+    3,
+    5
   ],
   "attackRange": 0.9,
   "attackCooldown": 1.2,
@@ -12,7 +12,7 @@
   "runSpeed": 3.8,
   "behavior": "retaliate",
   "aggroRadius": 0,
-  "leashRadius": 16,
+  "leashRadius": 22,
   "wanderRadius": 6,
   "respawnMinutes": 5,
   "hitRadius": 0.8,
@@ -27,10 +27,10 @@
       "count": 3
     }
   ],
-  "xp": 18,
+  "xp": 12,
   "level": 3,
   "gold": [
-    100,
-    100
+    2,
+    5
   ]
 }

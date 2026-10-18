@@ -1125,11 +1125,11 @@ window.LOCATIONS = {
             { id: 'catacombs_spider_1', type: 'spider', level: 3, rank: 'elite', x: 12.0,  z: -13.7, r: -1.2, behavior: 'aggressive', aggroRadius: 9.0 },
             { id: 'catacombs_spider_2', type: 'spider', level: 3, rank: 'elite', x: -20.5, z: -28.5, r: 1.57, behavior: 'aggressive', aggroRadius: 9.0 },
 
-            // Кобольд-рудокоп в каменном склепе перед решёткой (4 уровень, Элита)
-            { id: 'catacombs_kobold_1', type: 'kobold', level: 4, rank: 'elite', x: 0.0, z: 15.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 10.0 },
+            // Кобольд-рудокоп в каменном склепе перед решёткой (3 уровень, Элита)
+            { id: 'catacombs_kobold_1', type: 'kobold', level: 3, rank: 'elite', x: 0.0, z: 15.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 9.0, leashRadius: 22.0 },
 
-            // Железнокожий минотавр в Великом Зале босса за решёткой (4 уровень, БОСС)
-            { id: 'catacombs_minotaur_1', type: 'minotaur', level: 4, rank: 'boss', x: 0.0, z: 42.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 12.0 }
+            // Железнокожий минотавр в Великом Зале босса за решёткой (3 уровень, БОСС, арена боя во всём зале)
+            { id: 'catacombs_minotaur_1', type: 'minotaur', level: 3, rank: 'boss', x: 0.0, z: 42.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 11.0, leashRadius: 36.0 }
         ],
 
         decorations: [],

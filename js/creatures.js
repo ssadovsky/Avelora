@@ -133,11 +133,20 @@
                 this.list.push(rec);
                 if (this.state && this.state.isSlain(location.id, sp.id)) { rec.state = 'gone'; rec.slain = true; return; } // killed for good by a quest
                 const killedAt = this.state ? this.state.getKilled(location.id, sp.id) : null;
-                if (killedAt !== null && this.playTime - killedAt < this.respawnSeconds(def)) {
-                    rec.state = 'gone'; // still dead: waits for respawn
-                    return;
+                if (location.isDungeon) {
+                    // В подземелье индивидуального респавна нет:
+                    // убитые мобы не воскресают, пока весь данж не будет сброшен после победы над боссом и выхода
+                    if (killedAt !== null) {
+                        rec.state = 'gone';
+                        return;
+                    }
+                } else {
+                    if (killedAt !== null && this.playTime - killedAt < this.respawnSeconds(def)) {
+                        rec.state = 'gone'; // still dead: waits for respawn
+                        return;
+                    }
+                    if (killedAt !== null && this.state) this.state.clearKilled(location.id, sp.id);
                 }
-                if (killedAt !== null && this.state) this.state.clearKilled(location.id, sp.id);
                 jobs.push(this.spawn(rec, false));
             });
             this.ready = Promise.all(jobs).then(() => undefined);
@@ -691,11 +700,14 @@
             }
 
             // Aggro acquisition (aggressive only; retaliate is set in damage())
+            const isDungeonBoss = Boolean(this.location && this.location.dungeon && this.location.dungeon.bossId === rec.id);
             if (def.behavior === 'aggressive' && !rec.aggro && playerAlive && rec.state !== 'return'
                 && distP < (def.aggroRadius || 0) && Math.hypot(p.x - rec.home.x, p.z - rec.home.z) < leash) {
                 rec.aggro = true;
             }
-            if (rec.aggro && (!playerAlive || distHome > leash)) {
+            // Босс подземелья держит бой на всей арене зала (не сбрасывается и не регенится, пока игрок внутри зала)
+            const playerInBossArena = isDungeonBoss && p && p.z >= 17.0;
+            if (rec.aggro && (!playerAlive || (distHome > leash && !playerInBossArena))) {
                 this.startReturn(rec);
             }
             if (rec.aggro && rec.state !== 'chase' && rec.state !== 'attack' && rec.state !== 'return') {
@@ -1227,6 +1239,8 @@
         checkRespawns() {
             const st = this.state;
             if (!st) return;
+            // В подземелье индивидуального респавна нет (данж сбрасывается только целиком после убийства босса и выхода)
+            if (this.location && this.location.isDungeon) return;
             for (let i = 0; i < this.list.length; i++) {
                 const rec = this.list[i];
                 if (rec.state !== 'gone' || rec.group || rec.slain) continue;
