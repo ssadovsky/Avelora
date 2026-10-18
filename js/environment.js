@@ -74,6 +74,7 @@ class LakesideEnvironment {
         this.hoverMeshes = [];
         this.cullMeshes = [];      // V0.3: чанки мелкой растительности (GFX.grassRadius)
         this.shadowMeshes = [];    // V4.5: тени деревьев по радиусу (GFX.treeShadowR)
+        this.lodMeshes = [];       // 2026-10-18: дальние чанки деревьев рисуются лёгкой моделью <key>_far (GFX.treeLodR)
         this._cullT = 1;
         this._hoverProxyGeoCache = {};
 
@@ -183,7 +184,7 @@ class LakesideEnvironment {
         chunks.forEach(chunk => {
             offset.makeTranslation(-chunk.ox, 0, -chunk.oz);
 
-            parts.forEach(part => {
+            parts.forEach((part, partIdx) => {
                 // Lightweight geometry wrapper: shares GPU buffers, own bounding sphere per chunk
                 const geo = new THREE.BufferGeometry();
                 geo.setIndex(part.geometry.index);
@@ -245,6 +246,30 @@ class LakesideEnvironment {
                 geo.boundingBox = box.clone();
                 mesh.instanceMatrix.needsUpdate = true;
                 this.root.add(mesh);
+
+                // Дальняя версия (opts.farParts — та же модель, облегчённая, с той же структурой мешей):
+                // общий instanceMatrix, поэтому срубленное/качающееся дерево меняется и в дальней версии.
+                const farPart = opts.farParts && opts.farParts[partIdx];
+                if (farPart) {
+                    const fgeo = new THREE.BufferGeometry();
+                    fgeo.setIndex(farPart.geometry.index);
+                    Object.keys(farPart.geometry.attributes).forEach(k => fgeo.setAttribute(k, farPart.geometry.attributes[k]));
+                    fgeo.groups = farPart.geometry.groups;
+                    fgeo.boundingSphere = geo.boundingSphere.clone();
+                    fgeo.boundingBox = geo.boundingBox.clone();
+                    const far = new THREE.InstancedMesh(fgeo, farPart.material, chunk.list.length);
+                    far.instanceMatrix = mesh.instanceMatrix;
+                    far.frustumCulled = true;
+                    far.castShadow = false;            // тени деревьев всё равно только вблизи (GFX.treeShadowR)
+                    far.receiveShadow = mesh.receiveShadow;
+                    far.layers.mask = mesh.layers.mask;
+                    far.position.copy(mesh.position);
+                    far.userData.kind = kind;
+                    far.userData.instanceIds = mesh.userData.instanceIds;
+                    far.visible = false;
+                    this.root.add(far);
+                    this.lodMeshes.push({ near: mesh, far, x: chunk.ox, z: chunk.oz });
+                }
             });
 
             // Invisible generous hit-proxy for the hover tooltip (main.js) — see
@@ -424,10 +449,13 @@ class LakesideEnvironment {
             const modelKey = typeModelMap[typeKey] || 'tree';
             const baseScale = defaultScales[typeKey] || 1.0;
 
-            this.loadModel(modelKey, (gltf) => {
+            // Дальняя версия модели (<key>_far, листва крупнее и реже) — если она есть в сборке
+            const al = window.AVELORA_ASSET_ALIASES || {};
+            const farKey = (al[modelKey] || modelKey) + '_far';
+            const hasFar = !!(window.AveloraAssets && window.AveloraAssets.known(farKey));
+            const extractParts = (gltf) => {
                 const treeScene = gltf.scene;
                 treeScene.updateMatrixWorld(true);
-
                 const parts = [];
                 treeScene.traverse(c => {
                     if (!c.isMesh) return;
@@ -443,6 +471,18 @@ class LakesideEnvironment {
                     }
                     parts.push({ geometry: c.geometry, material: c.material, nodeMatrix: c.matrixWorld.clone() });
                 });
+                return parts;
+            };
+            let nearGltf = null, farGltf = hasFar ? undefined : null;
+            const tryBuild = () => {
+                if (!nearGltf || farGltf === undefined) return;
+                const parts = extractParts(nearGltf);
+                let farParts = farGltf ? extractParts(farGltf) : null;
+                if (farParts && farParts.length !== parts.length) {
+                    console.warn(`[Avelora] "${farKey}": другая структура мешей (${farParts.length} vs ${parts.length}) — дальняя версия не используется`);
+                    farParts = null;
+                }
+                if (farParts) farParts.forEach((fp, i) => { fp.nodeMatrix = parts[i].nodeMatrix; fp.material = parts[i].material; });   // материалы/текстуры — общие с ближней версией
 
                 // Некоторые старые GLB (fir_tree, fir_tree_b, fir_tree_c) имели ствол не в начале координат (смещение 5–10 ед.).
                 // ВАЖНО: применяем автосдвиг ТОЛЬКО для старых елей (fir*), у которых ствол — отдельный меш (parts.length > 1).
@@ -461,6 +501,7 @@ class LakesideEnvironment {
                         if (Math.abs(cx) > 0.3 || Math.abs(cz) > 0.3) {
                             const shift = new THREE.Matrix4().makeTranslation(-cx, 0, -cz);
                             parts.forEach(pt => { pt.nodeMatrix = shift.clone().multiply(pt.nodeMatrix); });
+                            if (farParts) farParts.forEach((fp, i) => { fp.nodeMatrix = parts[i].nodeMatrix; });
                         }
                     }
                 }
@@ -472,7 +513,7 @@ class LakesideEnvironment {
                     d.position.set(p.x, gy - (typeKey === 'quiver' ? 0.04 * scale : 0.05), p.z);
                     d.rotation.y = (p.r !== undefined) ? p.r : 0;
                     d.scale.set(scale, scale, scale);
-                }, (window.AVELORA_WOPT && window.AVELORA_WOPT.trees === 'none') ? { reflect: false } : {});
+                }, Object.assign({ farParts }, (window.AVELORA_WOPT && window.AVELORA_WOPT.trees === 'none') ? { reflect: false } : {}));
 
                 // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
                 list.forEach(p => {
@@ -480,7 +521,9 @@ class LakesideEnvironment {
                     // Навигационная сетка 0.75 м: радиус < ~0.4 м может не накрыть ни одной клетки, и дерево превращается в «камыш» (проходимо). Минимум 0.55.
                     this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, r * (p.s || 1.0)));
                 });
-            });
+            };
+            this.loadModel(modelKey, (g) => { nearGltf = g; tryBuild(); });
+            if (hasFar) this.loadModel(farKey, (g) => { farGltf = g; tryBuild(); });
         });
     }
 
@@ -1087,7 +1130,7 @@ class LakesideEnvironment {
 
     /** V0.3: видимость чанков мелкой растительности и тени деревьев по расстоянию (раз в 0.25 c). */
     updateCulling(delta, playerPos) {
-        if (!playerPos || !(this.cullMeshes.length || this.shadowMeshes.length)) return;
+        if (!playerPos || !(this.cullMeshes.length || this.shadowMeshes.length || this.lodMeshes.length)) return;
         this._cullT += delta;
         if (this._cullT < 0.25) return;
         this._cullT = 0;
@@ -1098,6 +1141,15 @@ class LakesideEnvironment {
             const lim = SR + CULL_CHUNK_HALF_DIAG;
             const cast = SR >= 1e8 || (dx * dx + dz * dz) <= lim * lim;
             if (c.mesh.castShadow !== cast) c.mesh.castShadow = cast;
+        }
+        // Дальние чанки деревьев — лёгкая модель с листвой (<key>_far): ближе GFX.treeLodR — обычная
+        const LR = (window.GFX && window.GFX.treeLodR) || 50;
+        for (const c of this.lodMeshes) {
+            const dx = c.x - playerPos.x, dz = c.z - playerPos.z;
+            const lim = LR + CULL_CHUNK_HALF_DIAG;
+            const near = (dx * dx + dz * dz) <= lim * lim;
+            if (c.near.visible !== near) c.near.visible = near;
+            if (c.far.visible === near) c.far.visible = !near;
         }
         const R = window.GFX ? window.GFX.grassRadius : 1e9;
         const px = playerPos.x, pz = playerPos.z;
@@ -1121,6 +1173,7 @@ class LakesideEnvironment {
         this.hoverMeshes.length = 0;
         this.cullMeshes.length = 0;
         this.shadowMeshes.length = 0;
+        this.lodMeshes.length = 0;
     }
 }
 
