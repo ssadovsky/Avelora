@@ -2569,12 +2569,12 @@
    temp_work/ui_frames/gen_css.py вместе с картинками). Кольцо вокруг портрета рисует CSS: у героя — опыт до уровня
    (conic-gradient по --xp-deg из hero.js), у моба — жёлтое (не агр) / красное (агр). Под полосами — бафы/дебафы.
    ========================================================================== */
-        #player-frame, #target-frame { --u: 0.35px; --hero-w: 1176.0; --hero-pcy: 156.5; }
+        #player-frame, #target-frame { --u: 0.35px; --hero-w: 963.8; --hero-pcy: 156.5; }
         body.touch-ui #player-frame, body.touch-ui #target-frame { --u: 0.22px; }
-        #player-frame { --fw: 1176.0; --fh: 318.4; --pcx: 157.2; --pcy: 156.5; --pri: 104.2; --pro: 113.2; --bcx: 254.7; --bcy: 240.5; --br: 35.9; --hpx0: 306.4; --hpy0: 107.8; --hpx1: 1050.9; --hpy1: 144.2; --mx0: 307.5; --my0: 163.3; --mx1: 1049.8; --my1: 194.8; --stx: 313.5; --sty: 228.8; --cx0: 296.6; --cy0: 38.1; --cx1: 707.5; --cy1: 98.0; }
-        #target-frame { --fw: 1080.0; --fh: 227.0; --pcx: 130.9; --pcy: 115.3; --pri: 80.6; --pro: 90.4; --bcx: 195.0; --bcy: 179.0; --br: 31.0; --hpx0: 272.0; --hpy0: 109.0; --hpx1: 978.0; --hpy1: 144.0; --tx0: 258.0; --ty0: 54.0; --tx1: 905.0; --ty1: 94.0; --stx: 290; --sty: 168; --bdy: 0; }
-        #target-frame.elite { --fw: 1268.0; --fh: 240.0; --pcx: 155.1; --pcy: 117.3; --pri: 85.5; --pro: 97.0; --bcx: 229.0; --bcy: 181.0; --br: 31.0; --hpx0: 293.0; --hpy0: 114.0; --hpx1: 1151.0; --hpy1: 157.0; --tx0: 273.0; --ty0: 59.0; --tx1: 853.0; --ty1: 107.0; --stx: 310; --sty: 182; --bdy: 0; }
-        #target-frame.boss { --fw: 1389.0; --fh: 330.0; --pcx: 205.5; --pcy: 154.5; --pri: 105.8; --pro: 120.0; --bcx: 291.0; --bcy: 237.0; --br: 38.0; --hpx0: 314.0; --hpy0: 151.0; --hpx1: 1249.0; --hpy1: 194.0; --tx0: 360.0; --ty0: 87.0; --tx1: 990.0; --ty1: 142.0; --stx: 340; --sty: 222; --bdy: 0; }
+        #player-frame { --fw: 963.8; --fh: 318.4; --pcx: 157.2; --pcy: 156.5; --pri: 104.2; --pro: 113.2; --bcx: 254.7; --bcy: 240.5; --br: 35.9; --hpx0: 306.4; --hpy0: 107.8; --hpx1: 838.6; --hpy1: 144.2; --mx0: 307.5; --my0: 163.3; --mx1: 837.5; --my1: 194.8; --stx: 313.5; --sty: 228.8; --cx0: 296.6; --cy0: 38.1; --cx1: 707.5; --cy1: 98.0; }
+        #target-frame { --fw: 890.0; --fh: 227.0; --pcx: 130.9; --pcy: 115.3; --pri: 80.6; --pro: 90.4; --bcx: 195.0; --bcy: 179.0; --br: 31.0; --hpx0: 272.0; --hpy0: 109.0; --hpx1: 788.0; --hpy1: 144.0; --tx0: 258.0; --ty0: 54.0; --tx1: 715.0; --ty1: 94.0; --stx: 290; --sty: 168; --bdy: 0; }
+        #target-frame.elite { --fw: 935.6; --fh: 278.9; --pcx: 162.5; --pcy: 138.5; --pri: 88.0; --pro: 98.2; --bcx: 232.6; --bcy: 210.5; --br: 30.4; --hpx0: 278.9; --hpy0: 143.6; --hpx1: 853.5; --hpy1: 182.4; --tx0: 280.4; --ty0: 81.3; --tx1: 624.0; --ty1: 133.0; --stx: 288.9; --sty: 196.4; --bdy: 0; }
+        #target-frame.boss { --fw: 964.4; --fh: 280.4; --pcx: 172.0; --pcy: 143.5; --pri: 84.7; --pro: 97.1; --bcx: 245.5; --bcy: 216.6; --br: 30.4; --hpx0: 297.9; --hpy0: 141.4; --hpx1: 864.1; --hpy1: 180.1; --tx0: 293.4; --ty0: 76.0; --tx1: 673.4; --ty1: 139.8; --stx: 307.9; --sty: 194.1; --bdy: 0; }
 
         #player-frame, #target-frame {
             position: fixed;
@@ -2699,9 +2699,9 @@
             z-index: 2;
         }
         #player-frame .hp-bar, #target-frame .hp-bar {
-            left: calc(var(--hpx0) * var(--u));
+            left: calc(max(var(--hpx0), var(--pcx) + var(--pro) + 4) * var(--u));   /* полоса не заходит в круг портрета */
             top: calc(var(--hpy0) * var(--u));
-            width: calc((var(--hpx1) - var(--hpx0)) * var(--u)) !important;
+            width: calc((var(--hpx1) - max(var(--hpx0), var(--pcx) + var(--pro) + 4)) * var(--u)) !important;
             height: calc((var(--hpy1) - var(--hpy0)) * var(--u)) !important;
         }
         #player-frame .mana-bar {
@@ -2775,7 +2775,7 @@
         }
         #target-name {
             font-family: 'Cinzel', 'Palatino Linotype', Georgia, serif !important;
-            font-size: max(7.5px, calc(32 * var(--u))) !important;
+            font-size: max(7px, calc(27 * var(--u))) !important;
             font-weight: 700 !important;
             color: #f3e6c8 !important;
             text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, 0.9) !important;
