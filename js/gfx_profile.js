@@ -15,10 +15,11 @@
  */
 (function () {
     const PROFILES = {
-        // экономная (телефон): чёткость 1, лимит 30 кадров, тени без размытия, низкая анизотропия.
-        // Отражение воды — 256 и раз в 2 кадра (снижает нагрузку и нагрев GPU на телефоне).
-        low:  { dpr: 1.0,  shadows: true, shadowMapSize: 1024, fpsCap: 30, treeShadowR: 20, treeLodR: 40, fogMul: 1.15, grassRadius: 38,  particles: 40,  vignette: false,
-                softShadows: false, aniso: 2, waterBuf: 256, waterThrottle: 2 },
+        // экономная (телефон): чёткость до 1.5 (при dpr 1.0 на экране с devicePixelRatio ~3.5 картинка растягивалась и листва/вода рябили),
+        // лимит 30 кадров, тени без размытия, низкая анизотропия.
+        // Отражение воды — 384 и раз в 2 кадра (баланс между рябью озера и нагревом GPU на телефоне).
+        low:  { dpr: 1.5,  shadows: true, shadowMapSize: 1024, fpsCap: 30, treeShadowR: 20, treeLodR: 40, fogMul: 1.15, grassRadius: 38,  particles: 40,  vignette: false,
+                softShadows: false, aniso: 2, waterBuf: 384, waterThrottle: 2 },
         high: { dpr: 1.25, shadows: true, shadowMapSize: 2048, fpsCap: 60, treeShadowR: 30, treeLodR: 55, fogMul: 1.0,  grassRadius: 55,  particles: 140, vignette: true,
                 softShadows: true, aniso: 8, waterBuf: 512, waterThrottle: 2 }
     };

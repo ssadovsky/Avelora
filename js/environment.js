@@ -466,7 +466,7 @@ class LakesideEnvironment {
                         if (mName.includes('tree_1') || mName.includes('twig') || mName.includes('leaves') || mName.includes('needle') || mName.includes('leaf') || (c.material.alphaTest > 0) || (c.material.map && c.material.map.format === THREE.RGBAFormat)) {
                             c.material.transparent = false;
                             c.material.alphaTest = 0.22;
-                            c.material.alphaToCoverage = !(window.GFX && window.GFX.low);
+                            c.material.alphaToCoverage = true;   // MSAA-сглаживание краёв листвы (на телефоне нужно против ряби; у GFX нет поля `low`)
                             c.material.depthWrite = true;
                         }
                     }

@@ -402,11 +402,22 @@
             if (def.type === 'nova') return this.startNova(def);
 
             if (def.type === 'projectile' || def.type === 'rain' || def.type === 'strike') {   // need a target
-                const range = (def.range || 12) + 2;
-                const tgt = (g.combat && g.combat.findBestTarget) ? g.combat.findBestTarget(range) : (g.combat && g.combat.selectedTarget);
-                if (!tgt || !(g.creatures && g.creatures.isAlive(tgt))) {
+                const tgt = g.combat && g.combat.selectedTarget;
+                const cr = g.creatures;
+                if (!tgt || !cr || !cr.isAlive(tgt)) {
+                    if (tgt && g.combat && g.combat.clearTarget) {
+                        g.combat.clearTarget();
+                    }
                     if (g.ui && g.ui.floatText) g.ui.floatText('Нет цели', 'warn');
                     return 'no_target';
+                }
+
+                const c = g.character;
+                const range = (def.range || 12) + 2;
+                const dist = Math.hypot(tgt.x - c.position.x, tgt.z - c.position.z);
+                if (dist > range) {
+                    if (g.ui && g.ui.floatText) g.ui.floatText('Цель слишком далеко', 'warn');
+                    return 'out_of_range';
                 }
 
                 if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
@@ -414,7 +425,6 @@
                     return 'mana';
                 }
                 const target = this.pickTarget(def, new THREE.Vector3());
-                const c = g.character;
                 if (c.isMoving) c.stopMovement();
                 if (g.worldObjects) g.worldObjects.cancelPending();
                 c.faceTowards(target.x, target.z);

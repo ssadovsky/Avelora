@@ -28,6 +28,6 @@
     "arcs": false
   },
   "mana": 16,
-  "requiresLevel": 5,
+  "requiresLevel": 4,
   "price": 45
 }

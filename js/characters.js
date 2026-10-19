@@ -49,40 +49,6 @@
  */
 window.CHARACTER_CATALOG = [
     {
-        id: 'warrior',
-        disabled: true,   // temporarily not playable (kept in the game; remove this line to enable)
-        name: 'Воин',
-        className: 'Странствующий страж',
-        icon: '⚔️',
-        portrait: 'heroPortrait_warrior',
-        modelKey: 'soldier',
-        animMap: { idle: 'Idle', run: 'Run' },
-        idleFallback: 'run',
-        hasTravelerGear: true,   // cloak + staff cosmetic attachment (soldier reskin only)
-        hideNodes: ['vanguard_visor'],
-        scale: 1.0,
-        maxHp: 120,
-        handGrip: { position: [-0.002, 0.083, 0.018], rotation: [1.436, -0.504, 1.15] }
-    },
-    {
-        id: 'archer',
-        name: 'Лучница',
-        className: 'Арисса',
-        icon: '🏹',
-        portrait: 'heroPortrait_archer',
-        modelKey: 'arissa',
-        // 'Idle' will exist once we add it (see lib/3d/README.md); until then
-        // idleFallback freezes on the first frame of 'Fast Run'.
-        animMap: { idle: 'Idle', run: 'Fast Run' },
-        idleFallback: 'run',
-        hasTravelerGear: false,
-        hideNodes: [],
-        scale: 1.0,
-        facingOffset: Math.PI,
-        maxHp: 100,
-        handGrip: { position: [0.022, 0.082, -0.004], rotation: [1.482, 0.4, -1.121] }
-    },
-    {
         id: 'mage',
         name: 'Маг',
         className: 'Азур Аркмаг',
@@ -107,6 +73,41 @@ window.CHARACTER_CATALOG = [
         maxHp: 90,
         // Топор ориентирован лезвием вперед и вниз (Y = 1.5708 rad = 90 deg)
         handGrip: { position: [0.0, 0.08, 0.0], rotation: [0.0, 1.5708, 0.0] }
+    },
+    {
+        id: 'archer',
+        name: 'Лучница',
+        className: 'Арисса',
+        icon: '🏹',
+        portrait: 'heroPortrait_archer',
+        modelKey: 'arissa',
+        // 'Idle' will exist once we add it (see lib/3d/README.md); until then
+        // idleFallback freezes on the first frame of 'Fast Run'.
+        animMap: { idle: 'Idle', run: 'Fast Run' },
+        idleFallback: 'run',
+        hasTravelerGear: false,
+        hideNodes: [],
+        scale: 1.0,
+        facingOffset: Math.PI,
+        maxHp: 100,
+        handGrip: { position: [0.022, 0.082, -0.004], rotation: [1.482, 0.4, -1.121] }
+    },
+    {
+        id: 'warrior',
+        disabled: true,
+        hidden: true,           // временно скрыт из интерфейса
+        name: 'Воин',
+        className: 'Странствующий страж',
+        icon: '⚔️',
+        portrait: 'heroPortrait_warrior',
+        modelKey: 'soldier',
+        animMap: { idle: 'Idle', run: 'Run' },
+        idleFallback: 'run',
+        hasTravelerGear: true,   // cloak + staff cosmetic attachment (soldier reskin only)
+        hideNodes: ['vanguard_visor'],
+        scale: 1.0,
+        maxHp: 120,
+        handGrip: { position: [-0.002, 0.083, 0.018], rotation: [1.436, -0.504, 1.15] }
     }
 ];
 

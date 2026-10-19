@@ -322,34 +322,34 @@ window.LOCATIONS = {
             { id: 'dragonfly_8', type: 'dragonfly', level: 4, x: -79.4, z: -64.5, r: 1.20 },
             { id: 'dragonfly_9', type: 'dragonfly', level: 4, x: -36.4, z: -62.1, r: 2.90 },
             { id: 'dragonfly_10', type: 'dragonfly', level: 4, x: -69.0, z: -46.5, r: 4.60 },
-            // 10 лесных пчел на поляне (2 уровень, расширенная зона клевера X: 76..103, Z: 12..31)
-            { id: 'bee_1',  type: 'bee', level: 2, x: 80.0, z: 22.0, r: 0.4 },
-            { id: 'bee_2',  type: 'bee', level: 2, x: 86.5, z: 15.5, r: 2.1 },
-            { id: 'bee_3',  type: 'bee', level: 2, x: 92.0, z: 24.5, r: 4.3 },
-            { id: 'bee_4',  type: 'bee', level: 2, x: 98.5, z: 12.0, r: 1.2 },
-            { id: 'bee_5',  type: 'bee', level: 2, x: 103.0, z: 20.0, r: 3.5 },
-            { id: 'bee_6',  type: 'bee', level: 2, x: 77.5, z: 28.5, r: 1.8 },
-            { id: 'bee_7',  type: 'bee', level: 2, x: 82.0, z: 31.0, r: 4.9 },
-            { id: 'bee_8',  type: 'bee', level: 2, x: 76.0, z: 25.0, r: 0.9 },
-            { id: 'bee_9',  type: 'bee', level: 2, x: 84.5, z: 26.5, r: 2.7 },
-            { id: 'bee_10', type: 'bee', level: 2, x: 79.5, z: 33.5, r: 5.3 },
-            // Радужные барсуки в лесочке на юге (2 уровень, квест Лираэль)
-            { id: 'badger_1', type: 'badger', level: 2, x: 83.8, z: 77.0, r: 3.99 },
-            { id: 'badger_2', type: 'badger', level: 2, x: 59.1, z: 63.3, r: 4.98 },
-            { id: 'badger_3', type: 'badger', level: 2, x: 79.1, z: 47.9, r: 3.17 },
-            { id: 'badger_4', type: 'badger', level: 2, x: 72.1, z: 63.2, r: 2.33 },
-            { id: 'badger_5', type: 'badger', level: 2, x: 65.7, z: 59.2, r: 4.98 },
-            { id: 'badger_6', type: 'badger', level: 2, x: 73.5, z: 72.1, r: 0.27 },
-            { id: 'badger_7', type: 'badger', level: 2, x: 96.1, z: 61.7, r: 5.5 },
-            { id: 'badger_8', type: 'badger', level: 2, x: 62.6, z: 75.0, r: 0.73 },
-            { id: 'badger_9', type: 'badger', level: 2, x: 88.2, z: 58.2, r: 0.97 },
-            { id: 'badger_10', type: 'badger', level: 2, x: 76.1, z: 55.2, r: 5.83 },
-            { id: 'badger_11', type: 'badger', level: 2, x: 52.1, z: 66.5, r: 2.15 },
-            { id: 'badger_12', type: 'badger', level: 2, x: 74.3, z: 80.5, r: 1.31 },
-            { id: 'badger_13', type: 'badger', level: 2, x: 72.7, z: 43.7, r: 3.65 },
-            { id: 'badger_14', type: 'badger', level: 2, x: 51.0, z: 75.8, r: 2.43 },
-            { id: 'badger_15', type: 'badger', level: 2, x: 80.4, z: 63.1, r: 4.51 },
-            { id: 'waterfall_fawn', type: 'fawn', level: 20, rank: 'elite', x: 110.0, z: 12.0, r: 2.8 },
+            // 10 лесных пчел на поляне (1 уровень, расширенная зона клевера X: 76..103, Z: 12..31)
+            { id: 'bee_1',  type: 'bee', level: 1, x: 80.0, z: 22.0, r: 0.4 },
+            { id: 'bee_2',  type: 'bee', level: 1, x: 86.5, z: 15.5, r: 2.1 },
+            { id: 'bee_3',  type: 'bee', level: 1, x: 92.0, z: 24.5, r: 4.3 },
+            { id: 'bee_4',  type: 'bee', level: 1, x: 98.5, z: 12.0, r: 1.2 },
+            { id: 'bee_5',  type: 'bee', level: 1, x: 103.0, z: 20.0, r: 3.5 },
+            { id: 'bee_6',  type: 'bee', level: 1, x: 77.5, z: 28.5, r: 1.8 },
+            { id: 'bee_7',  type: 'bee', level: 1, x: 82.0, z: 31.0, r: 4.9 },
+            { id: 'bee_8',  type: 'bee', level: 1, x: 76.0, z: 25.0, r: 0.9 },
+            { id: 'bee_9',  type: 'bee', level: 1, x: 84.5, z: 26.5, r: 2.7 },
+            { id: 'bee_10', type: 'bee', level: 1, x: 79.5, z: 33.5, r: 5.3 },
+            // Радужные барсуки в лесочке на юге (1 уровень, квест Лираэль)
+            { id: 'badger_1', type: 'badger', level: 1, x: 83.8, z: 77.0, r: 3.99 },
+            { id: 'badger_2', type: 'badger', level: 1, x: 59.1, z: 63.3, r: 4.98 },
+            { id: 'badger_3', type: 'badger', level: 1, x: 79.1, z: 47.9, r: 3.17 },
+            { id: 'badger_4', type: 'badger', level: 1, x: 72.1, z: 63.2, r: 2.33 },
+            { id: 'badger_5', type: 'badger', level: 1, x: 65.7, z: 59.2, r: 4.98 },
+            { id: 'badger_6', type: 'badger', level: 1, x: 73.5, z: 72.1, r: 0.27 },
+            { id: 'badger_7', type: 'badger', level: 1, x: 96.1, z: 61.7, r: 5.5 },
+            { id: 'badger_8', type: 'badger', level: 1, x: 62.6, z: 75.0, r: 0.73 },
+            { id: 'badger_9', type: 'badger', level: 1, x: 88.2, z: 58.2, r: 0.97 },
+            { id: 'badger_10', type: 'badger', level: 1, x: 76.1, z: 55.2, r: 5.83 },
+            { id: 'badger_11', type: 'badger', level: 1, x: 52.1, z: 66.5, r: 2.15 },
+            { id: 'badger_12', type: 'badger', level: 1, x: 74.3, z: 80.5, r: 1.31 },
+            { id: 'badger_13', type: 'badger', level: 1, x: 72.7, z: 43.7, r: 3.65 },
+            { id: 'badger_14', type: 'badger', level: 1, x: 51.0, z: 75.8, r: 2.43 },
+            { id: 'badger_15', type: 'badger', level: 1, x: 80.4, z: 63.1, r: 4.51 },
+            { id: 'waterfall_fawn', type: 'fawn', level: 5, rank: 'elite', x: 110.0, z: 12.0, r: 2.8 },
             // Рунный вепрь-страж у портала в Золотую саванну (6 уровень, Элита)
             { id: 'portal_rune_boar', type: 'rune_boar', level: 6, rank: 'elite', x: -118.0, z: 8.0, r: 1.57 },
             // 10 обычных вепрей на северо-востоке долины (4 уровень, квест «Охота на вепрей»)
@@ -380,36 +380,32 @@ window.LOCATIONS = {
             { id: 'blue_spider_8', type: 'blue_spider', level: 5, x: -68.0, z: 55.0, r: 0.74 },
             { id: 'blue_spider_9', type: 'blue_spider', level: 5, x: -57.0, z: 59.0, r: 2.64 },
             { id: 'blue_spider_10', type: 'blue_spider', level: 5, x: -91.0, z: 60.0, r: 4.54 },
-            // Рыжие петухи: поляна к западу от барсучьего луга (2 уровень)
-            { id: 'rooster_1', type: 'rooster', level: 2, x: 18.0, z: 44.0, r: 0.00 },
-            { id: 'rooster_2', type: 'rooster', level: 2, x: 28.0, z: 41.0, r: 1.70 },
-            { id: 'rooster_3', type: 'rooster', level: 2, x: 38.0, z: 45.0, r: 3.40 },
-            { id: 'rooster_4', type: 'rooster', level: 2, x: 22.0, z: 52.0, r: 5.10 },
-            { id: 'rooster_5', type: 'rooster', level: 2, x: 32.0, z: 50.0, r: 0.52 },
-            { id: 'rooster_6', type: 'rooster', level: 2, x: 42.0, z: 53.0, r: 2.22 },
-            { id: 'rooster_7', type: 'rooster', level: 2, x: 17.0, z: 60.0, r: 3.92 },
-            { id: 'rooster_8', type: 'rooster', level: 2, x: 26.0, z: 58.0, r: 5.62 },
-            { id: 'rooster_9', type: 'rooster', level: 2, x: 35.0, z: 59.0, r: 1.04 },
-            { id: 'rooster_10', type: 'rooster', level: 2, x: 44.0, z: 41.0, r: 2.74 },
-            // Серые крысы у скал к северу от водопада (1 уровень)
-            { id: 'grey_rat_1',  type: 'grey_rat', level: 1, x: 131.0, z: -27.5, r: 1.2 },
-            { id: 'grey_rat_2',  type: 'grey_rat', level: 1, x: 128.5, z: -32.5, r: 3.4 },
-            { id: 'grey_rat_3',  type: 'grey_rat', level: 1, x: 131.5, z: -35.0, r: 0.8 },
-            { id: 'grey_rat_4',  type: 'grey_rat', level: 1, x: 122.0, z: -23.0, r: 2.1 },
-            { id: 'grey_rat_5',  type: 'grey_rat', level: 1, x: 129.0, z: -23.5, r: 4.5 },
-            { id: 'grey_rat_6',  type: 'grey_rat', level: 1, x: 123.5, z: -35.5, r: 5.2 },
-            { id: 'grey_rat_7',  type: 'grey_rat', level: 1, x: 125.5, z: -39.0, r: 1.7 },
-            { id: 'grey_rat_8',  type: 'grey_rat', level: 1, x: 120.5, z: -39.5, r: 3.9 },
-            { id: 'grey_rat_9',  type: 'grey_rat', level: 1, x: 118.5, z: -41.5, r: 0.3 },
-            { id: 'grey_rat_10', type: 'grey_rat', level: 1, x: 117.0, z: -43.0, r: 2.8 }
+            // Рыжие петухи: поляна к западу от барсучьего луга (3 уровень)
+            { id: 'rooster_1', type: 'rooster', level: 3, x: 18.0, z: 44.0, r: 0.00 },
+            { id: 'rooster_2', type: 'rooster', level: 3, x: 28.0, z: 41.0, r: 1.70 },
+            { id: 'rooster_3', type: 'rooster', level: 3, x: 38.0, z: 45.0, r: 3.40 },
+            { id: 'rooster_4', type: 'rooster', level: 3, x: 22.0, z: 52.0, r: 5.10 },
+            { id: 'rooster_5', type: 'rooster', level: 3, x: 32.0, z: 50.0, r: 0.52 },
+            { id: 'rooster_6', type: 'rooster', level: 3, x: 42.0, z: 53.0, r: 2.22 },
+            { id: 'rooster_7', type: 'rooster', level: 3, x: 17.0, z: 60.0, r: 3.92 },
+            { id: 'rooster_8', type: 'rooster', level: 3, x: 26.0, z: 58.0, r: 5.62 },
+            { id: 'rooster_9', type: 'rooster', level: 3, x: 35.0, z: 59.0, r: 1.04 },
+            { id: 'rooster_10', type: 'rooster', level: 3, x: 44.0, z: 41.0, r: 2.74 },
+            // Серые крысы у скал к северу от водопада (2 уровень)
+            { id: 'grey_rat_1',  type: 'grey_rat', level: 2, x: 131.0, z: -27.5, r: 1.2 },
+            { id: 'grey_rat_2',  type: 'grey_rat', level: 2, x: 128.5, z: -32.5, r: 3.4 },
+            { id: 'grey_rat_3',  type: 'grey_rat', level: 2, x: 131.5, z: -35.0, r: 0.8 },
+            { id: 'grey_rat_4',  type: 'grey_rat', level: 2, x: 122.0, z: -23.0, r: 2.1 },
+            { id: 'grey_rat_5',  type: 'grey_rat', level: 2, x: 129.0, z: -23.5, r: 4.5 },
+            { id: 'grey_rat_6',  type: 'grey_rat', level: 2, x: 123.5, z: -35.5, r: 5.2 },
+            { id: 'grey_rat_7',  type: 'grey_rat', level: 2, x: 125.5, z: -39.0, r: 1.7 },
+            { id: 'grey_rat_8',  type: 'grey_rat', level: 2, x: 120.5, z: -39.5, r: 3.9 },
+            { id: 'grey_rat_9',  type: 'grey_rat', level: 2, x: 118.5, z: -41.5, r: 0.3 },
+            { id: 'grey_rat_10', type: 'grey_rat', level: 2, x: 117.0, z: -43.0, r: 2.8 }
         ],
 
         pickups: [
-            { id: 'start_stones', item: 'stone', count: 5, x: 105.0, z: 65.8 },
-            { id: 'start_logs',   item: 'log',   count: 3, x: 109.0, z: 65.8, r: 0.5 },
-            // Топор и кирку здесь больше не лежат: Лираэль выдаёт их за квесты log_gathering и stone_gathering.
-            // Кинжал лежит у пня; посох (маг) и лук (лучница) выдаёт Лираэль за первый квест
-            { id: 'start_dagger', item: 'dagger', count: 1, y: 0.03, x: 108.6, z: 70.4, rotation: [0, 0.9, -1.571] }
+            // Стартовые брёвна, камни и кинжал у пня убраны по запросу игрока
         ],
 
         props: [
@@ -1113,23 +1109,23 @@ window.LOCATIONS = {
         },
 
         creatures: [
-            // Чёрные крысы в гротах и коридоре подземелья (3 уровень, Элита)
-            { id: 'catacombs_rat_1', type: 'rat', level: 3, rank: 'elite', x: -9.5, z: -30.0, r: 1.0, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_2', type: 'rat', level: 3, rank: 'elite', x: -6.0, z: -26.0, r: 4.2, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_3', type: 'rat', level: 3, rank: 'elite', x: -1.3, z: -15.5, r: 0.5, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_4', type: 'rat', level: 3, rank: 'elite', x: 1.3,  z: -13.0, r: 3.7, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_5', type: 'rat', level: 3, rank: 'elite', x: -1.1, z: -1.5,  r: 1.8, behavior: 'aggressive', aggroRadius: 8.0 },
-            { id: 'catacombs_rat_6', type: 'rat', level: 3, rank: 'elite', x: 1.1,  z: 2.0,   r: 5.0, behavior: 'aggressive', aggroRadius: 8.0 },
+            // Чёрные крысы в гротах и коридоре подземелья (5 уровень, Элита)
+            { id: 'catacombs_rat_1', type: 'rat', level: 5, rank: 'elite', x: -9.5, z: -30.0, r: 1.0, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_2', type: 'rat', level: 5, rank: 'elite', x: -6.0, z: -26.0, r: 4.2, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_3', type: 'rat', level: 5, rank: 'elite', x: -1.3, z: -15.5, r: 0.5, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_4', type: 'rat', level: 5, rank: 'elite', x: 1.3,  z: -13.0, r: 3.7, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_5', type: 'rat', level: 5, rank: 'elite', x: -1.1, z: -1.5,  r: 1.8, behavior: 'aggressive', aggroRadius: 8.0 },
+            { id: 'catacombs_rat_6', type: 'rat', level: 5, rank: 'elite', x: 1.1,  z: 2.0,   r: 5.0, behavior: 'aggressive', aggroRadius: 8.0 },
 
-            // Пауки в боковых гротах подземелья (3 уровень, Элита)
-            { id: 'catacombs_spider_1', type: 'spider', level: 3, rank: 'elite', x: 12.0,  z: -13.7, r: -1.2, behavior: 'aggressive', aggroRadius: 9.0 },
-            { id: 'catacombs_spider_2', type: 'spider', level: 3, rank: 'elite', x: -20.5, z: -28.5, r: 1.57, behavior: 'aggressive', aggroRadius: 9.0 },
+            // Пауки в боковых гротах подземелья (5 уровень, Элита)
+            { id: 'catacombs_spider_1', type: 'spider', level: 5, rank: 'elite', x: 12.0,  z: -13.7, r: -1.2, behavior: 'aggressive', aggroRadius: 9.0 },
+            { id: 'catacombs_spider_2', type: 'spider', level: 5, rank: 'elite', x: -20.5, z: -28.5, r: 1.57, behavior: 'aggressive', aggroRadius: 9.0 },
 
-            // Кобольд-рудокоп в каменном склепе перед решёткой (3 уровень, Элита)
-            { id: 'catacombs_kobold_1', type: 'kobold', level: 3, rank: 'elite', x: 0.0, z: 15.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 9.0, leashRadius: 22.0 },
+            // Кобольд-рудокоп в каменном склепе перед решёткой (5 уровень, Элита)
+            { id: 'catacombs_kobold_1', type: 'kobold', level: 5, rank: 'elite', x: 0.0, z: 15.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 9.0, leashRadius: 22.0 },
 
-            // Железнокожий минотавр в Великом Зале босса за решёткой (3 уровень, БОСС, арена боя во всём зале)
-            { id: 'catacombs_minotaur_1', type: 'minotaur', level: 3, rank: 'boss', x: 0.0, z: 42.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 11.0, leashRadius: 36.0 }
+            // Железнокожий минотавр в Великом Зале босса за решёткой (6 уровень, БОСС, арена боя во всём зале)
+            { id: 'catacombs_minotaur_1', type: 'minotaur', level: 6, rank: 'boss', x: 0.0, z: 42.0, r: Math.PI, behavior: 'aggressive', aggroRadius: 11.0, leashRadius: 36.0 }
         ],
 
         decorations: [],

@@ -63,8 +63,24 @@
         /** Price this NPC pays for one piece of an item (0 = not for sale). */
         sellPriceOf(itemId) {
             const def = window.AveloraItems.get(itemId);
-            if (def && def.sellPrice > 0) return Math.floor(def.sellPrice);
-            return def && def.value > 0 ? Math.max(1, Math.floor(def.value * SELL_RATE)) : 0;
+            if (!def || this.isQuestItemOrTool(itemId, def)) return 0;
+            if (def.sellPrice > 0) return Math.floor(def.sellPrice);
+            return def.value > 0 ? Math.max(1, Math.floor(def.value * SELL_RATE)) : 0;
+        }
+
+        /** Quest items and tools handed out for quests cannot be sold to merchants. */
+        isQuestItemOrTool(itemId, def) {
+            if (!def) def = window.AveloraItems.get(itemId);
+            if (!def) return false;
+            if (def.category === 'quest' || def.questItem) return true;
+            const quests = (window.GAME_CONTENT && window.GAME_CONTENT.quests) || {};
+            for (const qid of Object.keys(quests)) {
+                const q = quests[qid];
+                if (q && q.tools && q.tools.some(t => t && t.item === itemId)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /** Sell straight from a bag cell (item card button / drag onto the shop window). */
@@ -150,13 +166,17 @@
             let have = 0;
             if (st && o.type === 'collect') have = st.inventory.count(o.item);
             else if (st && o.type === 'kill') have = st.questKills[q.id] || 0;
-            return { have: Math.min(have, o.count || 0), need: o.count || 0, ready: have >= (o.count || 0) };
+            else if (o.type === 'talk') have = 1;
+            return { have: Math.min(have, o.count || 1), need: o.count || 1, ready: have >= (o.count || 1) };
         }
 
         /** Short objective line for the tracker: "Папоротник: 3/10", "Радужный барсук: 2/5". */
         questLabel(q, p) {
             const o = q.objective || {};
             const defs = window.GAME_CONTENT || {};
+            if (o.type === 'talk') {
+                return o.label || `Поговори с ${this.turnInName(q) || 'Лираэль'}`;
+            }
             const name = o.type === 'kill'
                 ? (o.label || (((defs.creatures || {})[o.creature]) || {}).name || o.creature)
                 : (window.AveloraItems.get(o.item) || {}).name || o.item;
@@ -202,12 +222,42 @@
                 if (!q) return;
                 const p = this.questProgress(q);
                 if (p.ready) hasReady = true;
-                lines.push(`<div class="qt-row${p.ready ? ' ready' : ''}"><b>${q.name}</b><span>${p.ready ? 'Вернись к ' + (this.giverName(q) || 'заказчику') : this.questLabel(q, p)}</span></div>`);
+                lines.push(`<div class="qt-row${p.ready ? ' ready' : ''}" data-quest="${id}"><b>${q.name}</b><span>${p.ready ? 'Вернись к ' + (this.giverName(q) || 'заказчику') : this.questLabel(q, p)}</span></div>`);
             });
             if (lines.length) {
                 const iconChar = hasReady ? '?' : '!';
                 this.tracker.innerHTML = `<div class="qt-btn-icon${hasReady ? ' ready' : ''}" title="Задания">${iconChar}</div><div class="qt-content"><div class="qt-title"><span>Задания</span><span class="qt-toggle" title="Свернуть задания">▸</span></div><div class="qt-list">${lines.join('')}</div></div>`;
                 this.tracker.style.display = 'flex';
+
+                // Hover on quest row shows reward tooltip
+                const rows = this.tracker.querySelectorAll('.qt-row');
+                rows.forEach(row => {
+                    const qid = row.dataset.quest;
+                    if (!qid) return;
+                    const q = this.questDef(qid);
+                    if (!q) return;
+
+                    row.addEventListener('pointerenter', () => {
+                        const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                        if (ui && ui.showQuestRewardTooltip) {
+                            const p = this.questProgress(q);
+                            const rw = this.getQuestRewards ? this.getQuestRewards(q) : { gold: 0, xp: 0, items: [] };
+                            ui.showQuestRewardTooltip(row, {
+                                id: qid,
+                                title: q.name,
+                                desc: q.summary || '',
+                                completed: false,
+                                badge: p.ready ? 'Вернись к ' + (this.giverName(q) || 'заказчику') : this.questLabel(q, p),
+                                reward: rw
+                            });
+                        }
+                    });
+
+                    row.addEventListener('pointerleave', () => {
+                        const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                        if (ui && ui.hideTooltip) ui.hideTooltip();
+                    });
+                });
 
                 // Click when collapsed expands the tracker
                 this.tracker.onclick = (e) => {
@@ -222,6 +272,8 @@
                 if (title) {
                     title.onclick = (e) => {
                         e.stopPropagation();
+                        const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                        if (ui && ui.hideTooltip) ui.hideTooltip();
                         this.tracker.classList.add('collapsed');
                     };
                 }
@@ -232,6 +284,7 @@
                     list.onclick = (e) => {
                         e.stopPropagation();
                         const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                        if (ui && ui.hideTooltip) ui.hideTooltip();
                         if (ui && ui.toggleQuests) {
                             ui.toggleQuests();
                         } else {
@@ -244,6 +297,8 @@
                     };
                 }
             } else {
+                const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
+                if (ui && ui.hideTooltip) ui.hideTooltip();
                 this.tracker.innerHTML = '';
                 this.tracker.style.display = 'none';
             }
@@ -254,16 +309,107 @@
             return n ? n.name : '';
         }
 
+        getQuestRewards(q) {
+            if (!q || !q.reward) return { gold: 0, xp: 0, items: [] };
+            const r = q.reward;
+            const gold = r.gold || 0;
+            const xp = r.xp || 0;
+            const items = [];
+            if (Array.isArray(r.items)) {
+                r.items.forEach(it => { if (it && it.item) items.push(it); });
+            }
+            const cfg = this.game.currentCharacterConfig;
+            const charId = (cfg && cfg.id) || (this.game.character && this.game.character.id) || 'mage';
+            if (r.classItems && r.classItems[charId]) {
+                r.classItems[charId].forEach(it => { if (it && it.item) items.push(it); });
+            }
+            return { gold, xp, items };
+        }
+
         questNode(id) {
             const q = this.questDef(id), st = this.state;
             if (!q || !st) return { text: '…', options: [{ text: 'Назад', next: 'start' }] };
             const status = st.questStatus(id), d = q.dialog || {};
-            if (!status) return { text: d.offer, items: this.questTools(q).length ? { label: d.toolsOffer || 'Для этого задания тебе дадут инструмент:', list: this.questTools(q).map(t => ({ item: t.item, count: t.count || 1 })) } : null, options: [{ text: d.accept, action: 'questAccept', quest: id }, { text: d.decline || 'Позже', next: 'start' }] };
+            if (!status) {
+                const rw = this.getQuestRewards(q);
+                return {
+                    text: d.offer,
+                    rewards: (rw.gold || rw.xp || rw.items.length) ? rw : null,
+                    items: this.questTools(q).length ? { label: d.toolsOffer || 'Для этого задания тебе дадут инструмент:', list: this.questTools(q).map(t => ({ item: t.item, count: t.count || 1 })) } : null,
+                    options: [{ text: d.accept, action: 'questAccept', quest: id }, { text: d.decline || 'Позже', next: 'start' }]
+                };
+            }
             const p = this.questProgress(q);
-            if (status === 'active' && !this.questIsTurnIn(q)) return { text: d.away || d.progress, options: [{ text: 'Назад', next: 'start' }] };
-            if (status === 'active' && p.ready) return { text: d.ready || d.progress, options: [{ text: d.turnIn || 'Сдать', action: 'questTurnIn', quest: id }, { text: 'Назад', next: 'start' }] };
-            if (status === 'active') return { text: d.progress, options: [{ text: 'Назад', next: 'start' }] };
+            if (status === 'active' && !this.questIsTurnIn(q)) return { text: d.away || d.progress, options: [{ text: 'Отказаться от задания', action: 'questAbandon', quest: id }, { text: 'Назад', next: 'start' }] };
+            if (status === 'active' && p.ready) return { text: d.ready || d.progress, options: [{ text: d.turnIn || 'Сдать', action: 'questTurnIn', quest: id }, { text: 'Отказаться от задания', action: 'questAbandon', quest: id }, { text: 'Назад', next: 'start' }] };
+            if (status === 'active') return { text: d.progress, options: [{ text: 'Отказаться от задания', action: 'questAbandon', quest: id }, { text: 'Назад', next: 'start' }] };
             return { text: d.done, options: [{ text: 'Назад', next: 'start' }] };
+        }
+
+        abandonQuest(id) {
+            const q = this.questDef(id), st = this.state;
+            if (!q || !st || st.questStatus(id) !== 'active') return;
+
+            // Remove tools given for this quest (e.g. axe, pickaxe) from hands, bag, chests, and ground
+            const tools = q.tools || [];
+            let unequippedAny = false;
+            tools.forEach(t => {
+                if (!t || !t.item) return;
+                const itemId = t.item;
+                const count = t.count || 1;
+
+                // 1. If equipped in hand/slot
+                const slot = st.equippedSlotOf(itemId);
+                if (slot) {
+                    st.equipped[slot] = null;
+                    unequippedAny = true;
+                }
+
+                // 2. Remove from bag
+                st.inventory.remove(itemId, count);
+
+                // 3. Remove from chests if placed there
+                if (st.chestInvs) {
+                    Object.values(st.chestInvs).forEach(chestInv => {
+                        if (chestInv && typeof chestInv.remove === 'function') {
+                            chestInv.remove(itemId, count);
+                        }
+                    });
+                }
+
+                // 4. Remove from saved ground piles in all locations
+                if (st.ground) {
+                    Object.keys(st.ground).forEach(locId => {
+                        if (Array.isArray(st.ground[locId])) {
+                            st.ground[locId] = st.ground[locId].filter(g => g && g.item !== itemId);
+                            if (!st.ground[locId].length) delete st.ground[locId];
+                        }
+                    });
+                }
+
+                // 5. Remove visual 3D dropped pile from current scene
+                if (this.game.worldObjects && this.game.worldObjects.removeDynamicPilesOfItem) {
+                    this.game.worldObjects.removeDynamicPilesOfItem(itemId);
+                }
+            });
+
+            st.abandonQuest(id);
+
+            if (unequippedAny && this.ui && this.ui.applyEquipment) {
+                this.ui.applyEquipment();
+            }
+
+            if (this.ui) {
+                this.ui.floatText(`Задание «${q.name}» отменено`, 'warn');
+                if (this.ui.updateQuestsProgress) this.ui.updateQuestsProgress();
+                if (this.ui.renderAll) this.ui.renderAll();
+            }
+            this.updateTracker();
+
+            if (this.isOpen()) {
+                this.nodeId = (this.npc && this.npc.start) || 'start';
+                this.render();
+            }
         }
 
         renderTalk() {
@@ -290,6 +436,20 @@
             text.className = 'dlg-text';
             text.textContent = node ? node.text : '…';
             this.body.appendChild(text);
+            if (node && node.rewards) {
+                const rw = node.rewards;
+                const lab = document.createElement('div');
+                lab.className = 'dlg-note dlg-reward-header';
+                lab.textContent = 'Награда за выполнение:';
+                this.body.appendChild(lab);
+                const box = document.createElement('div');
+                box.className = 'dlg-rewards';
+                const line = (html) => { const d = document.createElement('div'); d.className = 'dlg-reward-line'; d.innerHTML = html; box.appendChild(d); };
+                if (rw.gold) line(`<span class="coin"></span> +${rw.gold} монет`);
+                if (rw.xp) line(`⭐ +${rw.xp} опыта`);
+                (rw.items || []).forEach(it => box.appendChild(this.itemRowEl(it.item, { count: it.count, equip: false })));
+                this.body.appendChild(box);
+            }
             if (node && node.items && node.items.list && node.items.list.length) {
                 const lab = document.createElement('div');
                 lab.className = 'dlg-note';
@@ -305,8 +465,8 @@
             ((node && node.options) || [{ text: 'До встречи', action: 'close' }]).forEach(o => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                b.className = 'dlg-opt' + (o.action === 'shop' ? ' shop' : '') + (o.quest ? ' quest' : '');
-                b.textContent = (o.action === 'shop' ? '[Торговля] ' : o.action === 'teach' ? '[Обучение] ' : o.quest ? '[Задание] ' : '') + o.text;
+                b.className = 'dlg-opt' + (o.action === 'shop' ? ' shop' : '') + (o.quest ? ' quest' : '') + (o.action === 'questAbandon' ? ' abandon' : '');
+                b.textContent = (o.action === 'shop' ? '[Торговля] ' : o.action === 'teach' ? '[Обучение] ' : o.quest ? '[Задание] ' : o.action === 'questAbandon' ? '[Отмена] ' : '') + o.text;
                 b.addEventListener('click', (e) => { e.stopPropagation(); this.choose(o); });
                 opts.appendChild(b);
             });
@@ -316,6 +476,8 @@
         choose(o) {
             if (o.action === 'close') {
                 this.close();
+            } else if (o.action === 'questAbandon') {
+                this.abandonQuest(o.quest);
             } else if (o.action === 'questAccept') {
                 const aq = this.questDef(o.quest);
                 if (this.state.startQuest(o.quest)) {

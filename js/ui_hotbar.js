@@ -78,6 +78,7 @@
             this.skillsOpen = false;
             this.heroOpen = false;
             this.questsOpen = false;
+            this.questTab = 'active';
             this.microMenuOpen = false;
             this.cdCache = new Array(10).fill(-1);
             this.tooltipTimer = null;
@@ -157,12 +158,18 @@
                 slot.append(icon, cd, count, key);
                 slot._icon = icon; slot._cd = cd; slot._count = count;
                 if (i === 0) {
-                    const frame = document.createElement('span');
-                    frame.className = 'slot0-medal-frame';
-                    const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.slot0Frame;
-                    if (frameTex) frame.style.backgroundImage = `url("${frameTex}")`;
-                    slot.appendChild(frame);
-                    slot._frame = frame;
+                    const medalFrame = document.createElement('span');
+                    medalFrame.className = 'slot0-medal-frame';
+                    const medalTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.slot0Frame;
+                    if (medalTex) medalFrame.style.backgroundImage = `url("${medalTex}")`;
+                    slot.appendChild(medalFrame);
+
+                    const combatFrame = document.createElement('span');
+                    combatFrame.className = 'slot-combat-frame slot0-pc-frame';
+                    const combatTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.btnCombatFrame;
+                    if (combatTex) combatFrame.style.backgroundImage = `url("${combatTex}")`;
+                    slot.appendChild(combatFrame);
+                    slot._frame = combatFrame;
                 } else if (i >= 1 && i <= 4) {
                     const frame = document.createElement('span');
                     frame.className = 'slot-combat-frame';
@@ -367,14 +374,11 @@
                 this.cdCache[i] = -1;
                 slot._cd.style.background = '';
                 if (!e) {
-                    // Slot 0 (central attack button): defaults to weapon in hand attack!
-                    if (i === 0) {
+                    // Touch UI fan: central button (Slot 0) defaults to weapon in hand or fists
+                    const isTouchUi = document.body && document.body.classList.contains('touch-ui');
+                    if (i === 0 && isTouchUi) {
                         slot.classList.remove('empty');
                         slot.classList.add('is-basic-attack');
-                        if (slot._frame && !slot._frame.style.backgroundImage) {
-                            const frameTex = window.GAME_ASSETS && window.GAME_ASSETS.textures && window.GAME_ASSETS.textures.slot0Frame;
-                            if (frameTex) slot._frame.style.backgroundImage = `url("${frameTex}")`;
-                        }
                         const eqId = this.state && this.state.equipped && this.state.equipped.right;
                         const def = eqId ? window.AveloraItems.get(eqId) : null;
                         if (def) {
@@ -407,7 +411,7 @@
                     slot._icon.appendChild(makeIcon(def));
                     const n = this.state.ownedCount(e.id);   // bag + hand
                     if (n <= 0) slot.classList.add('missing');
-                    if (n > 1 || (def && def.stackMax > 1)) slot._count.textContent = n > 0 ? String(n) : '';
+                    slot._count.textContent = n > 1 ? String(n) : '';
                     if (this.state.equippedSlotOf(e.id)) slot.classList.add('equipped');
                 }
             });
@@ -479,7 +483,17 @@
                 const meta = document.createElement('div');
                 meta.className = 'skill-entry-meta';
                 meta.textContent = skillMeta(def);
-                text.append(name, desc, meta);
+                const sl = this.skillStatsLine(def);
+                if (sl) {
+                    const dmgEl = document.createElement('div');
+                    dmgEl.className = 'skill-entry-meta';
+                    dmgEl.style.color = '#a9d68c';
+                    dmgEl.style.fontWeight = '600';
+                    dmgEl.textContent = sl;
+                    text.append(name, desc, meta, dmgEl);
+                } else {
+                    text.append(name, desc, meta);
+                }
                 row.append(iconWrap, text);
                 return row;
             }
@@ -1323,7 +1337,7 @@
                 const names = window.AVELORA_PROGRESSION.statNames, tot = hero.stats(), gear = hero.gearStats();
                 const fmt = (v) => Math.floor(v + 1e-9);
                 attrs.innerHTML = ['str', 'dex', 'int'].map(k =>
-                    `<div class="hero-attr-row"><span>${names[k]}</span><span><b>${fmt(tot[k])}</b>${gear[k] ? `<i>+${fmt(gear[k])}</i>` : ''}</span></div>`).join('');
+                    `<div class="hero-attr-row"><span>${names[k]}</span><span><b>${fmt(tot[k])}</b>${gear[k] ? `<i>(+${fmt(gear[k])})</i>` : ''}</span></div>`).join('');
             }
 
             // Weapon, damage, spell power, mana regen
@@ -1370,8 +1384,8 @@
                 el.classList.toggle('filled', !!def);
                 if (def) {
                     el.insertBefore(makeIcon(def), el.firstChild);
-                    el.title = `${def.name} — нажмите, чтобы снять (уйдёт в сумку)`;
-                    el.onclick = (e) => { e.stopPropagation(); this.unequip(key); };
+                    el.removeAttribute('title');
+                    el.onclick = (e) => { e.stopPropagation(); this.hideTooltip(); this.unequip(key); };
                 } else {
                     el.title = `${SLOT_NAMES[slot] || slot}: пусто`;
                     el.onclick = null;
@@ -1393,6 +1407,18 @@
                 this.questsPanel.addEventListener('click', (e) => {
                     e.stopPropagation();
                 });
+                const tabBtns = this.questsPanel.querySelectorAll('.quest-tab-btn');
+                tabBtns.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.hideTooltip();
+                        const tab = btn.dataset.tab;
+                        if (tab && this.questTab !== tab) {
+                            this.questTab = tab;
+                            this.updateQuestsProgress();
+                        }
+                    });
+                });
             }
         }
 
@@ -1410,42 +1436,208 @@
             if (open) {
                 this.updateQuestsProgress();
                 if (this.heroOpen) this.setHeroOpen(false);
+            } else {
+                this.hideTooltip();
             }
+        }
+
+        showQuestRewardTooltip(el, q) {
+            if (!this.tooltip || !q) return;
+            this.tooltip.innerHTML = '';
+            this.tooltip.classList.remove('warn', 'interactive');
+
+            const header = document.createElement('div');
+            header.className = 'tt-name';
+            header.textContent = q.title;
+            this.tooltip.appendChild(header);
+
+            const badge = document.createElement('div');
+            badge.className = 'tt-meta';
+            if (q.completed) {
+                badge.style.color = '#81c784';
+                badge.textContent = '✓ Завершено · Награда получена';
+            } else {
+                badge.textContent = q.badge;
+            }
+            this.tooltip.appendChild(badge);
+
+            const rw = q.reward;
+            if (rw && (rw.gold || rw.xp || (rw.items && rw.items.length))) {
+                const rwTitle = document.createElement('div');
+                rwTitle.style.fontSize = '0.74rem';
+                rwTitle.style.color = '#efcf7a';
+                rwTitle.style.fontWeight = '600';
+                rwTitle.style.textTransform = 'uppercase';
+                rwTitle.style.letterSpacing = '0.04em';
+                rwTitle.style.marginTop = '6px';
+                rwTitle.textContent = 'Награда за задание:';
+                this.tooltip.appendChild(rwTitle);
+
+                const rwBox = document.createElement('div');
+                rwBox.style.display = 'flex';
+                rwBox.style.flexDirection = 'column';
+                rwBox.style.gap = '3px';
+                rwBox.style.marginTop = '3px';
+
+                if (rw.xp) {
+                    const xpRow = document.createElement('div');
+                    xpRow.style.fontSize = '0.8rem';
+                    xpRow.style.color = '#9cdcfe';
+                    xpRow.textContent = `⭐ +${rw.xp} опыта`;
+                    rwBox.appendChild(xpRow);
+                }
+                if (rw.gold) {
+                    const gRow = document.createElement('div');
+                    gRow.style.fontSize = '0.8rem';
+                    gRow.style.color = '#efcf7a';
+                    gRow.innerHTML = `<span class="coin"></span> +${rw.gold} монет`;
+                    rwBox.appendChild(gRow);
+                }
+                if (rw.items && rw.items.length) {
+                    rw.items.forEach(it => {
+                        const def = window.AveloraItems && window.AveloraItems.get(it.item);
+                        const iRow = document.createElement('div');
+                        iRow.style.fontSize = '0.8rem';
+                        iRow.style.color = '#f1e2c8';
+                        const countTxt = it.count > 1 ? ` ×${it.count}` : '';
+                        const name = def ? def.name : it.item;
+                        iRow.innerHTML = `🎁 <b>${name}</b>${countTxt}`;
+                        rwBox.appendChild(iRow);
+
+                        if (def && def.description) {
+                            const descRow = document.createElement('div');
+                            descRow.style.fontSize = '0.72rem';
+                            descRow.style.color = '#a2aba9';
+                            descRow.style.fontStyle = 'italic';
+                            descRow.style.paddingLeft = '18px';
+                            descRow.textContent = def.description;
+                            rwBox.appendChild(descRow);
+                        }
+                        const rLines = this.itemStatsLines(def);
+                        rLines.forEach(l => {
+                            const statRow = document.createElement('div');
+                            statRow.style.fontSize = '0.72rem';
+                            statRow.style.color = '#a9d68c';
+                            statRow.style.paddingLeft = '18px';
+                            statRow.textContent = l;
+                            rwBox.appendChild(statRow);
+                        });
+                    });
+                }
+                this.tooltip.appendChild(rwBox);
+            } else {
+                const noRw = document.createElement('div');
+                noRw.className = 'tt-desc';
+                noRw.style.marginTop = '4px';
+                noRw.textContent = q.completed ? 'Награда за это задание уже получена.' : 'Особая награда не предусмотрена.';
+                this.tooltip.appendChild(noRw);
+            }
+
+            this.placeTooltip(el);
         }
 
         updateQuestsProgress() {
             const listEl = document.getElementById('quests-list');
             if (!listEl) return;
             const st = this.state, dlg = this.dialog;
-            const quests = [];
+            const activeQuests = [];
+            const completedQuests = [];
+
             if (st && dlg) {
                 const ids = Object.keys(st.quests || {});
-                // active first, finished after
-                ids.sort((x, y) => (st.quests[x] === 'active' ? 0 : 1) - (st.quests[y] === 'active' ? 0 : 1));
                 ids.forEach(id => {
                     const q = dlg.questDef(id);
                     if (!q) return;
                     const done = st.quests[id] === 'done';
                     const p = dlg.questProgress(q);
-                    quests.push({
-                        title: q.name, desc: q.summary || '', completed: done,
-                        badge: done ? 'Завершено' : (p.ready ? 'Вернись к ' + (dlg.giverName(q) || 'заказчику') : dlg.questLabel(q, p))
-                    });
+                    const rw = dlg.getQuestRewards ? dlg.getQuestRewards(q) : { gold: 0, xp: 0, items: [] };
+                    const qItem = {
+                        id,
+                        title: q.name,
+                        desc: q.summary || '',
+                        completed: done,
+                        badge: done ? 'Завершено' : (p.ready ? 'Вернись к ' + (dlg.giverName(q) || 'заказчику') : dlg.questLabel(q, p)),
+                        reward: rw
+                    };
+                    if (done) {
+                        completedQuests.push(qItem);
+                    } else {
+                        activeQuests.push(qItem);
+                    }
                 });
             }
-            if (!quests.length) quests.push({ title: 'Пока заданий нет', desc: 'Поговорите с Лираэль у водопада — у неё найдётся работа.', completed: false, badge: '—' });
+
+            // Update tab badges & active states
+            const countActiveEl = document.getElementById('quest-tab-count-active');
+            const countCompletedEl = document.getElementById('quest-tab-count-completed');
+            if (countActiveEl) countActiveEl.textContent = activeQuests.length;
+            if (countCompletedEl) countCompletedEl.textContent = completedQuests.length;
+
+            if (this.questsPanel) {
+                const tabBtns = this.questsPanel.querySelectorAll('.quest-tab-btn');
+                tabBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === this.questTab);
+                });
+            }
+
+            const currentList = this.questTab === 'completed' ? completedQuests : activeQuests;
 
             listEl.innerHTML = '';
-            quests.forEach(q => {
+            if (!currentList.length) {
+                const empty = document.createElement('div');
+                empty.className = 'quest-list-empty';
+                if (this.questTab === 'completed') {
+                    empty.innerHTML = `
+                        <div class="quest-empty-title">Завершённых заданий пока нет</div>
+                        <div class="quest-empty-desc">Выполненные поручения будут сохранены здесь в летописи.</div>
+                    `;
+                } else {
+                    empty.innerHTML = `
+                        <div class="quest-empty-title">Нет активных заданий</div>
+                        <div class="quest-empty-desc">Поговорите с Лираэль у водопада или жителями — у них найдётся работа.</div>
+                    `;
+                }
+                listEl.appendChild(empty);
+                return;
+            }
+
+            currentList.forEach(q => {
                 const card = document.createElement('div');
                 card.className = `quest-card ${q.completed ? 'completed' : ''}`;
+                let rwHtml = '';
+                if (q.reward && (q.reward.gold || q.reward.xp || (q.reward.items && q.reward.items.length))) {
+                    const parts = [];
+                    if (q.reward.gold) parts.push(`<span class="coin"></span> +${q.reward.gold}`);
+                    if (q.reward.xp) parts.push(`⭐ +${q.reward.xp} опыта`);
+                    if (q.reward.items && q.reward.items.length) {
+                        const itemNames = q.reward.items.map(it => {
+                            const def = window.AveloraItems && window.AveloraItems.get(it.item);
+                            return (def ? def.name : it.item) + (it.count > 1 ? ` x${it.count}` : '');
+                        }).join(', ');
+                        parts.push(`🎁 ${itemNames}`);
+                    }
+                    rwHtml = `<div class="quest-card-reward"><span class="quest-reward-label">Награда:</span> ${parts.join(' • ')}</div>`;
+                }
                 card.innerHTML = `
                     <div class="quest-card-header">
                         <div class="quest-card-title">${q.title}</div>
-                        <span class="quest-status-badge">${q.badge}</span>
+                        <div class="quest-card-actions">
+                            <span class="quest-status-badge">${q.badge}</span>
+                            ${(!q.completed && q.id) ? `<button type="button" class="quest-abandon-btn" data-quest="${q.id}" title="Отказаться от задания">Отменить</button>` : ''}
+                        </div>
                     </div>
                     <div class="quest-card-desc">${q.desc}</div>
+                    ${rwHtml}
                 `;
+
+                const abandonBtn = card.querySelector('.quest-abandon-btn');
+                if (abandonBtn) {
+                    abandonBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.hideTooltip();
+                        if (dlg && dlg.abandonQuest) dlg.abandonQuest(q.id);
+                    });
+                }
                 listEl.appendChild(card);
             });
         }
@@ -1467,7 +1659,8 @@
             const e = this.state.hotbar[i];
             const slot = this.slots[i];
             if (!e) {
-                if (i === 0 && this.game.combat) {
+                const isTouchUi = document.body && document.body.classList.contains('touch-ui');
+                if (i === 0 && isTouchUi && this.game.combat) {
                     this.game.combat.performBasicAttack();
                     this.flashSlot(slot, 'pressed');
                 }
@@ -1551,17 +1744,54 @@
             return s === 'right' ? 'weapon' : s;
         }
 
+        /** Array of lines for item stats: main first (damage / armor / tool action), then stat bonuses. */
+        itemStatsLines(def) {
+            if (!def) return [];
+            const nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
+            const lines = [];
+            if (def.weapon && def.weapon.damage) {
+                lines.push(`Урон ${def.weapon.damage[0]}–${def.weapon.damage[1]}`);
+            } else if (def.armor) {
+                lines.push(`Броня +${def.armor}`);
+            }
+            if (def.weapon && def.weapon.chop > 0) lines.push('Рубит деревья');
+            if (def.weapon && def.weapon.mine > 0) lines.push('Добывает руду');
+            if (def.stats) {
+                ['str', 'dex', 'int'].forEach(k => {
+                    if (def.stats[k]) lines.push(`${nm[k] || k} +${def.stats[k]}`);
+                });
+            }
+            return lines;
+        }
+
         /** "Броня +3 · Сила +1 · …" line of an item (armor / stats), or ''. */
         itemStatsLine(def) {
-            if (!def) return '';
-            const nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
-            const parts = [];
-            if (def.armor) parts.push(`Броня +${def.armor}`);
-            if (def.stats) ['str', 'dex', 'int'].forEach(k => { if (def.stats[k]) parts.push(`${nm[k] || k} +${def.stats[k]}`); });
-            if (def.weapon && def.weapon.damage) parts.push(`Урон ${def.weapon.damage[0]}–${def.weapon.damage[1]}`);
-            if (def.weapon && def.weapon.chop > 0) parts.push('Рубит деревья');
-            if (def.weapon && def.weapon.mine > 0) parts.push('Добывает руду');
-            return parts.join(' · ');
+            return this.itemStatsLines(def).join(' · ');
+        }
+
+        /** "Урон 21–29 (огонь) · бонус +15%" line of a skill, taking hero stat bonuses into account. */
+        skillStatsLine(def) {
+            if (!def || !def.damage) return '';
+            const dmg = def.damage;
+            const hero = this.game && this.game.hero;
+            const mult = hero && typeof hero.skillMult === 'function' ? hero.skillMult(def) : 1;
+            const curMin = Math.max(1, Math.round((dmg.min || 0) * mult));
+            const curMax = Math.max(1, Math.round((dmg.max || 0) * mult));
+
+            const TYPE_NAMES = {
+                fire: 'огонь',
+                lightning: 'молния',
+                ice: 'холод',
+                physical: 'физ.'
+            };
+            const typeStr = TYPE_NAMES[dmg.type] ? ` (${TYPE_NAMES[dmg.type]})` : '';
+            const bonusPct = Math.round((mult - 1) * 100);
+
+            if (bonusPct > 0) {
+                return `Урон ${curMin}–${curMax}${typeStr} · бонус +${bonusPct}%`;
+            } else {
+                return `Урон ${curMin}–${curMax}${typeStr}`;
+            }
         }
 
         /** Damage multiplier the hero would get from this weapon (stat scaling differs for staff / bow / melee). */
@@ -1615,8 +1845,8 @@
             mk('tt-name', def.name);
             mk('tt-desc', def.description || '');
             mk('tt-meta', equippable ? `снаряжение · ${SLOT[Items.equipSlot(itemId)] || ''}` : (def.use ? 'действие' : 'материал'));
-            const sl = this.itemStatsLine(def);
-            if (sl) mk('tt-req', sl, '#a9d68c');
+            const slLines = this.itemStatsLines(def);
+            slLines.forEach(l => mk('tt-req', l, '#a9d68c'));
             if (def.requires) {
                 const rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
                 const parts = [];
@@ -1720,7 +1950,7 @@
         // -----------------------------------------------------------
         // Tooltip (#item-tooltip)
         // -----------------------------------------------------------
-        showTooltipFor(el, kind, id, count) {
+        showTooltipFor(el, kind, id, count, isDoll) {
             if (!this.tooltip) return;
             let def = null, meta = '';
             if (kind === 'skill') {
@@ -1730,8 +1960,9 @@
                 def = window.AveloraItems.get(id);
                 if (def) {
                     const n = this.state ? this.state.inventory.count(id) : 0;
-                    meta = count !== undefined ? `Количество: ${count}` : `В сумке: ${n}`;
-                    if (!def.use) meta += ' · материал';
+                    const countStr = (count !== undefined && count > 1) ? `Количество: ${count}` : (count === undefined && n > 1 ? `В сумке: ${n}` : '');
+                    const typeStr = def.use ? (def.use.type === 'equip' ? (isDoll ? 'снаряжение (надето)' : 'снаряжение') : 'действие') : 'материал';
+                    meta = countStr ? `${countStr} · ${typeStr}` : typeStr;
                 }
             }
             if (!def) return;
@@ -1742,8 +1973,28 @@
             const d = document.createElement('div'); d.className = 'tt-desc'; d.textContent = lab.description || '';
             const m = document.createElement('div'); m.className = 'tt-meta'; m.textContent = meta;
             this.tooltip.append(n, d, m);
-            const sl = kind === 'skill' ? '' : this.itemStatsLine(def);
-            if (sl) { const sd = document.createElement('div'); sd.className = 'tt-req'; sd.style.color = '#a9d68c'; sd.textContent = sl; this.tooltip.appendChild(sd); }
+            if (kind === 'skill') {
+                const sl = this.skillStatsLine(def);
+                if (sl) { const sd = document.createElement('div'); sd.className = 'tt-req'; sd.style.color = '#a9d68c'; sd.textContent = sl; this.tooltip.appendChild(sd); }
+            } else {
+                const slLines = this.itemStatsLines(def);
+                slLines.forEach(l => {
+                    const sd = document.createElement('div');
+                    sd.className = 'tt-req';
+                    sd.style.color = '#a9d68c';
+                    sd.textContent = l;
+                    this.tooltip.appendChild(sd);
+                });
+                if (isDoll) {
+                    const unequipDiv = document.createElement('div');
+                    unequipDiv.className = 'tt-hint';
+                    unequipDiv.style.color = '#e0a96d';
+                    unequipDiv.style.marginTop = '4px';
+                    unequipDiv.style.fontSize = '12px';
+                    unequipDiv.textContent = 'Нажмите, чтобы снять (уйдёт в сумку)';
+                    this.tooltip.appendChild(unequipDiv);
+                }
+            }
             this.placeTooltip(el);
         }
 
@@ -1758,16 +2009,24 @@
             this.tooltipTimer = setTimeout(() => this.hideTooltip(), 1800);
         }
 
-        placeTooltip(el) {
+        placeTooltip(el, side) {
             const t = this.tooltip;
             t.classList.remove('hidden');
             const r = el.getBoundingClientRect();
             const tw = t.offsetWidth, th = t.offsetHeight;
-            let x = r.left + r.width / 2 - tw / 2;
-            x = Math.max(6, Math.min(window.innerWidth - tw - 6, x));
-            let y = r.top - th - 8;
-            if (y < 6) y = r.bottom + 8;
-            if (y + th > window.innerHeight - 6) y = Math.max(6, window.innerHeight - th - 6);
+            let x, y;
+            if (side === 'left' || (el.closest && el.closest('#quest-tracker'))) {
+                x = r.left - tw - 12;
+                if (x < 6) x = r.right + 12;
+                y = r.top + r.height / 2 - th / 2;
+                y = Math.max(6, Math.min(window.innerHeight - th - 6, y));
+            } else {
+                x = r.left + r.width / 2 - tw / 2;
+                x = Math.max(6, Math.min(window.innerWidth - tw - 6, x));
+                y = r.top - th - 8;
+                if (y < 6) y = r.bottom + 8;
+                if (y + th > window.innerHeight - 6) y = Math.max(6, window.innerHeight - th - 6);
+            }
             t.style.left = `${x}px`;
             t.style.top = `${y}px`;
         }
@@ -1817,13 +2076,20 @@
             const d = document.createElement('div');
             d.className = 'tt-desc';
             d.textContent = def.description || '';
+            const typeStr = def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал';
             const m = document.createElement('div');
             m.className = 'tt-meta';
-            m.textContent = `Количество: ${src.count} · ${def.use ? (def.use.type === 'equip' ? 'снаряжение' : 'действие') : 'материал'}`;
+            m.textContent = src.count > 1 ? `Количество: ${src.count} · ${typeStr}` : typeStr;
 
             this.tooltip.append(header, d, m);
-            const sl = this.itemStatsLine(def);
-            if (sl) { const sd = document.createElement('div'); sd.className = 'tt-req'; sd.style.color = '#a9d68c'; sd.textContent = sl; this.tooltip.appendChild(sd); }
+            const slLines = this.itemStatsLines(def);
+            slLines.forEach(l => {
+                const sd = document.createElement('div');
+                sd.className = 'tt-req';
+                sd.style.color = '#a9d68c';
+                sd.textContent = l;
+                this.tooltip.appendChild(sd);
+            });
             if (def.requires) {
                 const lack = this.unmetRequirement(def), rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
                 const parts = [];
@@ -2278,6 +2544,13 @@
         /** Which draggable thing (if any) an element belongs to. */
         sourceFromEl(target) {
             if (!target || !target.closest) return null;
+            const doll = target.closest('.doll-slot');
+            if (doll && this.state && this.state.equipped) {
+                const slot = doll.dataset.slot;
+                const key = slot === 'weapon' ? 'right' : slot;
+                const itemId = this.state.equipped[key];
+                return itemId ? { kind: 'doll', slot: key, item: itemId, el: doll } : null;
+            }
             const slot = target.closest('.hotbar-slot');
             if (slot && this.state) {
                 const i = parseInt(slot.dataset.slot, 10);
@@ -2303,12 +2576,13 @@
 
         showSourceTooltip(src) {
             if (src.kind === 'inv' || src.kind === 'chest') this.showTooltipFor(src.el, 'item', src.item, src.count);
+            else if (src.kind === 'doll') this.showTooltipFor(src.el, 'item', src.item, undefined, true);
             else if (src.kind === 'skill') this.showTooltipFor(src.el, 'skill', src.id);
             else if (src.kind === 'slot' && src.entry) this.showTooltipFor(src.el, src.entry.type === 'skill' ? 'skill' : 'item', src.entry.id);
         }
 
         sourceIconDef(src) {
-            if (src.kind === 'inv' || src.kind === 'chest') return window.AveloraItems.get(src.item);
+            if (src.kind === 'inv' || src.kind === 'chest' || src.kind === 'doll') return window.AveloraItems.get(src.item);
             if (src.kind === 'skill') return this.game.skills.get(src.id);
             if (src.kind === 'slot' && src.entry) {
                 return src.entry.type === 'skill' ? this.game.skills.get(src.entry.id) : window.AveloraItems.get(src.entry.id);
@@ -2321,6 +2595,7 @@
             if (!this.inputAllowed()) return;
             const src = this.sourceFromEl(e.target);
             if (!src) return;
+            if (src.kind === 'doll') return; // Don't drag from doll; click unequips it
             const isTouchSkill = e.pointerType !== 'mouse' && src.kind === 'skill';
             this.drag = {
                 src,

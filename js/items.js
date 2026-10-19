@@ -19,7 +19,7 @@
     const INVENTORY_SIZE = 32;
 
     // Fists: what everyone fights with when the right hand holds no weapon.
-    const BARE_HANDS = Object.freeze({ id: null, name: 'Кулаки', damage: [1, 3], range: 1.2, cooldown: 0.9, chop: 0, mine: 0 });
+    const BARE_HANDS = Object.freeze({ id: null, name: 'Кулаки', damage: [5, 8], range: 1.2, cooldown: 0.9, chop: 0, mine: 0 });
 
     function content() {
         return (window.GAME_CONTENT && window.GAME_CONTENT.items) || {};

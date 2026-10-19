@@ -40,6 +40,15 @@ const STAFF_KEYS = {
     spineYaw:   [[0, 0], [0.3, -6], [0.55, 4], [1, 0]],
     spinePitch: [[0, 0], [0.3, -4], [0.78, -4], [1, 0]]
 };
+// HERB / PLANT GATHER (weapon.style 'gather'): gentle downward bend to pick herbs with bare hands
+const GATHER_KEYS = {
+    spinePitch: [[0, 0], [0.38, -26], [0.62, -28], [1, 0]],
+    spineYaw:   [[0, 0], [0.38, 10],  [0.62, 8],   [1, 0]],
+    armPitch:   [[0, 0], [0.38, 32],  [0.62, 34],  [1, 0]],
+    armOut:     [[0, 0], [0.38, 8],   [0.62, 6],   [1, 0]],
+    forearm:    [[0, 0], [0.38, 28],  [0.62, 32],  [1, 0]],
+    hand:       [[0, 0], [0.38, -15], [0.62, -10], [1, 0]]
+};
 // BOW shot (weapon.style 'bow'): the right (bow) arm reaches out toward the target with the bow kept upright
 // (belly toward the target), the left arm swings out and the forearm is drawn back to the cheek (string pulled);
 // at u = 0.55 the string is released (combat.js fires the arrow at that moment) and the left hand snaps forward.
@@ -74,7 +83,7 @@ class MedievalCharacter {
     constructor(scene, terrain, characterConfig, onLoaded) {
         this.scene = scene;
         this.terrain = terrain;
-        this.config = characterConfig || window.getCharacterConfig('warrior');
+        this.config = characterConfig || window.getCharacterConfig('mage');
         this.onLoaded = onLoaded;
 
         this.mesh = null;
@@ -235,6 +244,10 @@ class MedievalCharacter {
                 if (this.isAttacking && e.action === this.actions[(this.config.animMap || {}).attack]) {
                     this.isAttacking = false;
                     this.idleTimer = 0;
+                    if (this._hideHandItemForGather) {
+                        this._hideHandItemForGather = false;
+                        this.setHandItemVisible(true);
+                    }
                     if (!this.isMoving) this.fadeToLogical('idle', 0.25);
                     else this.fadeToLogical('run', 0.2);
                 }
@@ -576,7 +589,15 @@ class MedievalCharacter {
         if (!sw || !b || !this.mesh) return;
         sw.t += delta;
         const u = sw.t / sw.d;
-        if (u >= 1) { this.swing = null; return; }
+        if (u >= 1) {
+            this.swing = null;
+            if (this._hideHandItemForGather) {
+                this._hideHandItemForGather = false;
+                this.setHandItemVisible(true);
+            }
+            return;
+        }
+        if (sw.style === 'gather') { this.applyGatherOverlay(u); return; }
         if (sw.style === 'staff') { this.applyStaffOverlay(u); return; }
         if (sw.style === 'bow') { this.applyBowOverlay(u); return; }
         const k = this.config.swing || {};
@@ -635,6 +656,35 @@ class MedievalCharacter {
         qb.premultiply(qd);
         b.parent.getWorldQuaternion(qO);
         b.quaternion.copy(qO).invert().multiply(qb);
+    }
+
+    /** Herb gathering: gentle forward lean with bare hand reaching down to pick the plant. */
+    applyGatherOverlay(u) {
+        const b = this.swingBones;
+        this.mesh.updateMatrixWorld(true);
+        for (let i = 0; i < b.all.length; i++) this.saveOverlayBone(b.all[i]);
+        const r = this.currentRotation;
+        this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+        const yaw = swingKey(GATHER_KEYS.spineYaw, u) * DEG;
+        const pitch = swingKey(GATHER_KEYS.spinePitch, u) * DEG;
+        const n = b.spine.length || 1;
+        for (let i = 0; i < b.spine.length; i++) {
+            this.rotateBoneWorld(b.spine[i], this._up, yaw / n);
+            this.rotateBoneWorld(b.spine[i], this._right, pitch / n);
+        }
+        this._fwd.applyAxisAngle(this._up, yaw);
+        this._right.applyAxisAngle(this._up, yaw);
+
+        const ap = swingKey(GATHER_KEYS.armPitch, u) * DEG;
+        const ao = swingKey(GATHER_KEYS.armOut, u) * DEG;
+        if (b.shoulder) this.rotateBoneWorld(b.shoulder, this._right, ap * 0.15);
+        if (b.arm) {
+            this.rotateBoneWorld(b.arm, this._right, ap * 0.85);
+            this.rotateBoneWorld(b.arm, this._fwd, -ao);
+        }
+        if (b.forearm) this.rotateBoneWorld(b.forearm, this._right, swingKey(GATHER_KEYS.forearm, u) * DEG);
+        if (b.hand) this.rotateBoneWorld(b.hand, this._right, swingKey(GATHER_KEYS.hand, u) * DEG);
     }
 
     /** Staff thrust: arm out forward, hand counter-rotated so the staff keeps its upright pose. */
@@ -781,6 +831,10 @@ class MedievalCharacter {
         this.swing = null;
         this.isCasting = false;
         this.isAttacking = false;
+        if (this._hideHandItemForGather) {
+            this._hideHandItemForGather = false;
+            this.setHandItemVisible(true);
+        }
         if (this.isMoving) this.stopMovement();
         this.isTurning = false;
         this.isGreeting = false;
@@ -924,6 +978,16 @@ class MedievalCharacter {
             this.mesh.add(holder);
         }
         this.handItem = holder;
+    }
+
+    /** Temporarily show or hide the equipped right-hand item mesh (e.g. while gathering herbs with bare hands). */
+    setHandItemVisible(visible) {
+        if (this.handItem) {
+            this.handItem.visible = !!visible;
+        }
+        if (this.travelerStaff) {
+            this.travelerStaff.visible = !!visible && !this.handItem;
+        }
     }
 
     static disposeObject(obj) {

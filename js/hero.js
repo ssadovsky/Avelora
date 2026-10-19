@@ -21,7 +21,9 @@
     /** XP needed to go from `level` to `level + 1`. */
     function xpStep(level) {
         const c = CFG().xp;
-        return Math.max(1, Math.round(c.base * Math.pow(c.growth, level - 1)));
+        const base = (c && c.base) || 500;
+        const g = (c && c.growth !== undefined) ? c.growth : 1.0;
+        return Math.max(1, Math.round(base * level * g));
     }
     /** Total XP at which `level` is reached (level 1 = 0). */
     function xpForLevel(level) {
@@ -69,7 +71,8 @@
             this.state = state;
             this.clearEffects();
             this.charId = charConfig ? charConfig.id : null;
-            this.baseHp = (charConfig && charConfig.maxHp) || 100;
+            const cls = this.classCfg();
+            this.baseHp = (cls && cls.baseHp) || (charConfig && charConfig.maxHp) || 100;
             this.refresh(false);
             this.mana = this.maxMana;
             this._manaShown = -1; this._xpShown = '';
@@ -78,7 +81,7 @@
 
         classCfg() {
             const cl = CFG().classes;
-            return cl[this.charId] || cl.warrior;
+            return cl[this.charId] || cl.mage;
         }
 
         get xp() { return this.state ? this.state.xp : 0; }
@@ -90,9 +93,11 @@
             this.level = levelForXp(this.xp);
             const cls = this.classCfg(), M = CFG().multipliers, D = CFG().derived;
             const st = this.stats();
-            const lvlManaBonus = (cls.manaPerLevel || 0) * (this.level - 1);
-            this.maxMana = Math.round(cls.baseMana + lvlManaBonus + Math.max(0, st.int - cls.start.int) * D.manaPerInt * M.mana);
-            this.manaRegen = (cls.manaRegen + Math.max(0, st.int - cls.start.int) * D.manaRegenPerInt) * M.regen;
+            const baseM = cls.baseMana || 150;
+            const manaMult = cls && cls.manaPerLevel !== undefined ? cls.manaPerLevel : 0.5;
+            const lvlManaBonus = (this.level - 1) * (baseM * manaMult);
+            this.maxMana = Math.round(baseM + lvlManaBonus + st.int * D.manaPerInt * M.mana);
+            this.manaRegen = (cls.manaRegen + st.int * D.manaRegenPerInt) * M.regen;
             if (this.mana > this.maxMana || heal) this.mana = this.maxMana;
             const cb = this.game.combat;
             if (cb) {
@@ -153,26 +158,29 @@
             return out;
         }
 
-        /** Points above the class's starting value (what the multipliers act on). */
-        gain(stat) { return Math.max(0, this.stats()[stat] - this.classCfg().start[stat]); }
+        /** Points used for attribute scaling (full stats including gear). */
+        gain(stat) { return (this.stats() && this.stats()[stat]) || 0; }
 
         maxHp() {
             const cls = this.classCfg();
-            const lvlHpBonus = (cls.hpPerLevel || 0) * (this.level - 1);
-            return Math.max(1, Math.round(this.baseHp + lvlHpBonus + this.gain('str') * CFG().derived.hpPerStr * CFG().multipliers.health));
+            const base = (cls && cls.baseHp) || this.baseHp || 100;
+            const mult = cls && cls.hpPerLevel !== undefined ? cls.hpPerLevel : 0.5;
+            const lvlHpBonus = (this.level - 1) * (base * mult);
+            const strBonus = this.stats().str * CFG().derived.hpPerStr * CFG().multipliers.health;
+            return Math.max(1, Math.round(base + lvlHpBonus + strBonus));
         }
 
         /** Damage multiplier of a weapon (item.json weapon.stat, default 'str'). */
         meleeMult(weapon) {
             const stat = (weapon && weapon.stat) || 'str';
-            return 1 + this.gain(stat) * CFG().derived.damagePerStat * CFG().multipliers.damage;
+            return 1 + this.stats()[stat] * CFG().derived.damagePerStat * CFG().multipliers.damage;
         }
 
         /** Damage multiplier of a skill (by its damage type, or skill.json `stat`). */
         skillMult(def) {
             const map = CFG().damageStat;
             const stat = (def && def.stat) || map[(def && def.damage && def.damage.type) || 'default'] || map.default;
-            return 1 + this.gain(stat) * CFG().derived.damagePerStat * CFG().multipliers.damage;
+            return 1 + this.stats()[stat] * CFG().derived.damagePerStat * CFG().multipliers.damage;
         }
 
         // -----------------------------------------------------------

@@ -281,8 +281,6 @@
             if (!c || !node || entry.visible === false) return false;
             if (!this.hasTool(node) && !this.autoEquipTool(node)) {
                 if (g.combat) g.combat.cancel();
-                const path = g.pathfinder ? g.pathfinder.findPath(c.position, new THREE.Vector3(entry.x, 0, entry.z)) : [];
-                if (path && path.length) c.setPath(path);
                 const warnText = node.tool === 'mine' ? 'Нужна кирка (в сумке или в руке)' : 'Нужен топор (в сумке или в руке)';
                 if (g.ui) g.ui.floatText(warnText, 'warn');
                 return true;

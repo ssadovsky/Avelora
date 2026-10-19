@@ -523,6 +523,13 @@
         questStatus(id) { return this.quests[id] || null; }
         startQuest(id) { if (this.quests[id]) return false; this.quests[id] = 'active'; this.save(); return true; }
         completeQuest(id) { if (this.quests[id] !== 'active') return false; this.quests[id] = 'done'; this.save(); return true; }
+        abandonQuest(id) {
+            if (this.quests[id] !== 'active') return false;
+            delete this.quests[id];
+            if (this.questKills && this.questKills[id]) delete this.questKills[id];
+            this.save();
+            return true;
+        }
 
         knowsSkill(id) { return this.learnedSkills.includes(id); }
 

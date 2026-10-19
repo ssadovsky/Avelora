@@ -588,23 +588,30 @@
             const scale = (pile.def.ground && pile.def.ground.scale) || 1.0;
             let footprint = 0.3;
             layout.forEach(l => {
-                const obj = pile.variants[l.v % pile.variants.length].clone();
+                const v = pile.variants[l.v % pile.variants.length];
+                const obj = v.clone();
                 obj.position.set(l.x, l.y, l.z);
                 obj.rotation.set(l.rx || 0, l.ry || 0, l.rz || 0, l.order || 'XYZ');
                 obj.scale.setScalar(scale);
                 group.add(obj);
-                footprint = Math.max(footprint, Math.hypot(l.x, l.z) + 0.25);
+                const size = v.userData && v.userData.size;
+                const itemRad = size ? Math.max(size.x, size.z) * 0.5 * scale : 0.3;
+                footprint = Math.max(footprint, Math.hypot(l.x, l.z) + itemRad + 0.25);
             });
             this.root.add(group);
             pile.group = group;
 
             // Generous invisible hit target: small piles are hard to hover/tap on a phone
-            const HP = (window.AVELORA_HIT && window.AVELORA_HIT.pile) || { minRadius: 0.55, maxRadius: 1.2, footprintMul: 1, height: 0.9 };
-            const r = Math.max(HP.minRadius, Math.min(HP.maxRadius, footprint * HP.footprintMul));
-            const proxyGeo = new THREE.CylinderGeometry(r, r, HP.height, 10, 1);
-            proxyGeo.translate(0, HP.height / 2, 0);
+            const HP = (window.AVELORA_HIT && window.AVELORA_HIT.pile) || { minRadius: 0.55, maxRadius: 1.6, footprintMul: 1, height: 0.9 };
+            const isLog = pile.def && pile.def.id === 'log';
+            const minR = isLog ? 1.3 : HP.minRadius;
+            const maxR = isLog ? 2.0 : HP.maxRadius;
+            const h = isLog ? Math.max(1.0, HP.height) : HP.height;
+            const r = Math.max(minR, Math.min(maxR, footprint * HP.footprintMul));
+            const proxyGeo = new THREE.CylinderGeometry(r, r, h, 12, 1);
+            proxyGeo.translate(0, h / 2, 0);
             const proxy = new THREE.Mesh(proxyGeo, AveloraWorldObjects.proxyMaterial());
-            proxy.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) + (p.y || 0) * 0.5 - 0.1, p.z);
+            proxy.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) + (p.y || 0) * 0.5 - 0.15, p.z);
             proxy.userData.pickupId = pile.id;
             this.root.add(proxy);
             if (window.AveloraHitDebug) window.AveloraHitDebug.attach(proxy, 'pile');
@@ -982,6 +989,17 @@
                 return Promise.resolve(existing);
             }
             return this.addGroundPile(entry).then(() => this.piles.get(id) || null);
+        }
+
+        /** Removes all ground dynamic piles of a given itemId (e.g. on quest abandon). */
+        removeDynamicPilesOfItem(itemId) {
+            for (const [id, pile] of this.piles.entries()) {
+                if (pile.dynamic && pile.def && pile.def.id === itemId) {
+                    pile.data.count = 0;
+                    this.rebuildPile(pile);
+                    this.piles.delete(id);
+                }
+            }
         }
 
         /** Walkable ground (nav grid, not water) at a point? */

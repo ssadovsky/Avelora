@@ -20,7 +20,7 @@
         tree:      { radiusBottom: 0.22, radiusTop: 0.38, height: 2.2 },
         fern:      { radiusBottom: 0.224, radiusTop: 0.176, height: 0.2 },
         ore:       { radiusBottom: 0.75, radiusTop: 0.65, height: 0.7 },
-        pile:      { minRadius: 0.25, maxRadius: 0.55, footprintMul: 0.6, height: 0.45 },
+        pile:      { minRadius: 0.5, maxRadius: 1.6, footprintMul: 1.0, height: 0.85 },
         container: { minRadius: 0.4, minHeight: 0.7 }
     };
 

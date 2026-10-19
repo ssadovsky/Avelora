@@ -169,27 +169,29 @@
             // Уровень существа: задаётся в спавне sp.level или в creature.json def.level (по умолчанию 1)
             const level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
 
-            // Ранг существа: normal (обычный) | elite (элитный, обитатели подземелий) | boss (боссы)
+            // Ранг существа: normal (обычный) | elite (элитный, x2 HP) | boss (боссы, x3 HP)
             const rank = sp.rank || def.rank || 'normal';
             const RANK_MULTS = {
                 normal: { hp: 1.0, dmg: 1.0, xp: 1.0, gold: 1.0 },
-                elite:  { hp: 3.0, dmg: 1.4, xp: 3.0, gold: 3.0 },
-                boss:   { hp: 8.0, dmg: 1.8, xp: 8.0, gold: 8.0 }
+                elite:  { hp: 2.0, dmg: 1.25, xp: 2.0, gold: 2.0 },
+                boss:   { hp: 3.0, dmg: 1.5, xp: 3.0, gold: 3.0 }
             };
             const rm = RANK_MULTS[rank] || RANK_MULTS.normal;
 
-            // Уровень и есть прямой множитель параметров (1 ур = x1, 2 ур = x2, 5 ур = x5):
-            const hpMult = level * rm.hp;
-            const dmgMult = level * rm.dmg;
+            // Яша и Громокогть имеют свои уникальные статы в creature.json;
+            // все остальные существа используют единую базу: 50 HP на 1 уровне
+            const isCustomBoss = sp.type === 'yasha' || sp.type === 'thunderclaw';
+            const baseHp = isCustomBoss ? (mergedDef.hp || 320) : 50;
+            const hpMult = isCustomBoss ? rm.hp : (level * rm.hp);
+            const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
+
+            const baseDmg = isCustomBoss ? (mergedDef.damage || [18, 28]) : [5, 8];
+            const dmgMult = isCustomBoss ? rm.dmg : ((1 + (level - 1) * 0.25) * rm.dmg);
+            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 5) * dmgMult));
+            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 8) * dmgMult));
+
             const xpMult = level * rm.xp;
             const goldMult = level * rm.gold;
-
-            const baseHp = mergedDef.hp || 10;
-            const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
-            const baseDmg = mergedDef.damage || [1, 2];
-            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 1) * dmgMult));
-            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 2) * dmgMult));
-
             const baseGold = Array.isArray(mergedDef.gold) ? mergedDef.gold : [1, 2];
             const scaledGold = [
                 Math.max(0, Math.round((baseGold[0] || 0) * goldMult)),

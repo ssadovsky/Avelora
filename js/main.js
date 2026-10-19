@@ -100,8 +100,14 @@ class AveloraGame {
         this.mouse = new THREE.Vector2();
 
         // Diablo Camera Settings
-        this.cameraDistance = 24.0;
-        // View mode: 'third' (classic) | 'first' (zoom past the limit / camera button).
+        this.minDistance = 5.0; // closer zoom for inspecting characters
+        this.maxDistance = 42.0;
+        // Camera modes: 'main' (0%..25%) | 'topdown' (25%..100%) | 'first' (1st person)
+        this.camMode = 'main';
+        this.cameraDistance = this.minDistance + (this.maxDistance - this.minDistance) * 0.10; // Default 10%
+        this.savedMainDist = this.cameraDistance;
+        this.savedTopdownDist = this.minDistance + (this.maxDistance - this.minDistance) * 0.50;
+        // View mode: 'third' (classic) | 'first' (1st person).
         this.viewMode = 'third';
         this.camPitchOffset = 0;     // third person: extra camera elevation set by RMB / finger drag (rad)
         this.fpPitch = 0;            // look up/down in first person (rad)
@@ -114,8 +120,6 @@ class AveloraGame {
         this.lookTouchId = null;     // finger that rotates the camera in first person
         this.viewSwitchT = 0;        // time of the last view switch (wheel cooldown)
         this.lastWheelT = 0;
-        this.minDistance = 5.0; // closer zoom for inspecting characters
-        this.maxDistance = 42.0;
         this.cameraAngle = Math.PI * 0.25; // 45 deg yaw
         // Elevation (pitch) is no longer a fixed constant — it eases between
         // pitchZoomedIn (flatter, more cinematic) at minDistance and
@@ -242,10 +246,11 @@ class AveloraGame {
         saves.forEach(entry => { saveByCharId[entry.character.id] = entry.save; });
 
         (window.CHARACTER_CATALOG || []).forEach(char => {
+            if (char.hidden || char.disabled) return;
             const save = saveByCharId[char.id] || null;
 
             const card = document.createElement('div');
-            card.className = 'charcard' + (char.disabled ? ' disabled' : '');
+            card.className = 'charcard';
 
             const icon = document.createElement('div');
             icon.className = 'charcard-icon';
@@ -371,14 +376,46 @@ class AveloraGame {
         this.minDistance = (loc && typeof loc.minDistance === 'number') ? loc.minDistance : 5.0;
         this.maxDistance = (loc && typeof loc.maxDistance === 'number') ? loc.maxDistance : 42.0;
 
-        if (loc && typeof loc.cameraDistance === 'number') {
-            this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, loc.cameraDistance));
-        } else {
-            this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.cameraDistance));
-        }
+        const limits = this.getCameraZoomLimits();
+        // Always default to 'main' mode at 10% on start / load as requested
+        this.camMode = 'main';
+        this.cameraDistance = limits.main.def;
+        this.savedMainDist = this.cameraDistance;
+        this.savedTopdownDist = limits.topdown.def;
 
         this.pitchZoomedIn = (loc && typeof loc.pitchZoomedIn === 'number') ? loc.pitchZoomedIn : 0.3491;
         this.pitchZoomedOut = (loc && typeof loc.pitchZoomedOut === 'number') ? loc.pitchZoomedOut : 0.82;
+    }
+
+    /** Returns min, max, default distances for current mode brackets */
+    getCameraZoomLimits() {
+        const minD = (typeof this.minDistance === 'number') ? this.minDistance : 5.0;
+        const maxD = (typeof this.maxDistance === 'number') ? this.maxDistance : 42.0;
+        const span = Math.max(0.1, maxD - minD);
+        const d25 = minD + span * 0.25;
+        return {
+            main: { min: minD, max: d25, def: minD + span * 0.10 },
+            topdown: { min: d25, max: maxD, def: minD + span * 0.50 }
+        };
+    }
+
+    /** Cycle through the 3 camera modes: main (0-25%) -> topdown (25-100%) -> first person -> main */
+    cycleCamMode() {
+        const limits = this.getCameraZoomLimits();
+        if (this.camMode === 'main') {
+            this.savedMainDist = this.cameraDistance;
+            this.camMode = 'topdown';
+            if (this.viewMode === 'first') this.setViewMode('third');
+            this.cameraDistance = Math.max(limits.topdown.min, Math.min(limits.topdown.max, this.savedTopdownDist || limits.topdown.def));
+        } else if (this.camMode === 'topdown') {
+            this.savedTopdownDist = this.cameraDistance;
+            this.camMode = 'first';
+            this.setViewMode('first');
+        } else { // 'first'
+            this.camMode = 'main';
+            this.setViewMode('third');
+            this.cameraDistance = Math.max(limits.main.min, Math.min(limits.main.max, this.savedMainDist || limits.main.def));
+        }
     }
 
     async startGame(characterConfig, opts) {
@@ -1442,28 +1479,42 @@ class AveloraGame {
             if (this.isPaused) return;
             if (e.target && e.target.closest && e.target.closest(UI_SELECTOR)) return; // scrolling a panel/list must not zoom the camera
             const now = performance.now();
-            const sinceWheel = now - this.lastWheelT;
             this.lastWheelT = now;
             if (now - this.viewSwitchT < 350) return;      // cooldown after a view switch
-            if (this.viewMode === 'first') {
-                if (e.deltaY > 0) this.setViewMode('third'); // zoom out: back to max-zoom third person
+
+            // Mode 3: First person
+            if (this.viewMode === 'first' || this.camMode === 'first') {
+                if (e.deltaY > 0) {
+                    // Zoom out: exit back to main mode
+                    this.camMode = 'main';
+                    this.setViewMode('third');
+                }
                 return;
             }
-            // one more zoom-in "click" after the limit (a new notch, not the tail of the same roll)
-            if (e.deltaY < 0 && this.cameraDistance <= this.minDistance + 0.01 && sinceWheel > 120) {
-                this.setViewMode('first');
+
+            const limits = this.getCameraZoomLimits();
+            // Mode 1: Main (0% .. 25%)
+            if (this.camMode === 'main') {
+                this.cameraDistance = Math.max(limits.main.min, Math.min(limits.main.max, this.cameraDistance + e.deltaY * 0.02));
+                this.savedMainDist = this.cameraDistance;
                 return;
             }
-            this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, this.cameraDistance + e.deltaY * 0.02));
+
+            // Mode 2: Top-down (25% .. 100%)
+            if (this.camMode === 'topdown') {
+                this.cameraDistance = Math.max(limits.topdown.min, Math.min(limits.topdown.max, this.cameraDistance + e.deltaY * 0.02));
+                this.savedTopdownDist = this.cameraDistance;
+                return;
+            }
         }, { passive: true });
 
-        // Camera button: toggle first / third person
+        // Camera button: cycle through 3 camera modes (Main -> Top-down -> 1st Person -> Main)
         const camBtn = document.getElementById('cam-btn');
         if (camBtn) {
             camBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (this.isPaused) return;
-                this.setViewMode(this.viewMode === 'first' ? 'third' : 'first');
+                this.cycleCamMode();
             });
         }
 
@@ -1541,7 +1592,11 @@ class AveloraGame {
                 if (this.isPaused) return;
                 if (e.touches.length === 2 && this.fpPinch && !this.joy.active && !this.pinchSwitched) {
                     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if (this.touchStartDist > 0 && d > this.touchStartDist * 1.3) { this.pinchSwitched = true; this.setViewMode('third'); }
+                    if (this.touchStartDist > 0 && d > this.touchStartDist * 1.3) {
+                        this.pinchSwitched = true;
+                        this.camMode = 'main';
+                        this.setViewMode('third');
+                    }
                 }
                 if (e.cancelable) e.preventDefault();
                 return;
@@ -1565,12 +1620,22 @@ class AveloraGame {
                 // Pinch to Zoom
                 if (this.touchStartDist > 0) {
                     const factor = this.touchStartDist / currentDist;
-                    if (this.viewMode === 'first') {
-                        if (factor > 1.3 && !this.pinchSwitched) { this.pinchSwitched = true; this.setViewMode('third'); }
+                    const limits = this.getCameraZoomLimits();
+                    if (this.viewMode === 'first' || this.camMode === 'first') {
+                        if (factor > 1.3 && !this.pinchSwitched) {
+                            this.pinchSwitched = true;
+                            this.camMode = 'main';
+                            this.setViewMode('third');
+                        }
                     } else if (!this.pinchSwitched) {
                         const raw = this.touchInitialCamDist * factor;
-                        if (raw < this.minDistance * 0.7) { this.pinchSwitched = true; this.setViewMode('first'); }
-                        else this.cameraDistance = Math.max(this.minDistance, Math.min(this.maxDistance, raw));
+                        if (this.camMode === 'main') {
+                            this.cameraDistance = Math.max(limits.main.min, Math.min(limits.main.max, raw));
+                            this.savedMainDist = this.cameraDistance;
+                        } else {
+                            this.cameraDistance = Math.max(limits.topdown.min, Math.min(limits.topdown.max, raw));
+                            this.savedTopdownDist = this.cameraDistance;
+                        }
                     }
                 }
 
@@ -2143,11 +2208,18 @@ class AveloraGame {
         if (this.hideObjectTooltip) this.hideObjectTooltip();
         if (this.creatures) this.creatures.hovered = null;
         if (mode === 'first') {
+            this.camMode = 'first';
             if (this.character && this.character.isMoving) this.character.stopMovement(); // drop any click-to-move path
             this.fpPitch = 0;
             if (this.hideObjectTooltip) this.hideObjectTooltip();
         } else {
-            this.cameraDistance = this.minDistance; // back at the zoom limit; the next zoom-out shrinks it
+            if (this.camMode === 'first') this.camMode = 'main';
+            const limits = this.getCameraZoomLimits();
+            if (this.camMode === 'main') {
+                this.cameraDistance = Math.max(limits.main.min, Math.min(limits.main.max, this.savedMainDist || limits.main.def));
+            } else {
+                this.cameraDistance = Math.max(limits.topdown.min, Math.min(limits.topdown.max, this.savedTopdownDist || limits.topdown.def));
+            }
         }
         document.body.classList.toggle('fp-view', mode === 'first');
         this.applyBodyVisibility();

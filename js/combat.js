@@ -343,6 +343,11 @@
 
         /** Clicked elsewhere / location change: stop fighting (a swing already in the air still finishes visually). */
         cancel() {
+            const c = this.game && this.game.character;
+            if (c && c._hideHandItemForGather && (!c.swing || c.swing.style !== 'gather')) {
+                c._hideHandItemForGather = false;
+                if (c.setHandItemVisible) c.setHandItemVisible(true);
+            }
             this.engagement = null;
             this.pendingHit = null;
             // NOTE: does NOT clear selectedTarget — target persists until explicitly deselected
@@ -396,14 +401,20 @@
             c.faceTowards(e.x(), e.z());
             const casting = g.skills && g.skills.casting;
             if (!casting && !c.isSwinging && !c.isCasting && now >= this.nextSwingAt) {
-                // gathering a plant is not an attack: plain hand motion whatever is in the hand
-                const sty = e.kind === 'gather' ? null : w.style;
-                const dur = sty === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85);
-                if (sty === 'bow') c.startSwing(dur, 'bow');
+                // gathering a plant: gentle herbal gathering pose with bare hands
+                const isGather = e.kind === 'gather';
+                if (isGather && c.setHandItemVisible) {
+                    c._hideHandItemForGather = true;
+                    c.setHandItemVisible(false);
+                }
+                const sty = isGather ? 'gather' : w.style;
+                const dur = isGather ? 0.95 : (sty === 'bow' ? Math.min(1.0, w.cooldown * 0.95) : Math.min(0.85, w.cooldown * 0.85));
+                if (sty === 'gather') c.startSwing(dur, 'gather');
+                else if (sty === 'bow') c.startSwing(dur, 'bow');
                 else if (c.playAttack) c.playAttack(dur, sty);
                 else c.startSwing(dur, sty);
-                this.nextSwingAt = now + w.cooldown;
-                this.pendingHit = { at: now + dur * window.MedievalCharacter.SWING_HIT_FRAC, target: e, weapon: w };
+                this.nextSwingAt = now + (isGather ? 1.05 : w.cooldown);
+                this.pendingHit = { at: now + dur * 0.55, target: e, weapon: w, isGather };
                 this.lastCombatAt = now;
             }
         }
@@ -513,8 +524,11 @@
                 }
                 if (this.engagement) this.updateEngagement(delta, false);
 
-                if (this.hp < this.maxHp && now - this.lastCombatAt >= REGEN_DELAY) {
-                    this.hp = Math.min(this.maxHp, this.hp + this.maxHp * REGEN_PER_SEC * delta);
+                const cfgHpRegen = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.hpRegen) || {};
+                const rDelay = Number.isFinite(cfgHpRegen.delay) ? cfgHpRegen.delay : REGEN_DELAY;
+                const rFrac = Number.isFinite(cfgHpRegen.percent) ? cfgHpRegen.percent : REGEN_PER_SEC;
+                if (this.hp < this.maxHp && now - this.lastCombatAt >= rDelay) {
+                    this.hp = Math.min(this.maxHp, this.hp + this.maxHp * rFrac * delta);
                     this.renderHp();
                 }
             }
