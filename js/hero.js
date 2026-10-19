@@ -1,5 +1,5 @@
 /**
- * Avelora — Hero progression: level / experience / stats / mana (balance numbers: progression_config.js)
+ * Avelora — Hero progression: level / experience / stats / mana (balance numbers: js/config/progression.js)
  *
  *  - Only EXPERIENCE is saved (state.xp); the level is computed from it, so tuning the curve in the
  *    config never breaks a save. Level 1 = 0 xp, `maxLevel` is the cap.

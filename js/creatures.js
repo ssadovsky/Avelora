@@ -141,7 +141,9 @@
                         return;
                     }
                 } else {
-                    if (killedAt !== null && this.playTime - killedAt < this.respawnSeconds(def)) {
+                    const now = Math.floor(Date.now() / 1000);
+                    const deathTime = (killedAt !== null && killedAt < 1e9) ? (now - Math.max(0, this.playTime - killedAt)) : killedAt;
+                    if (killedAt !== null && (now - deathTime < this.respawnSeconds(def))) {
                         rec.state = 'gone'; // still dead: waits for respawn
                         return;
                     }
@@ -169,30 +171,31 @@
             // Уровень существа: задаётся в спавне sp.level или в creature.json def.level (по умолчанию 1)
             const level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
 
-            // Ранг существа: normal (обычный) | elite (элитный, x2 HP) | boss (боссы, x3 HP)
+            // Параметры рангов и масштабирования берутся из js/config/creatures.js
+            const cfg = window.AVELORA_CREATURES_CONFIG || {};
             const rank = sp.rank || def.rank || 'normal';
-            const RANK_MULTS = {
+            const RANK_MULTS = cfg.ranks || {
                 normal: { hp: 1.0, dmg: 1.0, xp: 1.0, gold: 1.0 },
                 elite:  { hp: 2.0, dmg: 1.25, xp: 2.0, gold: 2.0 },
                 boss:   { hp: 3.0, dmg: 1.5, xp: 3.0, gold: 3.0 }
             };
             const rm = RANK_MULTS[rank] || RANK_MULTS.normal;
 
-            // Яша и Громокогть имеют свои уникальные статы в creature.json;
-            // все остальные существа используют единую базу: 50 HP на 1 уровне
-            const isCustomBoss = sp.type === 'yasha' || sp.type === 'thunderclaw';
-            const baseHp = isCustomBoss ? (mergedDef.hp || 320) : 50;
+            const customBosses = cfg.customBosses || ['yasha', 'thunderclaw'];
+            const isCustomBoss = customBosses.includes(sp.type);
+            const baseHp = isCustomBoss ? (mergedDef.hp || 320) : (cfg.baseHp !== undefined ? cfg.baseHp : 50);
             const hpMult = isCustomBoss ? rm.hp : (level * rm.hp);
             const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
 
-            const baseDmg = isCustomBoss ? (mergedDef.damage || [18, 28]) : [5, 8];
-            const dmgMult = isCustomBoss ? rm.dmg : ((1 + (level - 1) * 0.25) * rm.dmg);
+            const baseDmg = isCustomBoss ? (mergedDef.damage || [18, 28]) : (cfg.baseDamage || [5, 8]);
+            const dmgGrowth = cfg.damageGrowthPerLevel !== undefined ? cfg.damageGrowthPerLevel : 0.25;
+            const dmgMult = isCustomBoss ? rm.dmg : ((1 + (level - 1) * dmgGrowth) * rm.dmg);
             const dmgMin = Math.max(1, Math.round((baseDmg[0] || 5) * dmgMult));
             const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 8) * dmgMult));
 
-            const xpMult = level * rm.xp;
-            const goldMult = level * rm.gold;
-            const baseGold = Array.isArray(mergedDef.gold) ? mergedDef.gold : [1, 2];
+            const xpMult = level * rm.xp * (cfg.xpMultiplier !== undefined ? cfg.xpMultiplier : 1.0);
+            const goldMult = level * rm.gold * (cfg.goldMultiplier !== undefined ? cfg.goldMultiplier : 1.0);
+            const baseGold = Array.isArray(mergedDef.gold) ? mergedDef.gold : (cfg.baseGold || [1, 2]);
             const scaledGold = [
                 Math.max(0, Math.round((baseGold[0] || 0) * goldMult)),
                 Math.max(1, Math.round((baseGold[1] || 1) * goldMult))
@@ -1040,7 +1043,7 @@
             this.play(rec, 'Death', 0.1, true);
             if (this.hovered === rec) this.hovered = null;
             this.hideHpBar(rec);
-            if (this.state) this.state.setKilled(this.location.id, rec.id, this.playTime);
+            if (this.state) this.state.setKilled(this.location.id, rec.id, Math.floor(Date.now() / 1000));
             const bd = this.location.dungeon;
             if (this.state && bd && bd.bossId === rec.id) this.state.setKilled(this.location.id, '__cleared', Math.floor(Date.now() / 1000));   // boss killed under the dungeon-reset rules
             this.dropLoot(rec);
@@ -1275,19 +1278,23 @@
         }
 
         // -----------------------------------------------------------
-        // Respawn (played time)
+        // Respawn (real wall-clock time)
         // -----------------------------------------------------------
         checkRespawns() {
             const st = this.state;
             if (!st) return;
             // В подземелье индивидуального респавна нет (данж сбрасывается только целиком после убийства босса и выхода)
             if (this.location && this.location.isDungeon) return;
+            const now = Math.floor(Date.now() / 1000);
             for (let i = 0; i < this.list.length; i++) {
                 const rec = this.list[i];
                 if (rec.state !== 'gone' || rec.group || rec.slain) continue;
                 const t = st.getKilled(this.location.id, rec.id);
-                if (t !== null && this.playTime - t < this.respawnSeconds(rec.def)) continue;
-                if (t !== null) st.clearKilled(this.location.id, rec.id);
+                if (t !== null) {
+                    const deathTime = (t < 1e9) ? (now - Math.max(0, this.playTime - t)) : t;
+                    if (now - deathTime < this.respawnSeconds(rec.def)) continue;
+                    st.clearKilled(this.location.id, rec.id);
+                }
                 rec.state = 'spawning';
                 this.spawn(rec, true);
             }

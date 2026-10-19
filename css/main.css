@@ -142,8 +142,8 @@
             position: fixed;
             bottom: max(env(safe-area-inset-bottom, 0px), 16px);
             left: max(env(safe-area-inset-left, 0px), 16px);
-            width: 150px;
-            height: 150px;
+            width: 220px;
+            height: 220px;
             z-index: 80;
             display: none;
             touch-action: none;
@@ -172,8 +172,8 @@
         }
         #joy-base {
             position: relative;
-            width: 126px;
-            height: 126px;
+            width: 220px;
+            height: 220px;
             border-radius: 50%;
             background: radial-gradient(circle, rgba(239, 207, 122, 0.08) 0%, rgba(12, 16, 18, 0.72) 70%);
             border: 2px solid rgba(212, 175, 55, 0.45);
@@ -189,23 +189,23 @@
         }
         .joy-arrow {
             position: absolute;
-            font-size: 11px;
+            font-size: 15px;
             color: rgba(212, 175, 55, 0.45);
             pointer-events: none;
             line-height: 1;
             font-family: Arial, sans-serif;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
         }
-        .joy-arrow-up { top: 7px; left: 50%; transform: translateX(-50%); }
-        .joy-arrow-down { bottom: 7px; left: 50%; transform: translateX(-50%); }
-        .joy-arrow-left { left: 8px; top: 50%; transform: translateY(-50%); }
-        .joy-arrow-right { right: 8px; top: 50%; transform: translateY(-50%); }
+        .joy-arrow-up { top: 10px; left: 50%; transform: translateX(-50%); }
+        .joy-arrow-down { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .joy-arrow-left { left: 12px; top: 50%; transform: translateY(-50%); }
+        .joy-arrow-right { right: 12px; top: 50%; transform: translateY(-50%); }
         #joy-knob {
             position: absolute;
-            left: calc(50% - 25px);
-            top: calc(50% - 25px);
-            width: 50px;
-            height: 50px;
+            left: calc(50% - 40px);
+            top: calc(50% - 40px);
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             background: radial-gradient(circle at 35% 35%, #f1dfba, #b38b3f 65%, #634b1c 100%);
             border: 2px solid rgba(255, 245, 210, 0.9);
@@ -3777,28 +3777,29 @@
                 overflow: visible !important;
             }
 
-            /* Hide desktop slots 7..9 on mobile screens */
+            /* Hide desktop slots 7..9 and PC xp-bar on mobile screens */
             .skill-bar .skill-slot[data-slot="7"],
             .skill-bar .skill-slot[data-slot="8"],
-            .skill-bar .skill-slot[data-slot="9"] {
+            .skill-bar .skill-slot[data-slot="9"],
+            .xp-bar {
                 display: none !important;
             }
 
             #joy-zone {
-                bottom: max(env(safe-area-inset-bottom, 0px), 10px);
-                left: max(env(safe-area-inset-left, 0px), 10px);
-                width: 130px;
-                height: 130px;
+                bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+                left: max(env(safe-area-inset-left, 0px), 16px);
+                width: 220px;
+                height: 220px;
             }
             #joy-base {
-                width: 110px;
-                height: 110px;
+                width: 220px;
+                height: 220px;
             }
             #joy-knob {
-                left: calc(50% - 22px);
-                top: calc(50% - 22px);
-                width: 44px;
-                height: 44px;
+                left: calc(50% - 40px);
+                top: calc(50% - 40px);
+                width: 80px;
+                height: 80px;
             }
             .skill-slot.potion-slot .potion-empty-text {
                 font-size: 0.44rem;

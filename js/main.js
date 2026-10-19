@@ -2031,15 +2031,16 @@ class AveloraGame {
         const knob = document.getElementById('joy-knob');
         if (!zone || !base || !knob) return;
         const checkTouch = () => {
-            // Класс ставится и СНИМАЕТСЯ по текущим условиям: при сужении окна <= 840 включается мобильный HUD,
-            // при расширении обратно (на устройстве без касаний) возвращается десктопный.
+            // Класс ставится и СНИМАЕТСЯ по текущим условиям: при сенсорном экране, сужении окна <= 880
+            // или альбомной ориентации мобильного экрана (высота <= 540) включается мобильный HUD.
             const hwTouch = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
                 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) || this.inputTouch;
-            document.body.classList.toggle('touch-ui', !!(hwTouch || window.innerWidth <= 840));
+            const isMobileScreen = window.innerWidth <= 880 || (window.innerHeight <= 540 && window.innerWidth > window.innerHeight);
+            document.body.classList.toggle('touch-ui', !!(hwTouch || isMobileScreen));
         };
         checkTouch();
         window.addEventListener('resize', checkTouch);
-        const maxRadius = 42;
+        const maxRadius = 70;
         const reset = () => {
             this.joy.active = false;
             this.joy.id = null;

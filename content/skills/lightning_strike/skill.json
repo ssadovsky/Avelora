@@ -5,7 +5,7 @@
   "type": "strike",
   "category": "attack",
   "cooldown": 9,
-  "range": 16,
+  "range": 20,
   "castTime": 0.35,
   "damage": {
     "min": 18,
@@ -20,10 +20,12 @@
     "core": "#ffffff",
     "height": 26,
     "size": 1.1,
-    "impactSparks": 36,
-    "impactRadius": 2.0
+    "impactSparks": 28,
+    "impactRadius": 0.5,
+    "ring": false,
+    "decal": false
   },
   "mana": 22,
-  "requiresLevel": 1,
+  "requiresLevel": 5,
   "price": 25
 }

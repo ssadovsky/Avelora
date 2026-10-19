@@ -281,6 +281,10 @@
             return null;
         }
 
+        autoAcquireTarget(maxRange = 16) {
+            return this.findBestTarget(maxRange);
+        }
+
         /**
          * Triggers basic weapon attack (or bare hands) towards soft-lock target,
          * auto-acquired target in front cone, or free directional swing.
@@ -298,7 +302,7 @@
             }
 
             // 2. Try to auto-acquire enemy in front
-            const acquired = this.autoAcquireTarget(16);
+            const acquired = this.findBestTarget(16);
             if (acquired) {
                 this.attackCreature(acquired);
                 return;

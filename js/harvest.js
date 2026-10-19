@@ -326,7 +326,7 @@
 
             if (this.env) this.env.setObjectVisible(entry.id, false);
             if (g.hideObjectTooltip) g.hideObjectTooltip();
-            if (st) st.setFelled(this.location.id, entry.id, this.playTime);
+            if (st) st.setFelled(this.location.id, entry.id, Math.floor(Date.now() / 1000));
 
             const drops = node.drops || [{ item: 'fern', min: 1, max: 1 }];
             const wo = g.worldObjects;
@@ -400,7 +400,7 @@
             this.hits.delete(entry.id);
             this.shakes.delete(entry.id);
             if (this.env) this.env.setObjectTransform(entry.id, null);
-            if (this.state) this.state.setFelled(this.location.id, entry.id, this.playTime);
+            if (this.state) this.state.setFelled(this.location.id, entry.id, Math.floor(Date.now() / 1000));
             const pivot = this.makeFallingCopy(entry);
             if (this.env) this.env.setObjectVisible(entry.id, false);
             if (g.hideObjectTooltip) g.hideObjectTooltip(); // "Дерево — рубить" must not linger over the felled tree
@@ -417,7 +417,7 @@
             this.hits.delete(entry.id);
             this.shakes.delete(entry.id);
             if (this.env) this.env.setObjectTransform(entry.id, null);
-            if (this.state) this.state.setFelled(this.location.id, entry.id, this.playTime);
+            if (this.state) this.state.setFelled(this.location.id, entry.id, Math.floor(Date.now() / 1000));
             if (this.env) this.env.setObjectVisible(entry.id, false);
             if (g.hideObjectTooltip) g.hideObjectTooltip();
 
@@ -513,11 +513,13 @@
             if (!st || !this.env) return;
             const m = st.felled[this.location.id];
             if (!m) return;
+            const now = Math.floor(Date.now() / 1000);
             Object.keys(m).forEach(id => {
                 const entry = this.env.objects.get(id);
                 const node = entry ? this.nodeFor(entry.kind) : null;
                 if (!entry || !node) { st.clearFelled(this.location.id, id); return; } // tree no longer exists
-                if (this.playTime - m[id] >= this.regrowSeconds(node)) {
+                const fellTime = (m[id] < 1e9) ? (now - Math.max(0, this.playTime - m[id])) : m[id];
+                if (now - fellTime >= this.regrowSeconds(node)) {
                     st.clearFelled(this.location.id, id);
                     return;
                 }
@@ -538,11 +540,13 @@
             if (!st || !this.env) return;
             const m = st.felled[this.location.id];
             if (!m) return;
+            const now = Math.floor(Date.now() / 1000);
             Object.keys(m).forEach(id => {
                 const entry = this.env.objects.get(id);
                 const node = entry ? this.nodeFor(entry.kind) : null;
                 if (!entry || !node) { st.clearFelled(this.location.id, id); return; }
-                if (this.playTime - m[id] < this.regrowSeconds(node)) return;
+                const fellTime = (m[id] < 1e9) ? (now - Math.max(0, this.playTime - m[id])) : m[id];
+                if (now - fellTime < this.regrowSeconds(node)) return;
                 // Still falling on screen? wait for it
                 if (this.falling.some(f => f.entry === entry)) return;
                 st.clearFelled(this.location.id, id);

@@ -248,77 +248,94 @@
         line.geometry.attributes.position.needsUpdate = true;
     }
 
-    /** Writes a jagged lightning strike falling from height to (0,0,0) */
+    /** Writes a tight, beautiful, concentrated lightning cluster crashing directly into the target */
     function writeVerticalBolt(line, height, jitter) {
         const arr = line.geometry.attributes.position.array;
         let k = 0;
-        // 1. Главный ствол: сверху (y = height) вниз в основание (y = 0)
-        let px = (Math.random() - 0.5) * 1.5;
-        let py = height;
-        let pz = (Math.random() - 0.5) * 1.5;
-        for (let s = 1; s <= STRIKE_SEGS; s++) {
-            const t = s / STRIKE_SEGS;
-            const amp = Math.sin(t * Math.PI) * jitter;
-            const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-            const ny = height * (1 - t);
-            const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-            arr[k++] = px; arr[k++] = py; arr[k++] = pz;
-            arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
-            px = nx; py = ny; pz = nz;
-        }
-        // 2. Дублирующий ствол
-        px = (Math.random() - 0.5) * 2.0;
-        py = height;
-        pz = (Math.random() - 0.5) * 2.0;
-        for (let s = 1; s <= STRIKE_SEGS; s++) {
-            const t = s / STRIKE_SEGS;
-            const amp = Math.sin(t * Math.PI) * jitter * 1.15;
-            const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-            const ny = height * (1 - t);
-            const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-            arr[k++] = px; arr[k++] = py; arr[k++] = pz;
-            arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
-            px = nx; py = ny; pz = nz;
-        }
-        // 3-6. Четыре ветвящихся отростка
-        for (let f = 0; f < 4; f++) {
-            const startFrac = 0.22 + f * 0.18;
-            let bx = (Math.random() - 0.5) * jitter * 0.7;
-            let by = height * (1 - startFrac);
-            let bz = (Math.random() - 0.5) * jitter * 0.7;
-            const ang = (f / 4) * Math.PI * 2 + Math.random() * 0.8;
-            const dirX = Math.cos(ang), dirZ = Math.sin(ang);
+        const maxJitter = 0.32; // maximum jitter radius: strictly within 32 cm of target center
+
+        // 6 distinct bolts crashing down together in a tight cluster directly into (0, 0, 0):
+        for (let b = 0; b < STRIKE_BOLTS; b++) {
+            // Small offset in the sky (within 20 cm of center)
+            const topAngle = (b / STRIKE_BOLTS) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const topR = 0.14 + (Math.random() - 0.5) * 0.08;
+            const topX = Math.cos(topAngle) * topR;
+            const topZ = Math.sin(topAngle) * topR;
+
+            // Target landing point: exactly (0, 0, 0)
+            const botX = (Math.random() - 0.5) * 0.06;
+            const botZ = (Math.random() - 0.5) * 0.06;
+
+            let prevX = topX;
+            let prevY = height;
+            let prevZ = topZ;
+
+            // Phase and spiral for natural electrical braid
+            const spiralSpeed = 2.0 + (b % 2) * 1.5;
+            const spiralDir = (b % 2 === 0) ? 1 : -1;
+            const braidPhase = (b / STRIKE_BOLTS) * Math.PI * 2;
+
             for (let s = 1; s <= STRIKE_SEGS; s++) {
                 const t = s / STRIKE_SEGS;
-                const nx = bx + dirX * t * 3.2 + (Math.random() - 0.5) * 0.7;
-                const ny = by - t * 4.2 + (Math.random() - 0.5) * 0.4;
-                const nz = bz + dirZ * t * 3.2 + (Math.random() - 0.5) * 0.7;
-                arr[k++] = bx; arr[k++] = by; arr[k++] = bz;
-                arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
-                bx = nx; py = ny; pz = nz;
+                // Base interpolation from sky to target
+                const baseX = topX + (botX - topX) * t;
+                const baseZ = topZ + (botZ - topZ) * t;
+
+                // Envelope: 0 in sky, 0 at target impact point, peak in mid-air
+                const env = Math.sin(t * Math.PI);
+
+                // Tight braid wave around the central axis
+                const braidR = 0.15 * env;
+                const braidAngle = t * Math.PI * spiralSpeed * spiralDir + braidPhase;
+                const waveX = Math.cos(braidAngle) * braidR;
+                const waveZ = Math.sin(braidAngle) * braidR;
+
+                // Electric jagged jitter
+                const jX = (Math.random() - 0.5) * maxJitter * env;
+                const jZ = (Math.random() - 0.5) * maxJitter * env;
+
+                const curX = (s === STRIKE_SEGS) ? botX : (baseX + waveX + jX);
+                const curY = height * (1 - t);
+                const curZ = (s === STRIKE_SEGS) ? botZ : (baseZ + waveZ + jZ);
+
+                arr[k++] = prevX; arr[k++] = prevY; arr[k++] = prevZ;
+                arr[k++] = curX;  arr[k++] = curY;  arr[k++] = curZ;
+
+                prevX = curX;
+                prevY = curY;
+                prevZ = curZ;
             }
         }
+
         line.geometry.attributes.position.needsUpdate = true;
     }
 
     function writeVerticalBoltCore(line, height, jitter) {
         const arr = line.geometry.attributes.position.array;
         let k = 0;
+        const maxJitter = 0.12; // super tight core (12 cm)
+
         for (let b = 0; b < 2; b++) {
-            let px = (Math.random() - 0.5) * 0.8;
-            let py = height;
-            let pz = (Math.random() - 0.5) * 0.8;
+            let prevX = (Math.random() - 0.5) * 0.08;
+            let prevY = height;
+            let prevZ = (Math.random() - 0.5) * 0.08;
+
             for (let s = 1; s <= STRIKE_SEGS; s++) {
                 const t = s / STRIKE_SEGS;
-                const amp = Math.sin(t * Math.PI) * (jitter * 0.65);
-                const nx = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-                const ny = height * (1 - t);
-                const nz = (s === STRIKE_SEGS) ? 0 : (Math.random() - 0.5) * amp;
-                arr[k++] = px; arr[k++] = py; arr[k++] = pz;
-                arr[k++] = nx; arr[k++] = ny; arr[k++] = nz;
-                px = nx; py = ny; pz = nz;
+                const env = Math.sin(t * Math.PI);
+                const curX = (s === STRIKE_SEGS) ? 0 : (prevX + (Math.random() - 0.5) * maxJitter * env);
+                const curY = height * (1 - t);
+                const curZ = (s === STRIKE_SEGS) ? 0 : (prevZ + (Math.random() - 0.5) * maxJitter * env);
+
+                arr[k++] = prevX; arr[k++] = prevY; arr[k++] = prevZ;
+                arr[k++] = curX;  arr[k++] = curY;  arr[k++] = curZ;
+
+                prevX = curX;
+                prevY = curY;
+                prevZ = curZ;
             }
         }
+
         line.geometry.attributes.position.needsUpdate = true;
     }
 
@@ -1071,7 +1088,7 @@
             s.coreBolt.visible = true;
 
             s.topFlare.position.set(0, height, 0);
-            s.topFlare.scale.set(6, 6, 1);
+            s.topFlare.scale.set(3, 3, 1);
             s.topFlare.material.color.copy(s.coreColor);
             s.topFlare.material.opacity = 1.0;
             s.topFlare.visible = true;
@@ -1096,20 +1113,22 @@
                 }
             }
 
-            // Сплеш по площади вокруг точки удара
-            window.dispatchEvent(new CustomEvent('game:skillImpact', {
-                detail: {
-                    skillId: def.id,
-                    point: { x: tx, y: ty + 0.05, z: tz },
-                    radius: (vfx && vfx.impactRadius) || 2.0,
-                    damage: dmg,
-                    amount,
-                    stun: def.stun || { duration: 5.0 },
-                    knockback: def.knockback || null,
-                    slow: def.slow || null,
-                    excludeId: aliveTgt ? aliveTgt.id : null
-                }
-            }));
+            // Сплеш по площади вокруг точки удара (только если на скилле явно задано aoe: true)
+            if (def.aoe) {
+                window.dispatchEvent(new CustomEvent('game:skillImpact', {
+                    detail: {
+                        skillId: def.id,
+                        point: { x: tx, y: ty + 0.05, z: tz },
+                        radius: (vfx && vfx.impactRadius) || 2.0,
+                        damage: dmg,
+                        amount,
+                        stun: def.stun || null,
+                        knockback: def.knockback || null,
+                        slow: def.slow || null,
+                        excludeId: aliveTgt ? aliveTgt.id : null
+                    }
+                }));
+            }
         }
 
         updateStrikes(delta) {
@@ -1170,7 +1189,9 @@
             m.arcs.material.color.copy(this._color);
             m.flash.visible = m.bloom.visible = m.arcs.visible = true;
             if (vfx.arcs === false) m.arcs.visible = false;
-            m.ring.visible = m.decal.visible = m.scorch.visible = onGround;
+            m.ring.visible = (vfx.ring !== false) && onGround;
+            m.decal.visible = (vfx.decal !== false) && onGround;
+            m.scorch.visible = onGround;
             writeBolts(m.arcs, ARCS, ARC_SEGS, (vfx.impactRadius || 1.4) * 0.5, (vfx.impactRadius || 1.4) * 1.05, onGround ? 0.35 : 1, 0.45);
 
             // Sparks burst: mostly up and outward, biased away from the incoming direction
@@ -1410,11 +1431,11 @@
                 const d = 2 * R * (0.15 + 0.85 * ease);
                 m.ring.scale.set(d, 1, d);
                 m.ring.material.opacity = 0.95 * (1 - rT);
-                m.ring.visible = rT < 1;
+                m.ring.visible = (vfx.ring !== false) && rT < 1;
                 const gT = Math.min(1, a / 0.65);
                 m.decal.scale.set(R * 2.6, 1, R * 2.6);
                 m.decal.material.opacity = 0.75 * (1 - gT) * (1 - gT);
-                m.decal.visible = !nova && gT < 1;
+                m.decal.visible = (vfx.decal !== false) && !nova && gT < 1;
                 // Scorch: appears instantly, lingers, then fades over the rest of IMPACT_LIFE
                 const sT = a / IMPACT_LIFE;
                 m.scorch.scale.set(R * 2.1, 1, R * 2.1);

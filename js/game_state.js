@@ -161,9 +161,10 @@
     }
 
     /** ground: {loc: [{uid,item,count,x,z,r}]} — unknown items / bad numbers dropped. */
-    function sanitizeGround(raw) {
+    function sanitizeGround(raw, playTime) {
         const out = {};
         if (!raw || typeof raw !== 'object') return out;
+        const now = Math.floor(Date.now() / 1000);
         Object.keys(raw).forEach(locId => {
             const list = raw[locId];
             if (!Array.isArray(list)) return;
@@ -177,8 +178,17 @@
                 let uid = typeof g.uid === 'string' && g.uid ? g.uid : newUid();
                 while (seen.has(uid)) uid = newUid();
                 seen.add(uid);
-                const born = Number(g.born);
-                clean.push({ uid, item: g.item, count: Math.min(n, 9999), x, z, r: Number.isFinite(r) ? r : 0, born: Number.isFinite(born) ? born : null });
+                let born = Number(g.born);
+                if (Number.isFinite(born) && born >= 0) {
+                    // Legacy migration: convert in-game playTime (< 1e9) to real wall-clock timestamp
+                    if (born < 1e9) {
+                        const elapsed = Math.max(0, (Number(playTime) || 0) - born);
+                        born = now - elapsed;
+                    }
+                } else {
+                    born = null;
+                }
+                clean.push({ uid, item: g.item, count: Math.min(n, 9999), x, z, r: Number.isFinite(r) ? r : 0, born });
             });
             if (clean.length) out[locId] = clean;
         });
@@ -211,16 +221,24 @@
         return out;
     }
 
-    function sanitizeTimeMap(raw) {
+    function sanitizeTimeMap(raw, playTime) {
         const out = {};
         if (!raw || typeof raw !== 'object') return out;
+        const now = Math.floor(Date.now() / 1000);
         Object.keys(raw).forEach(locId => {
             const m = raw[locId];
             if (!m || typeof m !== 'object') return;
             const clean = {};
             Object.keys(m).forEach(id => {
-                const t = Number(m[id]);
-                if (Number.isFinite(t) && t >= 0) clean[id] = t;
+                let t = Number(m[id]);
+                if (Number.isFinite(t) && t >= 0) {
+                    // Legacy migration: convert in-game playTime (< 1e9) to real wall-clock timestamp
+                    if (t < 1e9) {
+                        const elapsed = Math.max(0, (Number(playTime) || 0) - t);
+                        t = now - elapsed;
+                    }
+                    clean[id] = t;
+                }
             });
             if (Object.keys(clean).length) out[locId] = clean;
         });
@@ -279,9 +297,12 @@
                     this.inventory.onChange = cb;
                 }
             }
-            this.ground = sanitizeGround(data.ground);
-            this.killed = sanitizeTimeMap(data.killed);
-            this.felled = sanitizeTimeMap(data.felled);
+            const pt = Number(data.playTime);
+            // Accumulated PLAYED seconds (main.js adds the unpaused in-world delta every frame).
+            this.playTime = Number.isFinite(pt) && pt >= 0 ? pt : 0;
+            this.ground = sanitizeGround(data.ground, this.playTime);
+            this.killed = sanitizeTimeMap(data.killed, this.playTime);
+            this.felled = sanitizeTimeMap(data.felled, this.playTime);
             // Location the player teleported home FROM (skills.js home_recall uses it to go back)
             this.returnTo = (typeof data.returnTo === 'string' && window.LOCATIONS && window.LOCATIONS[data.returnTo]) ? data.returnTo : null;
             const rp = data.returnPos;
@@ -301,11 +322,6 @@
             this.questKills = sanitizeCounts(data.questKills);   // kills counted while a kill quest is active
             this.slain = sanitizeSlain(data.slain);               // creatures killed for good by a quest (never respawn)
             this.chestInvs = {};
-            const pt = Number(data.playTime);
-            // Accumulated PLAYED seconds (main.js adds the unpaused in-world delta
-            // every frame; written with every save). Respawn / regrow timers
-            // compare against it, so they only advance while actually playing.
-            this.playTime = Number.isFinite(pt) && pt >= 0 ? pt : 0;
             this.discarded = false;
             this.listeners = [];
         }
@@ -357,13 +373,14 @@
                 const d = (g.x - x) * (g.x - x) + (g.z - z) * (g.z - z);
                 if (d <= bestD) { best = g; bestD = d; }
             });
+            const now = Math.floor(Date.now() / 1000);
             if (best) {
                 best.count += count;
-                best.born = this.playTime;
+                best.born = now;
                 this.save();
                 return best;
             }
-            const entry = { uid: newUid(), item: itemId, count, x, z, r: r || 0, born: this.playTime };
+            const entry = { uid: newUid(), item: itemId, count, x, z, r: r || 0, born: now };
             list.push(entry);
             this.save();
             return entry;
@@ -371,19 +388,21 @@
 
         /**
          * Removes ground piles of items with `despawnMinutes` (monster loot) that lay longer than that
-         * (PLAYED time). Returns the removed uids so world_objects can drop their meshes.
+         * (real wall-clock time). Returns the removed uids so world_objects can drop their meshes.
          */
         expireGround(locationId) {
             const list = this.ground[locationId];
             if (!list || !list.length) return [];
+            const now = Math.floor(Date.now() / 1000);
             const gone = [];
             for (let i = list.length - 1; i >= 0; i--) {
                 const g = list[i];
                 const def = window.AveloraItems.get(g.item);
                 const m = def && Number(def.despawnMinutes);
                 if (!(m > 0)) continue;
-                if (g.born === null || g.born === undefined) { g.born = this.playTime; continue; }
-                if (this.playTime - g.born >= m * 60) { gone.push(g.uid); list.splice(i, 1); }
+                if (g.born === null || g.born === undefined) { g.born = now; continue; }
+                const bornTime = (g.born < 1e9) ? (now - Math.max(0, this.playTime - g.born)) : g.born;
+                if (now - bornTime >= m * 60) { gone.push(g.uid); list.splice(i, 1); }
             }
             if (gone.length) { if (!list.length) delete this.ground[locationId]; this.save(); }
             return gone;
@@ -404,15 +423,15 @@
         }
 
         // -----------------------------------------------------------
-        // Killed creatures / felled trees (respawn & regrow on playTime)
+        // Killed creatures / felled trees (respawn & regrow on real wall-clock time)
         // -----------------------------------------------------------
         getKilled(locationId, id) {
             const m = this.killed[locationId];
             return m && Object.prototype.hasOwnProperty.call(m, id) ? m[id] : null;
         }
-        setKilled(locationId, id, playTime) {
+        setKilled(locationId, id, time) {
             if (!this.killed[locationId]) this.killed[locationId] = {};
-            this.killed[locationId][id] = playTime;
+            this.killed[locationId][id] = (time !== undefined && time !== null) ? time : Math.floor(Date.now() / 1000);
             this.save();
         }
         clearKilled(locationId, id) {
@@ -426,9 +445,9 @@
             const m = this.felled[locationId];
             return m && Object.prototype.hasOwnProperty.call(m, id) ? m[id] : null;
         }
-        setFelled(locationId, id, playTime) {
+        setFelled(locationId, id, time) {
             if (!this.felled[locationId]) this.felled[locationId] = {};
-            this.felled[locationId][id] = playTime;
+            this.felled[locationId][id] = (time !== undefined && time !== null) ? time : Math.floor(Date.now() / 1000);
             this.save();
         }
         clearFelled(locationId, id) {

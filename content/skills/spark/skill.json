@@ -5,7 +5,7 @@
   "type": "projectile",
   "category": "attack",
   "cooldown": 0.8,
-  "range": 18,
+  "range": 20,
   "speed": 22,
   "castTime": 0.2,
   "damage": {
