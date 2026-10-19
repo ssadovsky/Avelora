@@ -8,8 +8,8 @@
   "range": 20,
   "castTime": 0.35,
   "damage": {
-    "min": 18,
-    "max": 28,
+    "min": 20,
+    "max": 25,
     "type": "lightning"
   },
   "stun": {
@@ -25,7 +25,7 @@
     "ring": false,
     "decal": false
   },
-  "mana": 22,
+  "mana": 80,
   "requiresLevel": 5,
-  "price": 25
+  "price": 550
 }

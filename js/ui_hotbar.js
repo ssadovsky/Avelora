@@ -38,9 +38,10 @@
     }
 
     /** One-line stats of a skill for the skills panel / tooltip, by skill type. */
-    function skillMeta(def) {
+    function skillMeta(def, hero) {
         const cd = `Перезарядка ${def.cooldown || 0} с`;
-        const mana = def.mana ? ` · Мана ${def.mana}` : '';
+        const cost = hero && typeof hero.skillManaCost === 'function' ? hero.skillManaCost(def) : (def.mana || 0);
+        const mana = cost ? ` · Мана ${cost}` : (def.mana ? ` · Мана ${def.mana}` : '');
         const kb = (def.knockback && def.knockback.distance) ? ` · Отбрасывание ${def.knockback.distance} м` : '';
         const stun = (def.stun && def.stun.duration) ? ` · Оглушение ${def.stun.duration} с` : '';
         if (def.type === 'teleport') return `Каст ${def.castTime || 0} с · ${cd}`;
@@ -487,7 +488,7 @@
                 desc.textContent = lab.description || '';
                 const meta = document.createElement('div');
                 meta.className = 'skill-entry-meta';
-                meta.textContent = skillMeta(def);
+                meta.textContent = skillMeta(def, this.game.hero);
                 const sl = this.skillStatsLine(def);
                 if (sl) {
                     const dmgEl = document.createElement('div');
@@ -1960,7 +1961,7 @@
             let def = null, meta = '';
             if (kind === 'skill') {
                 def = this.game.skills.get(id);
-                if (def) meta = skillMeta(def);
+                if (def) meta = skillMeta(def, this.game.hero);
             } else {
                 def = window.AveloraItems.get(id);
                 if (def) {

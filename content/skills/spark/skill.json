@@ -21,7 +21,7 @@
     "impactSparks": 28,
     "impactRadius": 1.4
   },
-  "mana": 5,
+  "mana": 25,
   "requiresLevel": 1,
-  "price": 1
+  "price": 50
 }

@@ -6,8 +6,8 @@
   "category": "travel",
   "destination": "homeCamp",
   "spawn": "default",
-  "cooldown": 10,
-  "castTime": 1,
+  "cooldown": 30,
+  "castTime": 3,
   "vfx": {
     "color": "#ffc94d",
     "core": "#fff3c4",

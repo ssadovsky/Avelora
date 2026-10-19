@@ -4,12 +4,12 @@
   "description": "Огромный шар пламени. Взрывается на большой площади и сжигает всё вокруг.",
   "type": "projectile",
   "category": "attack",
-  "cooldown": 12,
+  "cooldown": 10,
   "range": 20,
   "speed": 15,
   "castTime": 0.7,
   "damage": {
-    "min": 45,
+    "min": 50,
     "max": 65,
     "type": "fire"
   },
@@ -23,7 +23,7 @@
     "filaments": false,
     "arcs": false
   },
-  "mana": 30,
+  "mana": 80,
   "requiresLevel": 6,
-  "price": 60
+  "price": 600
 }

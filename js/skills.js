@@ -437,8 +437,7 @@
                     return 'out_of_range';
                 }
 
-                if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
-                    if (g.ui && g.ui.floatText) g.ui.floatText('Не хватает маны', 'warn');
+                if (!this.payMana(def)) {
                     return 'mana';
                 }
                 const target = this.pickTarget(def, new THREE.Vector3());
@@ -563,7 +562,8 @@
         /** Mana is paid only after the skill is certain to happen. Returns false (message shown) when short of mana. */
         payMana(def) {
             const g = this.game;
-            if (def.mana > 0 && g.hero && !g.hero.spend(def.mana)) {
+            const cost = g.hero && typeof g.hero.skillManaCost === 'function' ? g.hero.skillManaCost(def) : (def.mana || 0);
+            if (cost > 0 && g.hero && !g.hero.spend(cost)) {
                 if (g.ui && g.ui.floatText) g.ui.floatText('Не хватает маны', 'warn');
                 return false;
             }

@@ -9,7 +9,7 @@
   "speed": 26,
   "castTime": 0.3,
   "damage": {
-    "min": 18,
+    "min": 20,
     "max": 25,
     "type": "fire"
   },
@@ -23,7 +23,7 @@
     "filaments": false,
     "arcs": false
   },
-  "mana": 15,
+  "mana": 40,
   "requiresLevel": 2,
-  "price": 20
+  "price": 100
 }

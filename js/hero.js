@@ -183,6 +183,20 @@
             return 1 + this.stats()[stat] * CFG().derived.damagePerStat * CFG().multipliers.damage;
         }
 
+        /** Dynamic mana cost of a skill, scaled symmetrically with skillMult damage bonus. */
+        skillManaCost(def) {
+            if (!def || !def.mana || def.mana <= 0) return 0;
+            const base = def.mana;
+            if (def.damage) {
+                const mult = this.skillMult(def);
+                const derived = (CFG() && CFG().derived) || {};
+                const k = derived.manaCostScaling !== undefined ? derived.manaCostScaling : 1.0;
+                const manaMult = 1 + (mult - 1) * k;
+                return Math.max(1, Math.round(base * manaMult));
+            }
+            return base;
+        }
+
         // -----------------------------------------------------------
         // Experience
         // -----------------------------------------------------------
