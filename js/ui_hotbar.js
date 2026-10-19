@@ -41,12 +41,14 @@
     function skillMeta(def) {
         const cd = `Перезарядка ${def.cooldown || 0} с`;
         const mana = def.mana ? ` · Мана ${def.mana}` : '';
+        const kb = (def.knockback && def.knockback.distance) ? ` · Отбрасывание ${def.knockback.distance} м` : '';
+        const stun = (def.stun && def.stun.duration) ? ` · Оглушение ${def.stun.duration} с` : '';
         if (def.type === 'teleport') return `Каст ${def.castTime || 0} с · ${cd}`;
-        if (def.type === 'nova') return `${cd} · Радиус ${(def.vfx && def.vfx.impactRadius) || 0} м` + mana;
-        if (def.type === 'rain') return `${cd} · Дальность ${def.range || 0} м · Радиус ${(def.rain && def.rain.radius) || 0} м` + mana;
+        if (def.type === 'nova') return `${cd} · Радиус ${(def.vfx && def.vfx.impactRadius) || 0} м` + kb + stun + mana;
+        if (def.type === 'rain') return `${cd} · Дальность ${def.range || 0} м · Радиус ${(def.rain && def.rain.radius) || 0} м` + kb + stun + mana;
         if (def.type === 'buff') return cd + (def.buff && def.buff.duration ? ` · Длительность ${def.buff.duration} с` : '') + mana;
         const slow = (def.slow && def.slow.factor < 1) ? ` · Замедление −${Math.round((1 - def.slow.factor) * 100)} % на ${def.slow.duration} с` : '';
-        return `${cd} · Дальность ${def.range || 0} м` + slow + mana;
+        return `${cd} · Дальность ${def.range || 0} м` + slow + kb + stun + mana;
     }
 
     /** Icon element for an item/skill def: its icon.png, or a styled first-letter tile. */
@@ -155,8 +157,10 @@
                 const cd = document.createElement('span'); cd.className = 'slot-cd';
                 const count = document.createElement('span'); count.className = 'slot-count';
                 const key = document.createElement('span'); key.className = 'slot-key'; key.textContent = KEY_LABELS[i];
-                slot.append(icon, cd, count, key);
-                slot._icon = icon; slot._cd = cd; slot._count = count;
+                const dot = document.createElement('span'); dot.className = 'slot-range-dot';
+                slot.append(icon, cd, count, key, dot);
+                slot._icon = icon; slot._cd = cd; slot._count = count; slot._key = key; slot._rangeDot = dot;
+                slot._outOfRange = false;
                 if (i === 0) {
                     const medalFrame = document.createElement('span');
                     medalFrame.className = 'slot0-medal-frame';
@@ -369,7 +373,8 @@
                 const e = hb[i] || null;
                 slot._icon.innerHTML = '';
                 slot._count.textContent = '';
-                slot.classList.remove('missing', 'is-skill', 'is-item', 'is-basic-attack', 'equipped');
+                slot.classList.remove('missing', 'is-skill', 'is-item', 'is-basic-attack', 'equipped', 'out-of-range');
+                slot._outOfRange = false;
                 slot.classList.toggle('empty', !e);
                 this.cdCache[i] = -1;
                 slot._cd.style.background = '';
@@ -2412,11 +2417,75 @@
         }
 
         // -----------------------------------------------------------
+        // Range indicator: red dot & red hotkey when target is out of range
+        // Throttled to ~120ms (8 Hz), 0 CPU overhead, dirty-checked
+        // -----------------------------------------------------------
+        updateRangeIndicators(delta) {
+            this._rangeTimer = (this._rangeTimer || 0) - delta;
+            if (this._rangeTimer > 0) return;
+            this._rangeTimer = 0.12;
+
+            const target = (this.game.combat && this.game.combat.selectedTarget) || null;
+            const cr = this.game.creatures;
+            const isTargetAlive = target && cr && cr.isAlive(target);
+
+            if (!isTargetAlive) {
+                if (this._hasOutOfRangeSlots) {
+                    for (let i = 0; i < this.slots.length; i++) {
+                        const s = this.slots[i];
+                        if (s._outOfRange) {
+                            s._outOfRange = false;
+                            s.classList.remove('out-of-range');
+                        }
+                    }
+                    this._hasOutOfRangeSlots = false;
+                }
+                return;
+            }
+
+            const c = this.game.character;
+            if (!c || !c.position) return;
+
+            const dist = Math.hypot(target.x - c.position.x, target.z - c.position.z);
+            const hitR = (target.def && target.def.hitRadius) || 0.4;
+            const edgeDist = Math.max(0, dist - hitR);
+            const hb = this.state ? this.state.hotbar : [];
+            let hasAny = false;
+
+            for (let i = 0; i < this.slots.length; i++) {
+                const slot = this.slots[i];
+                const e = hb[i];
+                let outOfRange = false;
+
+                if (e && e.type === 'skill') {
+                    const def = this.game.skills ? this.game.skills.get(e.id) : null;
+                    if (def && (def.type === 'projectile' || def.type === 'rain' || def.type === 'strike')) {
+                        const maxRange = (def.range || 12) + 2;
+                        outOfRange = dist > maxRange;
+                    }
+                } else if (i === 0 && (slot.classList.contains('is-basic-attack') || (!e && document.body && document.body.classList.contains('touch-ui')))) {
+                    const w = this.game.combat ? this.game.combat.weapon() : null;
+                    const wRange = (w && w.range) ? w.range : 2.5;
+                    outOfRange = edgeDist > wRange;
+                }
+
+                if (slot._outOfRange !== outOfRange) {
+                    slot._outOfRange = outOfRange;
+                    slot.classList.toggle('out-of-range', outOfRange);
+                }
+                if (outOfRange) hasAny = true;
+            }
+
+            this._hasOutOfRangeSlots = hasAny;
+        }
+
+        // -----------------------------------------------------------
         // Per-frame (game time): cooldown sweeps + floating texts
         // -----------------------------------------------------------
         update(delta) {
             this.updateFloats(delta);
             this.updateAutoPotion(delta);
+            this.updateRangeIndicators(delta);
             if (this.heroOpen && (this._heroT = (this._heroT || 0) + delta) >= 0.4) { this._heroT = 0; this.updateHeroStats(); }
             if (!this.state) return;
             const hb = this.state.hotbar;

@@ -188,6 +188,7 @@
             const cr = this.game.creatures;
             if (!rec || !cr || !cr.isAlive(rec)) { this.clearTarget(); return; }
             this.selectedTarget = rec;
+            if (this.game.ui && this.game.ui.hotbar) this.game.ui.hotbar._rangeTimer = 0;
             this.renderTargetFrame();
         }
 
@@ -195,6 +196,7 @@
         clearTarget() {
             this.selectedTarget = null;
             if (this._targetRing) this._targetRing.visible = false;
+            if (this.game.ui && this.game.ui.hotbar) this.game.ui.hotbar._rangeTimer = 0;
             this.renderTargetFrame();
         }
 
