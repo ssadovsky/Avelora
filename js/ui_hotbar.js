@@ -435,8 +435,11 @@
             });
             // All three main groups are always listed (an empty one says so); "Прочее" only when something lands there
             const shown = GROUPS.filter(g => byGroup[g[0]] || g[0] !== 'other');
+            const hasAttack = shown.some(g => g[0] === 'attack' && byGroup['attack'] && byGroup['attack'].length);
             const firstFull = shown.find(g => byGroup[g[0]]);
-            if (this.skillsOpenGroup === undefined || (this.skillsOpenGroup && !shown.some(g => g[0] === this.skillsOpenGroup))) this.skillsOpenGroup = firstFull ? firstFull[0] : null;
+            if (!this.skillsOpenGroup || !shown.some(g => g[0] === this.skillsOpenGroup)) {
+                this.skillsOpenGroup = hasAttack ? 'attack' : (firstFull ? firstFull[0] : 'attack');
+            }
             shown.forEach(([key, title]) => {
                 const sec = document.createElement('div');
                 sec.className = 'skill-group' + (this.skillsOpenGroup === key ? ' open' : '');
@@ -477,6 +480,10 @@
                 const iconWrap = document.createElement('div');
                 iconWrap.className = 'skill-entry-icon';
                 iconWrap.appendChild(makeIcon(def));
+                const cd = document.createElement('span');
+                cd.className = 'slot-cd';
+                iconWrap.appendChild(cd);
+                row._cd = cd;
                 const text = document.createElement('div');
                 text.className = 'skill-entry-text';
                 const name = document.createElement('div');
@@ -763,6 +770,10 @@
             this.skillsOpen = open;
             this.setPanelAria(this.skillsPanel, open);
             if (this.skillsBtn) this.skillsBtn.classList.toggle('active', open);
+            if (open) {
+                this.skillsOpenGroup = 'attack';
+                this.renderSkills();
+            }
             this.layoutPanels();
             if (!open) this.hideTooltip();
         }
@@ -1949,6 +1960,7 @@
                     obj = g;
                 }
                 if (def && def.weapon && def.weapon.style === 'staff') { obj.userData = obj.userData || {}; obj.userData.upright = true; }
+                if (def && def.glow !== undefined) { obj.userData = obj.userData || {}; obj.userData.glow = def.glow; }   // item.json glow: false | {color, y}
                 c.setHandItem(obj);
             });
         }
@@ -2507,6 +2519,24 @@
                     ? `conic-gradient(rgba(6,8,10,0) ${edge}deg, rgba(6,8,10,0.78) ${edge}deg)`
                     : '';
             }
+            // Skills panel cooldown sweeps
+            if (this.skillsOpen && this.skillsList && this.game.skills) {
+                const entries = this.skillsList.querySelectorAll('.skill-entry');
+                for (let i = 0; i < entries.length; i++) {
+                    const row = entries[i];
+                    const id = row.dataset.skill;
+                    if (!id || !row._cd) continue;
+                    const frac = this.game.skills.cooldownFraction(id);
+                    const q = Math.round(frac * 120);
+                    if (q === row._cdCache) continue;
+                    row._cdCache = q;
+                    row.classList.toggle('cooling', q > 0);
+                    const edge = ((1 - frac) * 360).toFixed(1);
+                    row._cd.style.background = q > 0
+                        ? `conic-gradient(rgba(6,8,10,0) ${edge}deg, rgba(6,8,10,0.78) ${edge}deg)`
+                        : '';
+                }
+            }
         }
 
         // -----------------------------------------------------------
@@ -2786,29 +2816,29 @@
                     }
                     this.showItemCard(d.src);
                 } else if (d.src.kind === 'skill') {
-                    // Tap on a skill in the skills panel: assign to first empty hotbar slot
-                    if (this.state) {
-                        const hb = this.state.hotbar;
-                        const existingIdx = hb.findIndex(e => e && e.type === 'skill' && e.id === d.src.id);
-                        if (existingIdx >= 0) {
-                            this.showMessageAt(d.src.el, `Навык уже на панели (слот ${existingIdx + 1})`);
-                        } else {
-                            // Find first empty slot among active combat slots
-                            let targetSlot = hb.findIndex((e, idx) => idx < 6 && !e);
-                            if (targetSlot < 0) targetSlot = hb.findIndex(e => !e);
-                            if (targetSlot >= 0) {
-                                this.state.setHotbar(targetSlot, { type: 'skill', id: d.src.id });
-                                const skillDef = this.game.skills ? this.game.skills.get(d.src.id) : null;
-                                const lab = (this.game.skills && skillDef) ? this.game.skills.labelOf(skillDef) : { name: d.src.id };
-                                this.floatText(`${lab.name} добавлен в слот ${targetSlot + 1}`, 'good');
-                            } else {
-                                this.showMessageAt(d.src.el, 'Боевая панель заполнена (перетащите для замены)');
-                            }
+                    // Activate skill directly from the skills panel
+                    const skillId = d.src.id;
+                    if (this.game.skills) {
+                        const res = this.game.skills.activate(skillId);
+                        if (res === 'ok') {
+                            this.flashSlot(d.src.el, 'pressed');
+                        } else if (res === 'cooldown') {
+                            this.flashSlot(d.src.el, 'shake');
+                            const cd = Math.ceil(this.game.skills.cooldownRemaining(skillId));
+                            this.showMessageAt(d.src.el, `Перезарядка (${cd} с)`);
+                        } else if (res === 'no_mana') {
+                            this.flashSlot(d.src.el, 'shake');
+                            this.showMessageAt(d.src.el, 'Недостаточно маны');
+                        } else if (res === 'busy') {
+                            this.flashSlot(d.src.el, 'shake');
+                            this.showMessageAt(d.src.el, 'Персонаж занят');
+                        } else if (res === 'unavailable') {
+                            this.flashSlot(d.src.el, 'shake');
                         }
                     }
                     this.showSourceTooltip(d.src);
                     clearTimeout(this.tooltipTimer);
-                    this.tooltipTimer = setTimeout(() => this.hideTooltip(), 2000);
+                    this.tooltipTimer = setTimeout(() => this.hideTooltip(), 1500);
                 } else if (d.pointerType !== 'mouse') {
                     // Touch: no hover, so a tap shows the tooltip for a moment
                     this.showSourceTooltip(d.src);

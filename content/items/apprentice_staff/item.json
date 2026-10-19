@@ -1,0 +1,47 @@
+{
+  "id": "apprentice_staff",
+  "name": "Посох ученика",
+  "description": "Посох ученика-мага: резное навершие с аметистом в бронзовой оправе. Берётся в правую руку; обычная атака — сгусток магии по цели (клик по врагу), урон от Интеллекта.",
+  "category": "tool",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single",
+    "rotation": [
+      1.5708,
+      0,
+      0
+    ],
+    "offsetY": 0.17
+  },
+  "use": {
+    "type": "equip",
+    "hand": "right"
+  },
+  "stats": {
+    "int": 10
+  },
+  "hold": {
+    "rotation": [
+      0.759,
+      1.381,
+      2.218
+    ]
+  },
+  "weapon": {
+    "damage": [
+      5,
+      10
+    ],
+    "range": 20,
+    "cooldown": 0.9,
+    "style": "staff",
+    "stat": "int"
+  },
+  "value": 80,
+  "glow": {
+    "color": "#b57bff",
+    "y": 0.6
+  }
+}

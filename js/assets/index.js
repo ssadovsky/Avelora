@@ -43,6 +43,7 @@ window.AVELORA_ASSET_INDEX = {
   "flower_yellow": ["m/flower_yellow.js", "f76674c6d8"],
   "grass_set": ["m/grass_set.js", "033601c0bf"],
   "grass_tuft": ["m/grass_tuft.js", "182f9ae24d"],
+  "items/apprentice_staff": ["m/items__apprentice_staff.js", "3fc6286463"],
   "items/axe": ["m/items__axe.js", "7e4728daf6"],
   "items/bow": ["m/items__bow.js", "dbb301086b"],
   "items/branch": ["m/items__branch.js", "40c61dfee0"],

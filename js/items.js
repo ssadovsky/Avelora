@@ -18,8 +18,21 @@
 
     const INVENTORY_SIZE = 32;
 
-    // Fists: what everyone fights with when the right hand holds no weapon.
-    const BARE_HANDS = Object.freeze({ id: null, name: 'Кулаки', damage: [5, 8], range: 1.2, cooldown: 0.9, chop: 0, mine: 0 });
+    // Fists: what everyone fights with when the right hand holds no weapon (driven by progression.js bareHands).
+    function getBareHands() {
+        const cfg = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.bareHands) || {};
+        const dmg = Array.isArray(cfg.damage) ? cfg.damage : [5, 8];
+        return {
+            id: null,
+            name: 'Кулаки',
+            damage: [Number(dmg[0]) || 5, Number(dmg[1]) || 8],
+            range: Math.max(0.6, Number(cfg.range) || 1.2),
+            cooldown: Math.max(0.3, Number(cfg.cooldown) || 0.9),
+            stat: cfg.stat || 'str',
+            chop: 0,
+            mine: 0
+        };
+    }
 
     function content() {
         return (window.GAME_CONTENT && window.GAME_CONTENT.items) || {};
@@ -27,7 +40,9 @@
 
     const AveloraItems = {
         INVENTORY_SIZE,
-        BARE_HANDS,
+        get BARE_HANDS() {
+            return getBareHands();
+        },
 
         get(id) {
             const defs = content();
@@ -72,14 +87,15 @@
         weaponOf(id) {
             const def = this.get(id);
             const w = def && def.weapon;
-            if (!w) return BARE_HANDS;
-            const dmg = Array.isArray(w.damage) ? w.damage : [BARE_HANDS.damage[0], BARE_HANDS.damage[1]];
+            const bh = this.BARE_HANDS;
+            if (!w) return bh;
+            const dmg = Array.isArray(w.damage) ? w.damage : [bh.damage[0], bh.damage[1]];
             const lo = Math.max(0, Number(dmg[0]) || 0), hi = Math.max(lo, Number(dmg[1]) || lo);
             return {
                 id: def.id, name: def.name,
                 damage: [lo, hi],
-                range: Math.max(0.6, Number(w.range) || BARE_HANDS.range),
-                cooldown: Math.max(0.3, Number(w.cooldown) || BARE_HANDS.cooldown),
+                range: Math.max(0.6, Number(w.range) || bh.range),
+                cooldown: Math.max(0.3, Number(w.cooldown) || bh.cooldown),
                 chop: Number(w.chop) || 0,
                 mine: Number(w.mine) || 0,
                 style: w.style || null,

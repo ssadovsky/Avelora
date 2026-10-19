@@ -2736,17 +2736,39 @@
             background: rgba(22, 27, 29, 0.9);
             border: 1px solid rgba(195, 160, 95, 0.25);
             border-radius: 3px;
-            cursor: grab;
+            cursor: pointer;
             touch-action: pan-y;
+            transition: background 0.12s ease, border-color 0.15s ease;
         }
-        .skill-entry:hover { border-color: rgba(239, 207, 122, 0.75); }
+        .skill-entry:hover {
+            background: rgba(30, 36, 40, 0.95);
+            border-color: rgba(239, 207, 122, 0.75);
+        }
+        .skill-entry.pressed { animation: slot-press 0.22s ease-out; }
+        .skill-entry.shake { animation: slot-shake 0.3s ease-in-out; }
         .skill-entry-icon {
+            position: relative;
             flex: 0 0 42px;
             height: 42px;
             border: 1px solid rgba(212, 175, 55, 0.6);
             border-radius: 4px;
             padding: 2px;
             background: rgba(12, 16, 18, 0.9);
+            box-sizing: border-box;
+            overflow: hidden;
+            transition: transform 0.08s ease, border-color 0.15s ease;
+        }
+        .skill-entry-icon .slot-cd {
+            position: absolute;
+            inset: 0;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+        .skill-entry:hover .skill-entry-icon {
+            border-color: rgba(239, 207, 122, 0.95);
+        }
+        .skill-entry:active .skill-entry-icon {
+            transform: scale(0.94);
         }
         .skill-entry-name { font-size: 0.92rem; color: #efcf7a; letter-spacing: 0.05rem; }
         .skill-entry-desc { font-size: 0.74rem; color: #d8cbb5; line-height: 1.3; margin-top: 2px; }

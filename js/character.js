@@ -919,7 +919,9 @@ class MedievalCharacter {
                 });
             }
         });
-        if (isStaff || staffCrystal) {
+        // item.json `glow`: false = no aura; {color:'#hex', y: height on the staff (m)} = own colour / place on the model
+        const glowCfg = object.userData ? object.userData.glow : undefined;
+        if ((isStaff || staffCrystal) && glowCfg !== false) {
             this.heldStaffCrystalMesh = staffCrystal;
             if (staffCrystal && staffCrystal.material) {
                 const cm = Array.isArray(staffCrystal.material) ? staffCrystal.material[0] : staffCrystal.material;
@@ -931,9 +933,11 @@ class MedievalCharacter {
                 glowCanvas.width = 64; glowCanvas.height = 64;
                 const gCtx = glowCanvas.getContext('2d');
                 const grad = gCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
-                grad.addColorStop(0, 'rgba(180, 235, 255, 0.95)');
-                grad.addColorStop(0.35, 'rgba(56, 189, 248, 0.5)');
-                grad.addColorStop(1, 'rgba(2, 132, 199, 0)');
+                let gc = [56, 189, 248];
+                if (glowCfg && glowCfg.color) { const cc = new THREE.Color(glowCfg.color); gc = [Math.round(cc.r * 255), Math.round(cc.g * 255), Math.round(cc.b * 255)]; }
+                grad.addColorStop(0, `rgba(${Math.min(255, gc[0] + 130)}, ${Math.min(255, gc[1] + 60)}, ${Math.min(255, gc[2] + 50)}, 0.95)`);
+                grad.addColorStop(0.35, `rgba(${gc[0]}, ${gc[1]}, ${gc[2]}, 0.5)`);
+                grad.addColorStop(1, `rgba(${gc[0]}, ${gc[1]}, ${gc[2]}, 0)`);
                 gCtx.fillStyle = grad; gCtx.fillRect(0, 0, 64, 64);
                 const glowTex = new THREE.CanvasTexture(glowCanvas);
                 const glowMat = new THREE.SpriteMaterial({
@@ -947,8 +951,10 @@ class MedievalCharacter {
                 if (staffCrystal) {
                     staffCrystal.add(glowSprite);
                 } else {
-                    glowSprite.position.set(0, 1.35, 0);
-                    object.add(glowSprite);
+                    // the aura sits on the model itself (object may be a rotated hold-group around it)
+                    const glowHost = (glowCfg && object.children[0]) || object;
+                    glowSprite.position.set(0, glowCfg && glowCfg.y !== undefined ? glowCfg.y : 1.35, 0);
+                    glowHost.add(glowSprite);
                 }
                 this.heldStaffGlow = glowSprite;
             }
