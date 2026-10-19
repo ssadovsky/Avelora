@@ -2,3 +2,5 @@
 
 *.full.glb
 build_assets.bat
+release_to_main.bat
+save_dev.bat
