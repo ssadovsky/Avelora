@@ -8,7 +8,7 @@
   "castTime": 0.35,
   "damage": {
     "min": 30,
-    "max": 35,
+    "max": 40,
     "type": "fire"
   },
   "knockback": {
@@ -24,7 +24,7 @@
     "nova": true,
     "arcs": false
   },
-  "mana": 150,
+  "mana": 60,
   "requiresLevel": 7,
-  "price": 250
+  "price": 180
 }

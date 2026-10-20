@@ -9,8 +9,8 @@
   "speed": 34,
   "castTime": 0.25,
   "damage": {
-    "min": 6,
-    "max": 11,
+    "min": 8,
+    "max": 12,
     "type": "physical"
   },
   "vfx": {
@@ -25,5 +25,5 @@
   },
   "mana": 4,
   "requiresLevel": 1,
-  "price": 1
+  "price": 15
 }

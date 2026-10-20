@@ -7,7 +7,7 @@
   "cooldown": 8,
   "range": 9,
   "minRange": 1.5,
-  "mana": 15,
+  "mana": 16,
   "vfx": {
     "color": "#b78cff",
     "core": "#efe4ff",

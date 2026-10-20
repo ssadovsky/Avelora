@@ -1575,7 +1575,7 @@
         #dialog-panel {
             position: fixed; left: 18px; top: 136px; bottom: auto; transform: none;
             width: min(600px, calc(100% - 36px));
-            height: 465px;
+            height: 435px;
             max-height: calc(100vh - 150px);
             box-sizing: border-box;
             z-index: 160; display: none; cursor: default;
@@ -1648,6 +1648,37 @@
         .dlg-tab.active { border-color: #efcf7a; color: #efcf7a; background: rgba(195, 160, 95, 0.2); }
         .dlg-tab.back { margin-left: 8px; }
         .dlg-opt.quest { color: #f3dc8c; border-color: rgba(214,170,60,0.7); }
+        .dlg-opt.quest-ready {
+            color: #ffd875;
+            border-color: rgba(239, 207, 122, 0.85);
+            background: rgba(214, 170, 60, 0.18);
+            box-shadow: inset 0 0 12px rgba(239, 207, 122, 0.15);
+            font-weight: 600;
+        }
+        .dlg-opt.quest-ready:hover {
+            color: #fff4d1;
+            border-color: #ffd875;
+            background: rgba(239, 207, 122, 0.28);
+        }
+        .dlg-opt.quest-available {
+            color: #f3dc8c;
+            border-color: rgba(214, 170, 60, 0.65);
+        }
+        .dlg-opt.quest-available:hover {
+            color: #fff0c7;
+            border-color: #efcf7a;
+            background: rgba(195, 160, 95, 0.16);
+        }
+        .dlg-opt.quest-progress {
+            color: #9cb1ad;
+            border-color: rgba(140, 160, 155, 0.35);
+            background: rgba(16, 22, 24, 0.7);
+        }
+        .dlg-opt.quest-progress:hover {
+            color: #c9dbd6;
+            border-color: rgba(160, 190, 180, 0.6);
+            background: rgba(22, 30, 33, 0.85);
+        }
         .dlg-opt.abandon { color: #fca5a5; border-color: rgba(239, 68, 68, 0.5); }
         .dlg-opt.abandon:hover { border-color: #ef4444; background: rgba(220, 38, 38, 0.2); color: #fff; }
         #quest-tracker {
@@ -1841,16 +1872,17 @@
         @media (max-width: 720px) { .dlg-side { flex-basis: 76px; } .dlg-portrait { width: 76px; height: 76px; } }
         @media (max-height: 740px) and (min-width: 881px) {
             #dialog-panel {
-                top: 86px;
-                height: 420px;
-                max-height: calc(100vh - 96px);
-                padding: 10px 12px;
-                gap: 10px;
+                top: 76px;
+                height: 385px;
+                max-height: calc(100vh - 84px);
+                padding: 8px 10px;
+                gap: 8px;
             }
-            .dlg-side { flex: 0 0 96px; }
-            .dlg-portrait { width: 96px; height: 96px; }
-            .dlg-text { font-size: 0.92rem; padding: 0 28px 8px 0; max-height: 85px; }
-            .dlg-opt { padding: 6px 10px; font-size: 0.86rem; }
+            .dlg-side { flex: 0 0 88px; }
+            .dlg-portrait { width: 88px; height: 88px; }
+            .dlg-text { font-size: 0.88rem; padding: 0 28px 6px 0; max-height: 75px; }
+            .dlg-options { gap: 4px; }
+            .dlg-opt { padding: 5px 8px; font-size: 0.82rem; }
         }
 
         /* Chest panel (opens left of the bag) */

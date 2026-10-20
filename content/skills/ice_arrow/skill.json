@@ -9,8 +9,8 @@
   "speed": 24,
   "castTime": 0.35,
   "damage": {
-    "min": 15,
-    "max": 20,
+    "min": 16,
+    "max": 22,
     "type": "ice"
   },
   "slow": {
@@ -27,7 +27,7 @@
     "filaments": false,
     "arcs": false
   },
-  "mana": 40,
+  "mana": 24,
   "requiresLevel": 4,
-  "price": 150
+  "price": 60
 }

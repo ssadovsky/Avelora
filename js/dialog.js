@@ -505,24 +505,35 @@
                     if (status === 'done') return;
                     const giver = this.questIsGiver(q), turnIn = this.questIsTurnIn(q);
                     if (!status && !giver) return;                    // only the giver offers a quest
-                    if (status === 'active' && !giver && !turnIn) return;
+                    if (status === 'active' && !turnIn) return;       // active quest only shown to the turnIn NPC
                     const p = this.questProgress(q);
-                    const away = status === 'active' && !turnIn;     // the report goes to another NPC
+                    let questType = 'available';
+                    let label = q.name;
+                    if (status === 'active') {
+                        if (p.ready) {
+                            questType = 'ready';
+                            label = q.name;
+                        } else {
+                            questType = 'progress';
+                            label = q.name + ` (${p.have}/${p.need})`;
+                        }
+                    }
                     const entry = {
-                        text: q.name + (status === 'active' ? (away ? ` (${p.have}/${p.need}) — доложить: ${this.turnInName(q)}` : (p.ready ? ' — сдать' : ` (${p.have}/${p.need})`)) : ''),
+                        text: label,
                         next: 'quest:' + qid,
                         quest: true,
-                        ready: p.ready && !away
+                        questType: questType,
+                        ready: p.ready
                     };
                     if (!status) {
                         available.push(entry);
-                    } else if (p.ready && !away) {
+                    } else if (p.ready) {
                         ready.push(entry);
                     } else {
                         inProgress.push(entry);
                     }
                 });
-                const extra = available.concat(ready, inProgress);
+                const extra = ready.concat(available, inProgress);
                 node = Object.assign({}, node, { options: extra.concat(node.options || []) });
             }
             const text = document.createElement('div');
@@ -558,9 +569,28 @@
             ((node && node.options) || [{ text: 'До встречи', action: 'close' }]).forEach(o => {
                 const b = document.createElement('button');
                 b.type = 'button';
-                b.className = 'dlg-opt' + (o.action === 'shop' ? ' shop' : '') + (o.quest ? ' quest' : '') + (o.action === 'questAbandon' ? ' abandon' : '');
-                const isTeach = o.action === 'teach' || o.action === 'teach_magic' || o.action === 'teach_alchemy' || o.action === 'teach_craft';
-                b.textContent = (o.action === 'shop' ? '[Торговля] ' : isTeach ? '[Обучение] ' : o.quest ? '[Задание] ' : o.action === 'questAbandon' ? '[Отмена] ' : '') + o.text;
+                let prefix = '';
+                let questClass = '';
+                if (o.quest) {
+                    if (o.questType === 'ready') {
+                        prefix = '[Сдать] ';
+                        questClass = ' quest-ready';
+                    } else if (o.questType === 'progress') {
+                        prefix = '[В процессе] ';
+                        questClass = ' quest-progress';
+                    } else {
+                        prefix = '[Новое] ';
+                        questClass = ' quest-available';
+                    }
+                } else if (o.action === 'shop') {
+                    prefix = '[Торговля] ';
+                } else if (o.action === 'teach' || o.action === 'teach_magic' || o.action === 'teach_alchemy' || o.action === 'teach_craft') {
+                    prefix = '[Обучение] ';
+                } else if (o.action === 'questAbandon') {
+                    prefix = '[Отмена] ';
+                }
+                b.className = 'dlg-opt' + (o.action === 'shop' ? ' shop' : '') + (o.quest ? ' quest' + questClass : '') + (o.action === 'questAbandon' ? ' abandon' : '');
+                b.textContent = prefix + o.text;
                 b.addEventListener('click', (e) => { e.stopPropagation(); this.choose(o); });
                 opts.appendChild(b);
             });

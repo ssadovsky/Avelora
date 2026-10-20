@@ -2,7 +2,10 @@
   "id": "badger_hunt",
   "name": "Барсучий переполох",
   "giver": "lirael",
-  "requires": "home_camp_visit",
+  "requires": [
+    "home_camp_visit",
+    "potion_trial"
+  ],
   "summary": "Убей 5 радужных барсуков в лесочке к югу от тропы.",
   "objective": {
     "type": "kill",

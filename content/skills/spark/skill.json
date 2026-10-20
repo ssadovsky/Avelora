@@ -10,7 +10,7 @@
   "castTime": 0.2,
   "damage": {
     "min": 10,
-    "max": 15,
+    "max": 14,
     "type": "lightning"
   },
   "vfx": {
@@ -21,7 +21,7 @@
     "impactSparks": 28,
     "impactRadius": 1.4
   },
-  "mana": 15,
+  "mana": 10,
   "requiresLevel": 1,
-  "price": 10
+  "price": 15
 }

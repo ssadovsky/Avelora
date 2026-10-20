@@ -2,7 +2,10 @@
   "id": "bee_hunt",
   "name": "Жужжащая угроза",
   "giver": "lirael",
-  "requires": "home_camp_visit",
+  "requires": [
+    "home_camp_visit",
+    "potion_trial"
+  ],
   "summary": "Убей 5 лесных пчёл. Они кружат над цветущей поляной клевера к западу отсюда.",
   "objective": {
     "type": "kill",

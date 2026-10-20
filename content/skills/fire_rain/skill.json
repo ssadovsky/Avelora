@@ -8,8 +8,8 @@
   "range": 20,
   "castTime": 1.0,
   "damage": {
-    "min": 14,
-    "max": 20,
+    "min": 12,
+    "max": 18,
     "type": "fire"
   },
   "rain": {
@@ -27,7 +27,7 @@
     "impactRadius": 2.2,
     "arcs": false
   },
-  "mana": 120,
+  "mana": 90,
   "requiresLevel": 8,
-  "price": 300
+  "price": 220
 }
