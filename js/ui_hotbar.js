@@ -320,9 +320,7 @@
             this.closeDialog();
             this.closeChest();
             if (this.game && this.game.setInventoryOpen) this.game.setInventoryOpen(false);
-            const has = this.characterSkills().length > 0;
-            if (this.skillsBtn) this.skillsBtn.style.display = has ? '' : 'none';
-            if (!has) this.setSkillsOpen(false);
+            if (this.skillsBtn) this.skillsBtn.style.display = '';
             this.updatePlayerPortrait();
             this.renderAll();
         }
@@ -872,7 +870,6 @@
         toggleSkills() { this.setSkillsOpen(!this.skillsOpen); }
 
         setSkillsOpen(open) {
-            if (open && !this.characterSkills().length) open = false;
             this.skillsOpen = open;
             this.setPanelAria(this.skillsPanel, open);
             if (this.skillsBtn) this.skillsBtn.classList.toggle('active', open);
@@ -903,7 +900,7 @@
             this.makePanelDraggable(this.heroPanel, '.panel-header');
             this.makePanelDraggable(this.questsPanel, '.panel-header');
             if (this.dialog && this.dialog.panel) {
-                this.makePanelDraggable(this.dialog.panel, '.dlg-side');
+                this.makePanelDraggable(this.dialog.panel, '.dlg-side, .dlg-text');
             }
 
             window.addEventListener('resize', () => {

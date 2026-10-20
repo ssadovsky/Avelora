@@ -1573,10 +1573,10 @@
 
         /* NPC dialog / shop window */
         #dialog-panel {
-            position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
-            width: min(680px, calc(100% - 24px));
-            height: 400px;
-            max-height: calc(100vh - 100px);
+            position: fixed; left: 18px; top: 136px; bottom: auto; transform: none;
+            width: min(600px, calc(100% - 36px));
+            height: 505px;
+            max-height: calc(100vh - 150px);
             box-sizing: border-box;
             z-index: 160; display: none; cursor: default;
             background: rgba(12, 16, 18, 0.94); border: 1px solid rgba(195, 160, 95, 0.55); border-radius: 4px;
@@ -2460,7 +2460,8 @@
         /* Draggable Panels Header */
         .inventory-header,
         .panel-header,
-        #dialog-panel .dlg-side {
+        #dialog-panel .dlg-side,
+        #dialog-panel .dlg-text {
             cursor: grab;
             user-select: none !important;
             -webkit-user-select: none !important;
@@ -2469,8 +2470,11 @@
         .inventory-header:active,
         .panel-header:active,
         #dialog-panel .dlg-side:active,
+        #dialog-panel .dlg-text:active,
         .panel-is-dragging .inventory-header,
-        .panel-is-dragging .panel-header {
+        .panel-is-dragging .panel-header,
+        .panel-is-dragging #dialog-panel .dlg-side,
+        .panel-is-dragging #dialog-panel .dlg-text {
             cursor: grabbing !important;
         }
         .inventory-header button,
@@ -4418,7 +4422,13 @@ html { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transpare
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(195, 160, 95, 0.45) transparent;
 }
+#skills-list::-webkit-scrollbar { width: 4px; }
+#skills-list::-webkit-scrollbar-track { background: transparent; }
+#skills-list::-webkit-scrollbar-thumb { background: rgba(195, 160, 95, 0.4); border-radius: 2px; }
+#skills-list::-webkit-scrollbar-thumb:hover { background: rgba(239, 207, 122, 0.65); }
 #skills-panel .skills-hint { flex: 0 0 auto; }
 .skill-group, .skill-group-head, .skill-group-body { touch-action: pan-y; }
 .skill-group { margin-bottom: 6px; }

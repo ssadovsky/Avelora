@@ -97,6 +97,13 @@
         // -----------------------------------------------------------
         open(npc) {
             if (!this.panel || !npc) return;
+            // Always reset position to left under player portrait on every open
+            this.panel.dataset.dragged = '';
+            this.panel.style.left = '';
+            this.panel.style.top = '';
+            this.panel.style.right = '';
+            this.panel.style.bottom = '';
+            this.panel.style.transform = '';
             this.npc = npc;
             this.nodeId = npc.start || 'start';
             this.mode = 'talk';
