@@ -46,8 +46,8 @@ window.AVELORA_PROGRESSION = {
     // Мана = baseMana + (Уровень - 1) * (baseMana * manaPerLevel) + Интеллект * manaPerInt
     classes: {
         mage: {
-            start:        { str: 5,   dex: 5,   int: 10 },
-            perLevel:     { str: 1.0, dex: 2.5, int: 5.0 },
+            start:        { str: 1,   dex: 1,   int: 10 },
+            perLevel:     { str: 1.0, dex: 1, int: 5.0 },
             baseHp:       100, // Базовый запас здоровья на 1 ур.
             hpPerLevel:   0.5, // Прирост HP за ур.: +0.5 от базы, формула: (Уровень - 1) * (baseHp * 0.5) = +50 HP за каждый уровень
             baseMana:     100, // Базовый запас маны на 1 ур.
@@ -55,8 +55,8 @@ window.AVELORA_PROGRESSION = {
             manaRegen:    5.0  // Базовое восстановление маны в секунду (+ Интеллект * 0.1)
         },
         archer: {
-            start:        { str: 5,   dex: 10,  int: 5 },
-            perLevel:     { str: 2.5, dex: 5.0, int: 1.0 },
+            start:        { str: 1,   dex: 10,  int: 1 },
+            perLevel:     { str: 1, dex: 2.5, int: 1.0 },
             baseHp:       100,
             hpPerLevel:   0.5, // Прирост HP за ур.: (Уровень - 1) * (baseHp * 0.5) = +50 HP за ур.
             baseMana:     60,
@@ -64,8 +64,8 @@ window.AVELORA_PROGRESSION = {
             manaRegen:    1.0
         },
         warrior: {
-            start:        { str: 10,  dex: 5,   int: 5 },
-            perLevel:     { str: 5.0, dex: 2.5, int: 0.5 },
+            start:        { str: 10,  dex: 1,   int: 1 },
+            perLevel:     { str: 2.5, dex: 1, int: 1 },
             baseHp:       100,
             hpPerLevel:   0.5, // Прирост HP за ур.: (Уровень - 1) * (baseHp * 0.5) = +50 HP за ур.
             baseMana:     40,

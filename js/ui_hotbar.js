@@ -1489,7 +1489,15 @@
 
             // Time played
             const sec = Math.floor(st && st.playTime ? st.playTime : 0);
-            setText('hero-stat-time', `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
+            const hrs = Math.floor(sec / 3600);
+            const mins = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            const timeStr = hrs > 0
+                ? `${hrs} ч ${mins} мин`
+                : (mins > 0 ? `${mins} мин ${s} с` : `${s} с`);
+            setText('hero-stat-time', timeStr);
+            const timeEl = document.getElementById('hero-stat-time');
+            if (timeEl) timeEl.title = `${hrs} ч ${mins} мин ${s} с (${sec} сек)`;
         }
 
         /** Equipment slots of the hero panel: only the weapon slot is live for now; the rest wait for gear. */

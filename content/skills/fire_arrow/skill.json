@@ -23,7 +23,7 @@
     "filaments": false,
     "arcs": false
   },
-  "mana": 30,
-  "requiresLevel": 2,
-  "price": 100
+  "mana": 25,
+  "requiresLevel": 3,
+  "price": 50
 }
