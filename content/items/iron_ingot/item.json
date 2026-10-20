@@ -1,0 +1,14 @@
+{
+  "id": "iron_ingot",
+  "name": "Железный слиток",
+  "description": "Слиток очищенного железа. Основной материал для ковки оружия, доспехов и прочных колец.",
+  "category": "material",
+  "stackMax": 20,
+  "ground": {
+    "variants": 1,
+    "scale": 1.0,
+    "pile": "single"
+  },
+  "use": null,
+  "value": 10
+}

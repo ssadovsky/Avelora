@@ -168,11 +168,24 @@
             const mergedDef = (sp.behavior || sp.aggroRadius !== undefined || sp.leashRadius !== undefined)
                 ? Object.assign({}, def, sp)
                 : def;
-            // Уровень существа: задаётся в спавне sp.level или в creature.json def.level (по умолчанию 1)
-            const level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
-
             // Параметры рангов и масштабирования берутся из js/config/creatures.js
             const cfg = window.AVELORA_CREATURES_CONFIG || {};
+
+            // Уровень существа: в подземельях (isDungeon: true) масштабируется строго под уровень героя (не ниже minLevel),
+            // в остальных локациях берётся из спавна sp.level или creature.json def.level (по умолчанию 1)
+            let level = Math.max(1, Math.floor(Number(sp.level !== undefined ? sp.level : def.level) || 1));
+            if (this.location && this.location.isDungeon) {
+                const dScale = cfg.dungeonScaling || {};
+                if (dScale.enabled !== false) {
+                    const minLvl = (this.location.dungeon && this.location.dungeon.minLevel !== undefined)
+                        ? this.location.dungeon.minLevel
+                        : (dScale.minLevel !== undefined ? dScale.minLevel : 5);
+                    const heroLvl = (this.game && this.game.hero && this.game.hero.level)
+                        || (window.AveloraProgress && this.state && window.AveloraProgress.levelForXp(this.state.xp))
+                        || 1;
+                    level = Math.max(minLvl, heroLvl);
+                }
+            }
             const rank = sp.rank || def.rank || 'normal';
             const RANK_MULTS = cfg.ranks || {
                 normal: { hp: 1.0, dmg: 1.0, xp: 1.0, gold: 1.0 },
@@ -1010,6 +1023,14 @@
             rec.flashT = HIT_FLASH;
             if (ui && ui.floatAt) ui.floatAt(String(Math.round(amount)), source === 'spark' ? 'dmg-magic' : 'dmg', rec.x, rec.y + rec.height + 0.25, rec.z);
             window.dispatchEvent(new CustomEvent('game:creatureDamaged', { detail: { id: rec.id, type: rec.type, amount, hp: rec.hp, source } }));
+            if (source === 'spark') {
+                const st = this.state || (this.game && this.game.gameState);
+                if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
+                const dlg = (this.game && this.game.ui && this.game.ui.dialog);
+                if (dlg && dlg.updateTracker) dlg.updateTracker();
+                if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                window.dispatchEvent(new CustomEvent('game:questUpdated'));
+            }
             if (rec.hp <= 0) {
                 this.kill(rec);
                 return amount;
@@ -1169,6 +1190,14 @@
                     if (dealt > 0 && detail.knockback) this.knockback(rec, pt.x, pt.z, detail.knockback);
                     if (dealt > 0 && detail.slow) this.slow(rec, detail.slow);
                     if (dealt > 0 && detail.stun) this.stun(rec, detail.stun);
+                    if (detail.skillId === 'spark') {
+                        const st = this.state || (this.game && this.game.gameState);
+                        if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
+                        const dlg = (this.game && this.game.ui && this.game.ui.dialog);
+                        if (dlg && dlg.updateTracker) dlg.updateTracker();
+                        if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                        window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                    }
                 }
             }
         }

@@ -925,7 +925,7 @@ class MedievalCharacter {
             this.heldStaffCrystalMesh = staffCrystal;
             if (staffCrystal && staffCrystal.material) {
                 const cm = Array.isArray(staffCrystal.material) ? staffCrystal.material[0] : staffCrystal.material;
-                cm.emissive = new THREE.Color(0x38bdf8);
+                cm.emissive = (glowCfg && glowCfg.color) ? new THREE.Color(glowCfg.color) : new THREE.Color(0x38bdf8);
                 cm.emissiveIntensity = 1.35;
             }
             if (typeof document !== 'undefined') {
@@ -948,14 +948,11 @@ class MedievalCharacter {
                 });
                 const glowSprite = new THREE.Sprite(glowMat);
                 glowSprite.scale.set(0.42, 0.42, 1.0);
-                if (staffCrystal) {
-                    staffCrystal.add(glowSprite);
-                } else {
-                    // the aura sits on the model itself (object may be a rotated hold-group around it)
-                    const glowHost = (glowCfg && object.children[0]) || object;
-                    glowSprite.position.set(0, glowCfg && glowCfg.y !== undefined ? glowCfg.y : 1.35, 0);
-                    glowHost.add(glowSprite);
-                }
+                // the aura sits on the inner model itself along its upright shaft axis
+                const glowHost = (object.children && object.children[0]) || object;
+                const posY = (glowCfg && glowCfg.y !== undefined) ? glowCfg.y : 0.64;
+                glowSprite.position.set(0, posY, 0);
+                glowHost.add(glowSprite);
                 this.heldStaffGlow = glowSprite;
             }
         }

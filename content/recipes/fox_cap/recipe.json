@@ -16,5 +16,7 @@
   "result": {
     "item": "fox_cap",
     "count": 1
-  }
-}
+  },
+  "price": 15,
+  "requiresLevel": 2
+}

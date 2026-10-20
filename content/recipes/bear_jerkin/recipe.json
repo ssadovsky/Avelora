@@ -16,5 +16,7 @@
   "result": {
     "item": "bear_jerkin",
     "count": 1
-  }
-}
+  },
+  "price": 25,
+  "requiresLevel": 3
+}

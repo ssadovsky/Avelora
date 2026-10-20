@@ -48,28 +48,35 @@
     const UNIVERSAL_SKILLS = ['home_recall'];
 
     // Skills that every save made before skills had to be learned already owns
-    const LEGACY_SKILLS = ['spark'];
+    const LEGACY_SKILLS = [];
 
-    /** Every skill this character CAN learn (content/characters/<id>/skills.json, without the universal ones). */
+    /** Every skill this character CAN learn (content/characters/<id>/skills.json + universal skills like home_recall). */
     function skillCatalog(characterId) {
         const chars = (window.GAME_CONTENT && window.GAME_CONTENT.characters) || {};
         const skills = (window.GAME_CONTENT && window.GAME_CONTENT.skills) || {};
         const cfg = chars[characterId];
-        return (cfg && Array.isArray(cfg.skills)) ? cfg.skills.filter(id => Object.prototype.hasOwnProperty.call(skills, id) && !UNIVERSAL_SKILLS.includes(id)) : [];
+        let own = (cfg && Array.isArray(cfg.skills)) ? cfg.skills.filter(id => Object.prototype.hasOwnProperty.call(skills, id)) : [];
+        UNIVERSAL_SKILLS.forEach(u => {
+            if (Object.prototype.hasOwnProperty.call(skills, u) && !own.includes(u)) own.push(u);
+        });
+        return own;
     }
 
     /**
-     * Skill ids this character may use now: the catalog skills it has LEARNED (all of them when `learned`
-     * is omitted) + UNIVERSAL_SKILLS last.
+     * Skill ids this character may use now: ONLY the skills it has LEARNED (no free unearned skills).
      */
     function characterSkills(characterId, learned) {
-        const chars = (window.GAME_CONTENT && window.GAME_CONTENT.characters) || {};
         const skills = (window.GAME_CONTENT && window.GAME_CONTENT.skills) || {};
         const has = id => Object.prototype.hasOwnProperty.call(skills, id);
-        const cfg = chars[characterId];
-        let own = (cfg && Array.isArray(cfg.skills)) ? cfg.skills.filter(id => has(id) && !UNIVERSAL_SKILLS.includes(id)) : [];
-        if (Array.isArray(learned)) own = own.filter(id => learned.includes(id));
-        return own.concat(UNIVERSAL_SKILLS.filter(has));
+        const cat = skillCatalog(characterId);
+        if (!Array.isArray(learned)) return cat.filter(has);
+        return learned.filter(id => cat.includes(id) && has(id));
+    }
+
+    function sanitizeLearnedRecipes(raw) {
+        if (!Array.isArray(raw)) return [];
+        const all = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+        return raw.filter(id => typeof id === 'string' && Object.prototype.hasOwnProperty.call(all, id));
     }
 
     function sanitizeInventory(raw) {
@@ -277,12 +284,14 @@
             const cat = skillCatalog(characterId);
             if (Array.isArray(data.learnedSkills)) this.learnedSkills = data.learnedSkills.filter(id => cat.includes(id));
             else this.learnedSkills = data.version ? LEGACY_SKILLS.filter(id => cat.includes(id)) : [];
+            this.learnedRecipes = sanitizeLearnedRecipes(data.learnedRecipes);
+            this.questFlags = (data.questFlags && typeof data.questFlags === 'object') ? Object.assign({}, data.questFlags) : {};
             this.hotbar = sanitizeHotbar(data.hotbar, characterId, this.learnedSkills);
             this.pickupsTaken = sanitizeTaken(data.pickupsTaken);
             const eq = (data.equipped && typeof data.equipped === 'object') ? data.equipped : {};
-            this.equipped = { right: null, head: null, cloak: null, body: null, hands: null, ring: null, feet: null };
-            ['head', 'cloak', 'body', 'hands', 'ring', 'feet'].forEach(slot => {
-                if (window.AveloraItems.isEquippable(eq[slot]) && window.AveloraItems.equipSlot(eq[slot]) === slot) this.equipped[slot] = eq[slot];
+            this.equipped = { right: null, head: null, cloak: null, body: null, hands: null, ring: null, ring2: null, feet: null };
+            ['head', 'cloak', 'body', 'hands', 'ring', 'ring2', 'feet'].forEach(slot => {
+                const reqSlot = (slot === 'ring2') ? 'ring' : slot; if (window.AveloraItems.isEquippable(eq[slot]) && window.AveloraItems.equipSlot(eq[slot]) === reqSlot) this.equipped[slot] = eq[slot];
             });
             // An item in the hand (state.equipped) does NOT occupy a bag cell. Saves from before
             // that change (no equipV2 flag) kept the item in the bag too: move it out of the bag.
@@ -479,7 +488,9 @@
 
         /** How many of an item the hero owns: bag + the one in the hand. */
         ownedCount(itemId) {
-            return this.inventory.count(itemId) + (this.equippedSlotOf(itemId) ? 1 : 0);
+            let eqCount = 0;
+            for (const k of Object.keys(this.equipped)) if (this.equipped[k] === itemId) eqCount++;
+            return this.inventory.count(itemId) + eqCount;
         }
 
         /** The slot an item is worn/held in right now, or null. */
@@ -488,14 +499,32 @@
             return null;
         }
 
+        /** All slots an item is worn/held in right now. */
+        equippedSlotsOf(itemId) {
+            const slots = [];
+            for (const k of Object.keys(this.equipped)) if (this.equipped[k] === itemId) slots.push(k);
+            return slots;
+        }
+
         /**
          * Takes one `itemId` from the bag into the right hand; whatever was in the hand goes to the bag.
          * Returns 'ok' | 'invalid' | 'missing' | 'full'.
          */
-        equipFromBag(itemId) {
+        equipFromBag(itemId, preferredSlot) {
             if (!window.AveloraItems.isEquippable(itemId)) return 'invalid';
             if (this.inventory.count(itemId) <= 0) return 'missing';
-            const slot = window.AveloraItems.equipSlot(itemId);
+            let slot = preferredSlot || window.AveloraItems.equipSlot(itemId);
+            if (window.AveloraItems.equipSlot(itemId) === 'ring') {
+                if (preferredSlot === 'ring' || preferredSlot === 'ring2') {
+                    slot = preferredSlot;
+                } else if (!this.equipped.ring) {
+                    slot = 'ring';
+                } else if (!this.equipped.ring2) {
+                    slot = 'ring2';
+                } else {
+                    slot = 'ring';
+                }
+            }
             const prev = this.equipped[slot];
             this.inventory.remove(itemId, 1);
             if (prev && this.inventory.add(prev, 1) < 1) {
@@ -546,6 +575,13 @@
             if (this.quests[id] !== 'active') return false;
             delete this.quests[id];
             if (this.questKills && this.questKills[id]) delete this.questKills[id];
+            if (id === 'spark_trial' && this.questFlags) {
+                delete this.questFlags['spark_hit_creature'];
+            }
+            if (id === 'potion_trial' && this.questFlags) {
+                delete this.questFlags['potion_health_small_crafted'];
+                delete this.questFlags['potion_health_small_drank'];
+            }
             this.save();
             return true;
         }
@@ -557,6 +593,23 @@
             this.learnedSkills.push(id);
             this.save();
             return true;
+        }
+
+        knowsRecipe(id) { return this.learnedRecipes.includes(id); }
+
+        learnRecipe(id) {
+            const all = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+            if (!Object.prototype.hasOwnProperty.call(all, id) || this.knowsRecipe(id)) return false;
+            this.learnedRecipes.push(id);
+            this.save();
+            return true;
+        }
+
+        getQuestFlag(k) { return !!(this.questFlags && this.questFlags[k]); }
+
+        setQuestFlag(k, v) {
+            this.questFlags[k] = !!v;
+            this.save();
         }
 
         /** Adds experience (capped at `cap` = the XP of the max level) and saves. */
@@ -642,6 +695,8 @@
                 gold: this.gold,
                 xp: this.xp,
                 learnedSkills: this.learnedSkills.slice(),
+                learnedRecipes: this.learnedRecipes.slice(),
+                questFlags: Object.assign({}, this.questFlags),
                 quests: Object.assign({}, this.quests),
                 questKills: Object.assign({}, this.questKills),
                 slain: JSON.parse(JSON.stringify(this.slain)),

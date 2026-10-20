@@ -28,6 +28,12 @@ window.AVELORA_CREATURES_CONFIG = {
     xpMultiplier: 1.0,
     goldMultiplier: 1.0,
 
+    // Масштабирование монстров в подземельях (локации с isDungeon: true):
+    dungeonScaling: {
+        enabled: true,
+        minLevel: 5 // Минимальный уровень мобов в данже (даже если уровень героя ниже)
+    },
+
     // Тайминги поведения:
     timings: {
         corpseTime: 8,       // Секунд труп лежит на земле до исчезновения

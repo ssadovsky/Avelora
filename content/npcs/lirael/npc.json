@@ -8,8 +8,12 @@
       "text": "Мир тебе, путник. Здесь, у Каменного Дозора, вода поёт, а лес тих — до поры. Я Лираэль. Чем могу помочь?",
       "options": [
         {
-          "text": "Научи меня чему-нибудь",
-          "action": "teach"
+          "text": "Научи меня магии",
+          "action": "teach_magic"
+        },
+        {
+          "text": "Научи меня алхимии",
+          "action": "teach_alchemy"
         },
         {
           "text": "Покажи свои товары",
@@ -79,6 +83,9 @@
     "fern_gathering",
     "log_gathering",
     "stone_gathering",
+    "home_camp_visit",
+    "potion_trial",
+    "spark_trial",
     "bee_hunt",
     "rat_hunt",
     "badger_hunt",

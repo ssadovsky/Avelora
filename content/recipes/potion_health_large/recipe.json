@@ -4,10 +4,15 @@
   "description": "Концентрированный эликсир из 10 побегов папоротника. Восстанавливает 100 единиц здоровья.",
   "category": "alchemy",
   "ingredients": [
-    { "item": "fern", "count": 10 }
+    {
+      "item": "fern",
+      "count": 10
+    }
   ],
   "result": {
     "item": "potion_health_large",
     "count": 1
-  }
+  },
+  "price": 20,
+  "requiresLevel": 5
 }

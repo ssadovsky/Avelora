@@ -13,5 +13,7 @@
     "item": "plank",
     "count": 4
   },
-  "station": "sawmill"
+  "station": "sawmill",
+  "price": 5,
+  "requiresLevel": 1
 }

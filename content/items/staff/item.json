@@ -38,5 +38,9 @@
     "cooldown": 0.9,
     "style": "staff",
     "stat": "int"
+  },
+  "glow": {
+    "color": "#b57bff",
+    "y": 0.64
   }
-}
+}

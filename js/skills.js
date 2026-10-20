@@ -532,6 +532,16 @@
             if (g.character) g.character.stopChannel();
             // Going TO the destination: remember where from, so the same skill can bring us back.
             if (g.gameState && ch.from && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from, { x: g.character.position.x, z: g.character.position.z, r: g.character.currentRotation });
+            // Quest tracking for home_recall
+            if (ch.def.id === 'home_recall' && g.gameState) {
+                if (ch.dest === 'homeCamp') {
+                    g.gameState.setQuestFlag('home_camp_visited', true);
+                    window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                } else if (ch.from === 'homeCamp') {
+                    g.gameState.setQuestFlag('home_camp_returned', true);
+                    window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                }
+            }
             this.pendingArrival = { def: ch.def };
             g.changeLocation(ch.dest, ch.spawn, 'Золотые руны уносят вас…', ch.pos);
         }
@@ -1111,6 +1121,11 @@
                     if (def.knockback) cr.knockback(aliveTgt, tx, tz, def.knockback);
                     if (def.slow) cr.slow(aliveTgt, def.slow);
                 }
+                if (def.id === 'spark' && g.state && g.state.setQuestFlag) {
+                    g.state.setQuestFlag('spark_hit_creature', true);
+                    if (g.dialog && g.dialog.updateTracker) g.dialog.updateTracker();
+                    if (g.ui && g.ui.updateQuestsProgress) g.ui.updateQuestsProgress();
+                }
             }
 
             // Сплеш по площади вокруг точки удара (только если на скилле явно задано aoe: true)
@@ -1306,7 +1321,18 @@
                         const gy = this.game.terrain.getHeightAt(p.pos.x, p.pos.z);
                         const cr = this.game.creatures;
                         if (p.pos.y < gy + 0.05) { p.pos.y = gy + 0.08; hit = true; onGround = true; }
-                        else if (cr && cr.hitTest(p.pos)) { hit = true; onGround = p.pos.y - gy < 0.6; } // direct hit: bursts on the creature
+                        else if (cr && cr.hitTest(p.pos)) {
+                            hit = true;
+                            onGround = p.pos.y - gy < 0.6;
+                            if (p.def && p.def.id === 'spark') {
+                                const st = this.game && this.game.gameState;
+                                if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
+                                const dlg = (this.game && this.game.ui && this.game.ui.dialog);
+                                if (dlg && dlg.updateTracker) dlg.updateTracker();
+                                if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                                window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                            }
+                        }
                         else if (this.hitsBlocker(p.pos)) { hit = true; onGround = p.pos.y - gy < 1.0; }
                     }
                 }
@@ -1400,6 +1426,20 @@
                     damage: dmg, amount, knockback: def.knockback || null, slow: def.slow || null
                 }
             }));
+            if (def && def.id === 'spark') {
+                const cr = this.game.creatures;
+                if (cr && cr.list) {
+                    const anyNear = cr.list.some(r => cr.isAlive(r) && Math.hypot(r.x - p.pos.x, r.z - p.pos.z) <= (r.def.hitRadius || 0.4) + 2.0);
+                    if (anyNear) {
+                        const st = this.game && this.game.gameState;
+                        if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
+                        const dlg = (this.game && this.game.ui && this.game.ui.dialog);
+                        if (dlg && dlg.updateTracker) dlg.updateTracker();
+                        if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                        window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                    }
+                }
+            }
         }
 
         updateImpact(m, delta) {

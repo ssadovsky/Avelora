@@ -1,0 +1,18 @@
+{
+  "id": "iron_ingot",
+  "name": "Железный слиток",
+  "description": "Переплавка железной руды в чистый слиток.",
+  "category": "refining",
+  "price": 10,
+  "requiresLevel": 2,
+  "ingredients": [
+    {
+      "item": "iron_ore",
+      "count": 2
+    }
+  ],
+  "result": {
+    "item": "iron_ingot",
+    "count": 1
+  }
+}

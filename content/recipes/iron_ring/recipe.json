@@ -1,0 +1,22 @@
+{
+  "id": "iron_ring",
+  "name": "Кованое железное кольцо",
+  "description": "Прочное кольцо из очищенного железа.",
+  "category": "equipment",
+  "price": 15,
+  "requiresLevel": 2,
+  "ingredients": [
+    {
+      "item": "iron_ingot",
+      "count": 2
+    },
+    {
+      "item": "stone",
+      "count": 1
+    }
+  ],
+  "result": {
+    "item": "iron_ring",
+    "count": 1
+  }
+}

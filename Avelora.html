@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Experience</title>
-    <link rel="stylesheet" href="css/main.css?v=20261020_skills1">
+    <link rel="stylesheet" href="css/main.css?v=20261020_trackfix1">
 </head>
 <body>
 
@@ -119,6 +119,13 @@
                     <span class="micromenu-label">Задания</span>
                     <span class="micromenu-key">L</span>
                 </button>
+                <button type="button" class="micromenu-item" id="craft-btn" role="menuitem" title="Ремесло (N)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    <span class="micromenu-label">Ремесло</span>
+                    <span class="micromenu-key">N</span>
+                </button>
                 <button type="button" class="micromenu-item" id="build-btn" role="menuitem" title="Строительство (B)" style="display:none">
                     <svg viewBox="0 0 24 24" fill="none" stroke="#efcf7a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 21h18"/>
@@ -159,23 +166,35 @@
         <div class="chest-hint">Перетащите предметы между сундуком и сумкой. Клик — переложить стопку.</div>
     </div>
 
-    <!-- Inventory & Crafting Panel -->
+    <!-- Inventory Panel (I) -->
     <div id="inventory-panel" role="dialog" aria-labelledby="inventory-title" aria-hidden="true">
         <div class="inventory-header">
-            <div class="inventory-tabs">
-                <button type="button" class="inv-tab-btn active" id="tab-btn-inv">Сумка</button>
-                <button type="button" class="inv-tab-btn" id="tab-btn-craft">Ремесло</button>
+            <div class="inventory-title" id="inventory-title">Сумка</div>
+            <div class="inventory-header-actions">
+                <button type="button" class="inv-craft-link" id="inv-open-craft-btn" title="Открыть окно ремесла (N)" aria-label="Открыть ремесло">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    <span>Ремесло</span>
+                </button>
+                <button type="button" id="inventory-close" title="Закрыть (I)" aria-label="Закрыть сумку">×</button>
             </div>
-            <button type="button" id="inventory-close" title="Закрыть (I)" aria-label="Закрыть инвентарь">×</button>
         </div>
         <div id="inventory-tab-content">
             <div class="inventory-grid"></div>
             <div class="inventory-empty">Сумка пуста</div>
             <div class="inventory-gold"><span class="coin"></span> Золото: <b id="gold-amount">0</b></div>
         </div>
-        <div id="crafting-tab-content" class="hidden">
-            <div id="crafting-recipe-list"></div>
+    </div>
+
+    <!-- Crafting Panel: separate window, higher than inventory, fixed height -->
+    <div id="crafting-panel" role="dialog" aria-labelledby="crafting-title" aria-hidden="true">
+        <div class="inventory-header">
+            <div class="inventory-title" id="crafting-title">Ремесло</div>
+            <button type="button" id="crafting-close" title="Закрыть (N)" aria-label="Закрыть ремесло">×</button>
         </div>
+        <div id="crafting-recipe-list"></div>
+        <div class="crafting-hint">Выберите рецепт для создания предметов и зелий.</div>
     </div>
 
     <!-- Skills Panel (K): the character's skills, drag them onto the hotbar -->
@@ -192,6 +211,7 @@
     <div id="hero-panel" role="dialog" aria-modal="true" aria-labelledby="hero-panel-title" aria-hidden="true">
         <div class="panel-header">
             <span class="panel-title" id="hero-panel-title">Герой</span>
+            <button type="button" class="panel-header-btn" id="hero-open-craft-btn" title="Открыть окно ремесла (N)">⚒ Ремесло</button>
             <button type="button" class="panel-close" id="hero-panel-close" aria-label="Закрыть">×</button>
         </div>
         <div class="hero-layout">
@@ -199,11 +219,12 @@
                 <div class="hero-col-title">Снаряжение</div>
                 <div class="doll-grid" id="doll-grid">
                     <div class="doll-slot" data-slot="head" style="grid-area: head"><span class="doll-label">Голова</span></div>
-                    <div class="doll-slot" data-slot="cloak" style="grid-area: cloak"><span class="doll-label">Плащ</span></div>
-                    <div class="doll-slot" data-slot="body" style="grid-area: body"><span class="doll-label">Тело</span></div>
                     <div class="doll-slot" data-slot="hands" style="grid-area: hands"><span class="doll-label">Перчатки</span></div>
+                    <div class="doll-slot" data-slot="body" style="grid-area: body"><span class="doll-label">Тело</span></div>
+                    <div class="doll-slot" data-slot="cloak" style="grid-area: cloak"><span class="doll-label">Плащ</span></div>
                     <div class="doll-slot" data-slot="ring" style="grid-area: ring"><span class="doll-label">Кольцо</span></div>
                     <div class="doll-slot" data-slot="weapon" style="grid-area: weapon"><span class="doll-label">Оружие</span></div>
+                    <div class="doll-slot" data-slot="ring2" style="grid-area: ring2"><span class="doll-label">Кольцо</span></div>
                     <div class="doll-slot" data-slot="feet" style="grid-area: feet"><span class="doll-label">Сапоги</span></div>
                 </div>
             </div>
@@ -582,8 +603,8 @@
     <script src="js/assets/index.js?v=17e5959115"></script>
     <script src="js/asset_loader.js?v=20261018_lazy1"></script>
     <script src="js/assets_data.js"></script>
-    <script src="js/content_data.js?v=20261020_staff5"></script>
-    <script src="js/world_data.js?v=20261018_boss1"></script>
+    <script src="js/content_data.js?v=20261020_sparkfix3"></script>
+    <script src="js/world_data.js?v=20261020_sparkfix3"></script>
     <script src="js/location_groups.js?v=20261018_opt1"></script>
     <script src="js/gfx_profile.js?v=20261018_opt1"></script>
     <script src="js/pathfinding.js?v=20261018_opt1"></script>
@@ -598,23 +619,23 @@
     <script src="js/characters.js?v=20261011_p1"></script>
     <script src="js/save.js?v=20261016_fb1"></script>
     <script src="js/items.js?v=20261020_fist1"></script>
-    <script src="js/game_state.js?v=20261019_clk2"></script>
+    <script src="js/game_state.js?v=20261020_sparkfix3"></script>
     <script src="js/world_objects.js?v=20261018_perf1"></script>
     <script src="js/building.js?v=20261018_scale1"></script>
     <!-- Game Configuration & Balance (js/config/) -->
     <script src="js/config/progression.js?v=20261020_fist1"></script>
-    <script src="js/config/creatures.js?v=20261019_cfg1"></script>
-    <script src="js/creatures.js?v=20261019_clk2"></script>
+    <script src="js/config/creatures.js?v=20261020_spark1"></script>
+    <script src="js/creatures.js?v=20261020_sparkfix3"></script>
     <script src="js/harvest.js?v=20261019_clk2"></script>
     <script src="js/combat.js?v=20261019_range1"></script>
     <script src="js/hero.js?v=20261019_mana1"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
-    <script src="js/dialog.js?v=20261017_tgt1"></script>
-    <script src="js/skills.js?v=20261019_mana1"></script>
-    <script src="js/ui_hotbar.js?v=20261020_skills1"></script>
-    <script src="js/character.js?v=20261020_grip2"></script>
+    <script src="js/dialog.js?v=20261020_sparkfix3"></script>
+    <script src="js/skills.js?v=20261020_sparkfix3"></script>
+    <script src="js/ui_hotbar.js?v=20261020_spark2"></script>
+    <script src="js/character.js?v=20261020_staffglow1"></script>
     <script src="js/map.js?v=20261013_map2"></script>
-    <script src="js/main.js?v=20261019_joy3"></script>
+    <script src="js/main.js?v=20261020_craftui1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

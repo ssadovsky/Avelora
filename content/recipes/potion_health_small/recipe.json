@@ -4,10 +4,15 @@
   "description": "Целебный отвар из листьев папоротника. Восстанавливает 50 единиц здоровья.",
   "category": "alchemy",
   "ingredients": [
-    { "item": "fern", "count": 5 }
+    {
+      "item": "fern",
+      "count": 5
+    }
   ],
   "result": {
     "item": "potion_health_small",
     "count": 1
-  }
+  },
+  "price": 5,
+  "requiresLevel": 1
 }

@@ -2,7 +2,10 @@
   "id": "fox_hunt",
   "name": "Охота на лисиц",
   "giver": "lirael",
-  "requires": "badger_hunt",
+  "requires": [
+    "badger_hunt",
+    "bee_hunt"
+  ],
   "summary": "Убей 5 огненных лисиц на холмах к северу от водопада.",
   "objective": {
     "type": "kill",

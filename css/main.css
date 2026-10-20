@@ -1086,6 +1086,7 @@
         #quests-panel {
             width: 500px;
             height: min(540px, calc(100vh - 80px));
+            overflow-x: hidden !important;
         }
         #hero-panel.open,
         #quests-panel.open {
@@ -1238,7 +1239,7 @@
         .doll-grid {
             display: grid; gap: 8px; justify-content: center;
             grid-template-columns: repeat(3, 56px); grid-auto-rows: 56px;
-            grid-template-areas: ". head ." "cloak body hands" "ring weapon ." ". feet .";
+            grid-template-areas: ". head ." "hands body cloak" "ring weapon ring2" ". feet .";
         }
         .doll-slot {
             position: relative; display: flex; align-items: center; justify-content: center;
@@ -1342,6 +1343,7 @@
             flex: 1;
             min-height: 0;
             overflow-y: auto;
+            overflow-x: hidden !important;
             padding-right: 4px;
         }
         .quest-list::-webkit-scrollbar { width: 4px; }
@@ -1354,6 +1356,10 @@
             border-radius: 4px;
             padding: 10px 12px;
             transition: border-color 0.15s ease, background-color 0.15s ease;
+            box-sizing: border-box;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
         }
         .quest-card:hover {
             border-color: rgba(239, 207, 122, 0.5);
@@ -1365,15 +1371,19 @@
         }
         .quest-card-header {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: space-between;
             gap: 8px;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
         }
         .quest-card-title {
             font-size: 0.88rem;
             font-weight: 600;
             color: #f1e2c8;
+            flex: 1 1 auto;
+            min-width: 130px;
+            word-break: break-word;
         }
         .quest-card.completed .quest-card-title {
             color: #c5e1a5;
@@ -1383,10 +1393,13 @@
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
+            flex-wrap: wrap;
+            max-width: 100%;
+            justify-content: flex-end;
         }
         .quest-status-badge {
             font-size: 0.68rem;
-            padding: 2px 6px;
+            padding: 2px 7px;
             border-radius: 3px;
             font-weight: 600;
             text-transform: uppercase;
@@ -1394,7 +1407,11 @@
             background: rgba(212, 175, 55, 0.18);
             border: 1px solid rgba(212, 175, 55, 0.35);
             color: #efcf7a;
-            white-space: nowrap;
+            white-space: normal;
+            max-width: 220px;
+            text-align: right;
+            line-height: 1.25;
+            word-break: break-word;
         }
         .quest-card.completed .quest-status-badge {
             background: rgba(76, 175, 80, 0.25);
@@ -1412,6 +1429,7 @@
             color: #fca5a5;
             transition: all 0.15s ease;
             white-space: nowrap;
+            flex-shrink: 0;
         }
         .quest-abandon-btn:hover {
             background: rgba(220, 50, 50, 0.45);
@@ -1634,17 +1652,20 @@
         .dlg-opt.abandon:hover { border-color: #ef4444; background: rgba(220, 38, 38, 0.2); color: #fff; }
         #quest-tracker {
             position: fixed;
-            top: 152px;
+            top: 140px;
             right: 14px;
             z-index: 40;
-            min-width: 220px;
-            max-width: 320px;
-            width: auto;
-            max-height: min(440px, 60vh);
-            padding: 8px 12px;
+            width: 270px !important;
+            min-width: 270px !important;
+            max-width: 270px !important;
+            max-height: min(290px, calc(100vh - 220px));
+            padding: 8px 8px 8px 12px;
             display: none;
+            flex-direction: column;
+            overflow: hidden !important;
+            overflow-x: hidden !important;
             pointer-events: auto;
-            background: rgba(12, 16, 22, 0.55);
+            background: rgba(12, 16, 22, 0.7);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(212, 175, 55, 0.28);
@@ -1657,7 +1678,16 @@
             -webkit-user-select: none;
             box-sizing: border-box;
         }
+        #quest-tracker .qt-content {
+            width: 100%;
+            min-height: 0;
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
         #quest-tracker .qt-title {
+            flex: 0 0 auto;
             color: #efcf7a;
             font-size: 0.74rem;
             letter-spacing: 0.08em;
@@ -1679,21 +1709,25 @@
             display: none;
         }
         #quest-tracker .qt-list {
-            max-height: min(380px, 52vh);
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: 205px;
             overflow-y: auto;
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
             gap: 6px;
-            padding-right: 4px;
+            padding-right: 6px;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: rgba(214, 170, 60, 0.45) transparent;
+            scrollbar-color: rgba(214, 170, 60, 0.6) rgba(0, 0, 0, 0.25);
         }
-        #quest-tracker .qt-list::-webkit-scrollbar { width: 4px; }
-        #quest-tracker .qt-list::-webkit-scrollbar-track { background: transparent; }
-        #quest-tracker .qt-list::-webkit-scrollbar-thumb { background: rgba(214, 170, 60, 0.45); border-radius: 2px; }
-        #quest-tracker .qt-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 215, 0, 0.75); }
-        #quest-tracker .qt-content { width: 100%; display: flex; flex-direction: column; }
+        #quest-tracker .qt-list::-webkit-scrollbar { width: 5px; }
+        #quest-tracker .qt-list::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.25); border-radius: 3px; }
+        #quest-tracker .qt-list::-webkit-scrollbar-thumb { background: rgba(214, 170, 60, 0.6); border-radius: 3px; }
+        #quest-tracker .qt-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 215, 0, 0.9); }
         #quest-tracker .qt-btn-icon { display: none; }
         #quest-tracker.collapsed {
             cursor: pointer;
@@ -1761,7 +1795,7 @@
             margin-bottom: 3px;
         }
         #quest-tracker .qt-row b { font-size: 0.82rem; color: #f5eedc; font-weight: 600; }
-        #quest-tracker .qt-row span { color: #b9c3b0; font-size: 0.76rem; }
+        #quest-tracker .qt-row span { color: #b9c3b0; font-size: 0.76rem; white-space: normal; word-break: break-word; }
         #quest-tracker .qt-row.ready span { color: #9fe28a; font-weight: 600; text-shadow: 0 0 6px rgba(159, 226, 138, 0.4); }
         .dlg-list {
             flex: 1;
@@ -1839,13 +1873,14 @@
         .chest-cell.filled:hover { border-color: rgba(239, 207, 122, 0.8); }
         .chest-hint { margin-top: 8px; font-size: 0.72rem; font-style: italic; color: #7e8a89; text-align: center; }
 
-        /* Inventory Panel (stub) */
+        /* Inventory Panel */
         #inventory-panel {
             position: fixed;
             right: 14px;
             bottom: 70px;
             width: 300px;
-            background: rgba(12, 16, 18, 0.92);
+            box-sizing: border-box;
+            background: rgba(12, 16, 18, 0.94);
             border: 1px solid rgba(195, 160, 95, 0.45);
             border-radius: 4px;
             box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.6);
@@ -1856,6 +1891,100 @@
         }
         #inventory-panel.open {
             display: block;
+        }
+        #inventory-tab-content {
+            display: block;
+        }
+        .inventory-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .inv-craft-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            color: #b9a47a;
+            background: rgba(22, 27, 29, 0.6);
+            border: 1px solid rgba(195, 160, 95, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        }
+        .inv-craft-link:hover {
+            color: #efcf7a;
+            border-color: rgba(239, 207, 122, 0.8);
+            background: rgba(34, 28, 20, 0.85);
+        }
+        .inv-craft-link.active {
+            color: #efcf7a;
+            border-color: #efcf7a;
+            background: rgba(50, 40, 28, 0.9);
+        }
+        .inv-craft-link svg {
+            flex-shrink: 0;
+        }
+
+        /* Crafting Panel: higher than inventory, fixed height, no resize on accordion */
+        #crafting-panel {
+            position: fixed;
+            right: 324px;
+            bottom: 70px;
+            width: 340px;
+            height: min(calc(100% - 140px), 720px);
+            min-height: 520px;
+            box-sizing: border-box;
+            background: rgba(12, 16, 18, 0.94);
+            border: 1px solid rgba(195, 160, 95, 0.45);
+            border-radius: 4px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.6);
+            padding: 14px 14px 16px;
+            z-index: 152;
+            display: none;
+            flex-direction: column;
+            cursor: default;
+            overflow: hidden;
+        }
+        #crafting-panel.open {
+            display: flex;
+        }
+        #crafting-panel.beside-inventory {
+            right: 324px;
+        }
+        #crafting-panel:not(.beside-inventory) {
+            right: 14px;
+        }
+        #crafting-panel .inventory-header {
+            flex: 0 0 auto;
+        }
+        #crafting-panel .crafting-hint {
+            flex: 0 0 auto;
+            font-size: 0.7rem;
+            color: #7e8a89;
+            font-style: italic;
+            text-align: center;
+            margin-top: 6px;
+        }
+        .panel-header-btn {
+            margin-left: auto;
+            margin-right: 10px;
+            padding: 4px 10px;
+            font-family: inherit;
+            font-size: 0.82rem;
+            color: #efcf7a;
+            background: rgba(34, 28, 20, 0.85);
+            border: 1px solid rgba(195, 160, 95, 0.4);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+        .panel-header-btn:hover {
+            background: rgba(50, 40, 28, 0.95);
+            border-color: rgba(239, 207, 122, 0.85);
         }
         .inventory-header {
             display: flex;
@@ -1941,12 +2070,37 @@
 
         /* Crafting tab styles */
         #crafting-recipe-list {
+            flex: 1 1 auto;
+            min-height: 0;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-height: 280px;
             overflow-y: auto;
+            overflow-x: hidden;
             padding-right: 4px;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        .craft-group-body {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            padding-top: 6px;
+        }
+        .craft-group.open .craft-group-body {
+            display: flex;
+        }
+        .crafting-card-icon.craft-tip {
+            cursor: help;
+            transition: border-color 0.15s ease, transform 0.1s ease;
+        }
+        .crafting-card-icon.craft-tip:hover {
+            border-color: rgba(239, 207, 122, 0.95);
+            transform: scale(1.04);
+        }
+        .crafting-ing-icon.craft-tip {
+            cursor: help;
         }
         .crafting-card {
             background: rgba(22, 27, 29, 0.95);
@@ -2714,7 +2868,8 @@
         }
         #skills-panel.open { display: block; }
         #skills-panel.beside-inventory { right: 324px; }
-        #skills-close {
+        #skills-close,
+        #crafting-close {
             font-family: inherit;
             font-size: 1.2rem;
             line-height: 1;
@@ -2726,7 +2881,8 @@
             border-radius: 3px;
             cursor: pointer;
         }
-        #skills-close:hover { color: #efcf7a; border-color: #efcf7a; }
+        #skills-close:hover,
+        #crafting-close:hover { color: #efcf7a; border-color: #efcf7a; }
         .skill-entry {
             display: flex;
             gap: 10px;
@@ -3336,8 +3492,9 @@
             position: fixed !important;
             top: calc(max(env(safe-area-inset-top, 0px), 8px) + 44px) !important;
             right: max(env(safe-area-inset-right, 0px), 10px) !important;
-            min-width: 155px !important;
-            max-width: 215px !important;
+            width: 210px !important;
+            min-width: 210px !important;
+            max-width: 210px !important;
             max-height: 120px !important;
             padding: 6px 9px !important;
             background: rgba(12, 16, 22, 0.38) !important;
@@ -3901,18 +4058,20 @@
                 overflow-y: auto;
                 padding: 10px 12px 10px;
             }
-            #skills-panel {
+            #skills-panel,
+            #crafting-panel {
                 left: auto;
                 right: calc(max(env(safe-area-inset-right, 0px), 12px) + 288px);
-                width: 270px;
+                width: 290px;
                 max-width: calc(100% - 24px);
                 top: auto;
                 bottom: max(env(safe-area-inset-bottom, 0px), 12px);
                 max-height: calc(100% - 24px);
-                overflow-y: auto;
+                overflow: hidden;
                 padding: 10px 12px 10px;
             }
-            #skills-panel.beside-inventory {
+            #skills-panel.beside-inventory,
+            #crafting-panel.beside-inventory {
                 left: auto;
                 right: calc(max(env(safe-area-inset-right, 0px), 12px) + 588px);
                 top: auto;
@@ -4053,7 +4212,9 @@
                 width: min(320px, calc(100% - 24px));
             }
             #skills-panel,
-            #skills-panel.beside-inventory {
+            #skills-panel.beside-inventory,
+            #crafting-panel,
+            #crafting-panel.beside-inventory {
                 left: 50%;
                 transform: translateX(-50%);
                 right: auto;
@@ -4275,10 +4436,12 @@ html { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transpare
 .skill-group.open .skill-group-body { display: block; }
 .skill-group-body .skill-entry:last-child { margin-bottom: 0; }
 
-/* Размер окна навыков не зависит от раскрытой группы: свёрнутый аккордеон оставляет пустое место внизу */
-#skills-panel.open { height: min(calc(100% - 150px), 760px); }
+/* Размер окон навыков и ремесла не зависит от раскрытой группы: свёрнутый аккордеон оставляет пустое место внизу */
+#skills-panel.open,
+#crafting-panel.open { height: min(calc(100% - 150px), 760px); }
 @media (max-width: 880px), (max-height: 540px) and (orientation: landscape) {
-    #skills-panel.open { height: calc(100% - 24px); max-height: calc(100% - 24px); }
+    #skills-panel.open,
+    #crafting-panel.open { height: calc(100% - 24px); max-height: calc(100% - 24px); }
 }
 .skill-group-empty { font-size: 0.78rem; color: #7e8a89; font-style: italic; padding: 8px 10px; }
 

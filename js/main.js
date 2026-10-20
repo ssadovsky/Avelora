@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#player-frame, #player-frame *, #target-frame, #target-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
+const UI_SELECTOR = '#player-frame, #player-frame *, #target-frame, #target-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #crafting-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is

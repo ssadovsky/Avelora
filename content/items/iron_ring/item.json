@@ -1,0 +1,25 @@
+{
+  "id": "iron_ring",
+  "name": "Кованое железное кольцо",
+  "description": "Кованое кольцо с магической гравировкой. Обостряет разум и наделяет владельца жизненной силой.",
+  "category": "armor",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "ring"
+  },
+  "armor": 1,
+  "stats": {
+    "int": 3,
+    "maxHp": 20
+  },
+  "requires": {
+    "level": 2
+  },
+  "value": 45
+}

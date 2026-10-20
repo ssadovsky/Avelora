@@ -12,5 +12,7 @@
   "result": {
     "item": "wolf_cloak",
     "count": 1
-  }
-}
+  },
+  "price": 20,
+  "requiresLevel": 2
+}

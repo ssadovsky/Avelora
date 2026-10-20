@@ -25,7 +25,7 @@
     "ring": false,
     "decal": false
   },
-  "mana": 80,
+  "mana": 60,
   "requiresLevel": 5,
-  "price": 550
+  "price": 250
 }

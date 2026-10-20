@@ -54,6 +54,7 @@
             });
             document.body.appendChild(this.tracker);
             window.addEventListener('game:creatureKilled', (e) => this.onKilled(e.detail));
+            window.addEventListener('game:questUpdated', () => { this.updateTracker(); if (this.isOpen()) this.render(); });
         }
 
         get state() { return this.game.gameState; }
@@ -153,7 +154,9 @@
             }
             if (this.mode === 'talk') this.renderTalk();
             else if (this.mode === 'reward') this.renderReward();
-            else if (this.mode === 'teach') this.renderTeach();
+            else if (this.mode === 'teach' || this.mode === 'teach_magic') this.renderTeach();
+            else if (this.mode === 'teach_alchemy') this.renderTeachRecipes(['alchemy'], 'Алхимия');
+            else if (this.mode === 'teach_craft') this.renderTeachRecipes(['carpentry', 'materials', 'refining', 'tailoring', 'equipment', 'jewelry'], 'Ремесло');
             else this.renderShop();
         }
 
@@ -167,15 +170,71 @@
             if (st && o.type === 'collect') have = st.inventory.count(o.item);
             else if (st && o.type === 'kill') have = st.questKills[q.id] || 0;
             else if (o.type === 'talk') have = 1;
+            else if (o.type === 'teleport_home') {
+                const knows = st ? st.knowsSkill(o.skill || 'home_recall') : false;
+                const visited = st ? st.getQuestFlag('home_camp_visited') : false;
+                const returned = st ? st.getQuestFlag('home_camp_returned') : false;
+                const ready = knows && visited && returned;
+                const stepCount = (knows ? 1 : 0) + (visited ? 1 : 0) + (returned ? 1 : 0);
+                return { have: stepCount, need: 3, ready, knows, visited, returned };
+            }
+            else if (o.type === 'craft_and_drink') {
+                const crafted = st ? st.getQuestFlag(o.craftFlag || 'potion_health_small_crafted') : false;
+                const drank = st ? st.getQuestFlag(o.drinkFlag || 'potion_health_small_drank') : false;
+                const ready = crafted && drank;
+                const stepCount = (crafted ? 1 : 0) + (drank ? 1 : 0);
+                return { have: stepCount, need: 2, ready, crafted, drank };
+            }
+            else if (o.type === 'hit_creature' || o.type === 'learn_and_hit') {
+                const hit = st ? st.getQuestFlag(o.flag || o.hitFlag || 'spark_hit_creature') : false;
+                return { have: hit ? 1 : 0, need: 1, ready: hit, hit };
+            }
             return { have: Math.min(have, o.count || 1), need: o.count || 1, ready: have >= (o.count || 1) };
         }
 
         /** Short objective line for the tracker: "Папоротник: 3/10", "Радужный барсук: 2/5". */
+        questBadge(q, p) {
+            if (!p) p = this.questProgress(q);
+            const o = q.objective || {};
+            if (p.ready) return 'К сдаче';
+            if (o.type === 'craft_and_drink') {
+                if (!p.crafted) return 'Приготовить зелье';
+                if (!p.drank) return 'Выпить зелье';
+                return 'К сдаче';
+            }
+            if (o.type === 'hit_creature' || o.type === 'learn_and_hit') {
+                return p.ready ? 'К сдаче' : 'Поразить цель';
+            }
+            if (o.type === 'teleport_home') {
+                if (!p.knows) return 'Выучить заклинание';
+                if (!p.visited) return 'Телепорт домой';
+                if (!p.returned) return 'Вернуться';
+                return 'К сдаче';
+            }
+            if (o.type === 'talk') return 'Поговорить';
+            return `${p.have}/${p.need}`;
+        }
+
         questLabel(q, p) {
             const o = q.objective || {};
             const defs = window.GAME_CONTENT || {};
             if (o.type === 'talk') {
                 return o.label || `Поговори с ${this.turnInName(q) || 'Лираэль'}`;
+            }
+            if (o.type === 'teleport_home') {
+                if (!p.knows) return 'Выучи «Возвращение домой» у Лираэль';
+                if (!p.visited) return 'Перенесись в домашний лагерь';
+                if (!p.returned) return 'Вернись к Лираэль';
+                return 'Поговори с Лираэль';
+            }
+            if (o.type === 'craft_and_drink') {
+                if (!p.crafted) return 'Приготовь малое зелье здоровья (N)';
+                if (!p.drank) return 'Выпей зелье здоровья в бою или из сумки';
+                return 'Поговори с Лираэль';
+            }
+            if (o.type === 'hit_creature' || o.type === 'learn_and_hit') {
+                if (!p.ready) return 'Порази «Искрой» любого монстра: 0/1';
+                return `Поговори с ${this.turnInName(q) || 'Лираэль'}`;
             }
             const name = o.type === 'kill'
                 ? (o.label || (((defs.creatures || {})[o.creature]) || {}).name || o.creature)
@@ -193,7 +252,10 @@
 
         questAvailable(q) {
             const st = this.state;
-            return !!st && (!q.requires || st.questStatus(q.requires) === 'done');
+            if (!st) return false;
+            if (!q.requires) return true;
+            if (Array.isArray(q.requires)) return q.requires.every(id => st.questStatus(id) === 'done');
+            return st.questStatus(q.requires) === 'done';
         }
 
         /** game:creatureKilled — counts kills for active kill quests; a quest may kill a creature for good. */
@@ -278,10 +340,12 @@
                     };
                 }
 
-                // Click on quest list opens full quests log
+                // Click on quest row opens full quests log (ignoring scrollbar clicks)
                 const list = this.tracker.querySelector('.qt-list');
                 if (list) {
+                    list.addEventListener('wheel', (e) => { e.stopPropagation(); }, { passive: true });
                     list.onclick = (e) => {
+                        if (!e.target.closest('.qt-row')) return;
                         e.stopPropagation();
                         const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
                         if (ui && ui.hideTooltip) ui.hideTooltip();
@@ -359,10 +423,17 @@
                 const count = t.count || 1;
 
                 // 1. If equipped in hand/slot
-                const slot = st.equippedSlotOf(itemId);
-                if (slot) {
-                    st.equipped[slot] = null;
-                    unequippedAny = true;
+                if (st.equippedSlotsOf) {
+                    st.equippedSlotsOf(itemId).forEach(s => {
+                        st.equipped[s] = null;
+                        unequippedAny = true;
+                    });
+                } else {
+                    const slot = st.equippedSlotOf(itemId);
+                    if (slot) {
+                        st.equipped[slot] = null;
+                        unequippedAny = true;
+                    }
                 }
 
                 // 2. Remove from bag
@@ -416,8 +487,10 @@
             let node = (this.npc.dialog || {})[this.nodeId];
             if (this.nodeId && this.nodeId.indexOf('quest:') === 0) node = this.questNode(this.nodeId.slice(6));
             else if (node && this.nodeId === (this.npc.start || 'start') && this.npc.quests) {
-                // quest entries go first in the start menu
-                const extra = [];
+                // Доступные (ещё не взятые) квесты идут в самый верх, взятые квесты переносятся ниже
+                const available = [];
+                const ready = [];
+                const inProgress = [];
                 this.npc.quests.forEach(qid => {
                     const q = this.questDef(qid), st = this.state;
                     if (!q || !st || !this.questAvailable(q)) return;
@@ -428,8 +501,21 @@
                     if (status === 'active' && !giver && !turnIn) return;
                     const p = this.questProgress(q);
                     const away = status === 'active' && !turnIn;     // the report goes to another NPC
-                    extra.push({ text: q.name + (status === 'active' ? (away ? ` (${p.have}/${p.need}) — доложить: ${this.turnInName(q)}` : (p.ready ? ' — сдать' : ` (${p.have}/${p.need})`)) : ''), next: 'quest:' + qid, quest: true, ready: p.ready && !away });
+                    const entry = {
+                        text: q.name + (status === 'active' ? (away ? ` (${p.have}/${p.need}) — доложить: ${this.turnInName(q)}` : (p.ready ? ' — сдать' : ` (${p.have}/${p.need})`)) : ''),
+                        next: 'quest:' + qid,
+                        quest: true,
+                        ready: p.ready && !away
+                    };
+                    if (!status) {
+                        available.push(entry);
+                    } else if (p.ready && !away) {
+                        ready.push(entry);
+                    } else {
+                        inProgress.push(entry);
+                    }
                 });
+                const extra = available.concat(ready, inProgress);
                 node = Object.assign({}, node, { options: extra.concat(node.options || []) });
             }
             const text = document.createElement('div');
@@ -466,7 +552,8 @@
                 const b = document.createElement('button');
                 b.type = 'button';
                 b.className = 'dlg-opt' + (o.action === 'shop' ? ' shop' : '') + (o.quest ? ' quest' : '') + (o.action === 'questAbandon' ? ' abandon' : '');
-                b.textContent = (o.action === 'shop' ? '[Торговля] ' : o.action === 'teach' ? '[Обучение] ' : o.quest ? '[Задание] ' : o.action === 'questAbandon' ? '[Отмена] ' : '') + o.text;
+                const isTeach = o.action === 'teach' || o.action === 'teach_magic' || o.action === 'teach_alchemy' || o.action === 'teach_craft';
+                b.textContent = (o.action === 'shop' ? '[Торговля] ' : isTeach ? '[Обучение] ' : o.quest ? '[Задание] ' : o.action === 'questAbandon' ? '[Отмена] ' : '') + o.text;
                 b.addEventListener('click', (e) => { e.stopPropagation(); this.choose(o); });
                 opts.appendChild(b);
             });
@@ -514,8 +601,14 @@
                 }
                 this.nodeId = this.npc.start || 'start';
                 this.render();
-            } else if (o.action === 'teach') {
-                this.mode = 'teach';
+            } else if (o.action === 'teach' || o.action === 'teach_magic') {
+                this.mode = 'teach_magic';
+                this.render();
+            } else if (o.action === 'teach_alchemy') {
+                this.mode = 'teach_alchemy';
+                this.render();
+            } else if (o.action === 'teach_craft') {
+                this.mode = 'teach_craft';
                 this.render();
             } else if (o.action === 'shop') {
                 this.mode = 'buy';
@@ -738,6 +831,96 @@
             st.learnSkill(skillId);
             const def = this.game.skills ? this.game.skills.get(skillId) : null;
             this.ui.floatText(`Изучено: ${def ? def.name : skillId}`, 'loot');
+            window.dispatchEvent(new CustomEvent('game:questUpdated'));
+            this.render();
+        }
+
+        renderTeachRecipes(categories, titleText) {
+            const st = this.state;
+            const tabs = document.createElement('div');
+            tabs.className = 'dlg-tabs';
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'dlg-tab back';
+            back.textContent = '← Назад';
+            back.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.mode = 'talk';
+                this.nodeId = this.npc.start || 'start';
+                this.render();
+            });
+            const gold = document.createElement('div');
+            gold.className = 'dlg-gold';
+            gold.innerHTML = '<span class="coin"></span> ' + (st ? st.gold : 0);
+            tabs.append(back, gold);
+            this.body.appendChild(tabs);
+
+            const list = document.createElement('div');
+            list.className = 'dlg-list';
+            const heroLevel = this.game.hero ? this.game.hero.level : 1;
+            const allRecipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+            const rids = Object.keys(allRecipes).filter(id => {
+                const r = allRecipes[id];
+                if (!r) return false;
+                const cat = r.category || 'other';
+                return categories.includes(cat);
+            }).sort((a, b) => {
+                const la = allRecipes[a].requiresLevel || 1;
+                const lb = allRecipes[b].requiresLevel || 1;
+                return la - lb;
+            });
+
+            rids.forEach(id => {
+                const rec = allRecipes[id];
+                const resItemDef = window.AveloraItems.get(rec.result.item);
+                const known = !!st && st.knowsRecipe(id);
+                if (known) return; // learned recipes disappear from the teach list
+                const need = rec.requiresLevel || 1;
+                const locked = heroLevel < need;
+                const price = rec.price || 10;
+                const row = document.createElement('div');
+                row.className = 'dlg-row' + (locked ? ' locked' : '');
+                row.appendChild(makeIconEl(resItemDef || rec));
+                const n = document.createElement('div');
+                n.className = 'dlg-row-name';
+                const t = document.createElement('div');
+                t.textContent = rec.name || (resItemDef ? resItemDef.name : id);
+                const d = document.createElement('div');
+                d.className = 'dlg-row-desc';
+                d.textContent = rec.description || (resItemDef ? resItemDef.description : '');
+                n.append(t, d);
+                row.appendChild(n);
+
+                const p = document.createElement('div');
+                p.className = 'dlg-row-price';
+                p.innerHTML = locked ? `<span class="dlg-lvl">с ${need}-го ур.</span>` : `<span class="coin"></span> ${price}`;
+                const b = document.createElement('button');
+                b.type = 'button';
+                const canBuy = !locked && st && st.gold >= price;
+                b.className = 'dlg-buy' + (canBuy ? '' : ' disabled');
+                b.textContent = locked ? 'Закрыто' : 'Изучить';
+                b.disabled = !canBuy;
+                if (locked) b.title = `Нужен ${need}-й уровень (у вас ${heroLevel}-й)`;
+                b.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!st || st.knowsRecipe(id)) return;
+                    if (heroLevel < need) { this.ui.floatText(`Нужен ${need}-й уровень`, 'warn'); return; }
+                    if (!st.spendGold(price)) { this.ui.floatText('Не хватает золота', 'warn'); return; }
+                    st.learnRecipe(id);
+                    this.ui.floatText(`Изучен рецепт: ${rec.name}`, 'loot');
+                    this.render();
+                });
+                row.append(p, b);
+                list.appendChild(row);
+            });
+
+            if (!list.children.length) {
+                const e = document.createElement('div');
+                e.className = 'dlg-empty';
+                e.textContent = 'Ты уже знаешь все эти рецепты.';
+                list.appendChild(e);
+            }
+            this.body.appendChild(list);
         }
 
         renderShop() {

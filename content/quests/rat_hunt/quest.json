@@ -2,7 +2,10 @@
   "id": "rat_hunt",
   "name": "Крысиная напасть",
   "giver": "lirael",
-  "requires": "fern_gathering",
+  "requires": [
+    "badger_hunt",
+    "bee_hunt"
+  ],
   "summary": "Убей 5 серых крыс. Они рыщут у северных скал за водопадом.",
   "objective": {
     "type": "kill",

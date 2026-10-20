@@ -2,7 +2,7 @@
   "id": "badger_hunt",
   "name": "Барсучий переполох",
   "giver": "lirael",
-  "requires": "fern_gathering",
+  "requires": "home_camp_visit",
   "summary": "Убей 5 радужных барсуков в лесочке к югу от тропы.",
   "objective": {
     "type": "kill",
@@ -22,4 +22,4 @@
     "turnIn": "Доложить об охоте",
     "done": "Барсуки больше не беспокоят долину. Спасибо."
   }
-}
+}

@@ -132,7 +132,7 @@
 
             this.buildSlots();
             this.buildInventoryCells();
-            this.setupCraftingTabs();
+            this.setupCraftingPanel();
             this.setupQuantityModal();
             this.setupMicroMenu();
             this.setupHeroModal();
@@ -450,7 +450,8 @@
                 head.innerHTML = '<span class="skill-group-chev">▸</span><span class="skill-group-title"></span><span class="skill-group-count"></span>';
                 head.querySelector('.skill-group-title').textContent = title;
                 head.querySelector('.skill-group-count').textContent = String((byGroup[key] || []).length);
-                head.addEventListener('click', () => {
+                head.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     const open = !sec.classList.contains('open');
                     this.skillsOpenGroup = open ? key : null;
                     this.skillsList.querySelectorAll('.skill-group').forEach(s => {
@@ -512,177 +513,272 @@
             }
         }
 
-        setupCraftingTabs() {
-            this.tabBtnInv = document.getElementById('tab-btn-inv');
-            this.tabBtnCraft = document.getElementById('tab-btn-craft');
-            this.tabContentInv = document.getElementById('inventory-tab-content');
-            this.tabContentCraft = document.getElementById('crafting-tab-content');
+        setupCraftingPanel() {
+            this.craftingPanel = document.getElementById('crafting-panel');
+            this.craftingClose = document.getElementById('crafting-close');
+            this.craftMenuBtn = document.getElementById('craft-btn');
+            this.heroCraftBtn = document.getElementById('hero-open-craft-btn');
+            this.invCraftBtn = document.getElementById('inv-open-craft-btn');
             this.craftingList = document.getElementById('crafting-recipe-list');
+            this.craftingOpen = false;
+            this.craftOpenGroup = 'potions';
 
-            if (this.tabBtnInv && this.tabBtnCraft) {
-                this.tabBtnInv.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.switchInventoryTab('inv');
-                });
-                this.tabBtnCraft.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.switchInventoryTab('craft');
+            if (this.craftingPanel) {
+                ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'].forEach(evt => {
+                    this.craftingPanel.addEventListener(evt, (e) => {
+                        e.stopPropagation();
+                    });
                 });
             }
-            this.switchInventoryTab('inv');
+
+            if (this.craftingClose) {
+                this.craftingClose.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.setCraftingOpen(false);
+                });
+            }
+            if (this.craftMenuBtn) {
+                this.craftMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.closeMicroMenu();
+                    if (this.inputAllowed()) this.toggleCrafting();
+                });
+            }
+            if (this.heroCraftBtn) {
+                this.heroCraftBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.setCraftingOpen(true);
+                });
+            }
+            if (this.invCraftBtn) {
+                this.invCraftBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleCrafting();
+                });
+            }
         }
 
-        switchInventoryTab(tab) {
-            this.currentTab = tab;
-            if (this.tabBtnInv) this.tabBtnInv.classList.toggle('active', tab === 'inv');
-            if (this.tabBtnCraft) this.tabBtnCraft.classList.toggle('active', tab === 'craft');
-            if (this.tabContentInv) {
-                this.tabContentInv.classList.toggle('hidden', tab !== 'inv');
-                this.tabContentInv.style.display = (tab === 'inv') ? '' : 'none';
-            }
-            if (this.tabContentCraft) {
-                this.tabContentCraft.classList.toggle('hidden', tab !== 'craft');
-                this.tabContentCraft.style.display = (tab === 'craft') ? '' : 'none';
-            }
-            this.hideTooltip();
-            if (tab === 'craft') {
+        isCraftingOpen() { return this.craftingOpen; }
+
+        toggleCrafting() { this.setCraftingOpen(!this.craftingOpen); }
+
+        setCraftingOpen(open) {
+            this.craftingOpen = !!open;
+            this.setPanelAria(this.craftingPanel, this.craftingOpen);
+            if (this.craftMenuBtn) this.craftMenuBtn.classList.toggle('active', this.craftingOpen);
+            if (this.invCraftBtn) this.invCraftBtn.classList.toggle('active', this.craftingOpen);
+            if (this.craftingOpen) {
+                if (!this.craftOpenGroup) this.craftOpenGroup = 'potions';
                 this.renderCrafting();
-            } else {
-                this.renderInventory();
             }
+            this.layoutPanels();
+            if (!this.craftingOpen) this.hideTooltip();
         }
 
         renderCrafting() {
             if (!this.craftingList) return;
             this.craftingList.innerHTML = '';
-            const recipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
-            const recipeIds = Object.keys(recipes);
-            if (!recipeIds.length) {
+            const allRecipes = (window.GAME_CONTENT && window.GAME_CONTENT.recipes) || {};
+            const st = this.state;
+
+            // Только изученные персонажем рецепты (на старте все изъяты)
+            const knownIds = Object.keys(allRecipes).filter(id => st && st.knowsRecipe(id));
+
+            if (!knownIds.length) {
                 const empty = document.createElement('div');
                 empty.className = 'crafting-empty';
-                empty.textContent = 'Нет доступных рецептов';
+                empty.innerHTML = 'Пока нет изученных рецептов.<div style="font-size:0.75rem; color:#8f9c9b; margin-top:6px;">Обучитесь алхимии и ремеслу у жителей долины.</div>';
                 this.craftingList.appendChild(empty);
                 return;
             }
 
-            const inv = this.state ? this.state.inventory : null;
+            const CRAFT_GROUPS = [
+                ['potions', 'Зелья'],
+                ['equipment', 'Экипировка'],
+                ['materials', 'Материалы'],
+                ['other', 'Прочее']
+            ];
 
-            recipeIds.forEach(id => {
-                const rec = recipes[id];
-                const card = document.createElement('div');
-                card.className = 'crafting-card';
-
-                const resItemDef = window.AveloraItems.get(rec.result.item);
-                const iconDef = rec.iconData ? rec : resItemDef;
-
-                const topRow = document.createElement('div');
-                topRow.className = 'crafting-card-top';
-
-                const iconWrap = document.createElement('div');
-                iconWrap.className = 'crafting-card-icon';
-                iconWrap.appendChild(makeIcon(iconDef));
-
-                const infoWrap = document.createElement('div');
-                infoWrap.className = 'crafting-card-info';
-                const title = document.createElement('div');
-                title.className = 'crafting-card-title';
-                title.textContent = rec.name || (resItemDef ? resItemDef.name : id);
-                const desc = document.createElement('div');
-                desc.className = 'crafting-card-desc';
-                desc.textContent = rec.description || (resItemDef ? resItemDef.description : '');
-                infoWrap.append(title, desc);
-                const stn = this.stationInfo(rec);
-                if (stn) {
-                    const sl = document.createElement('div');
-                    sl.className = 'crafting-station ' + (stn.near ? 'near' : 'far');
-                    sl.textContent = stn.near ? `✓ ${stn.name} рядом` : `Нужна: ${stn.name} — подойдите к ней`;
-                    infoWrap.appendChild(sl);
-                }
-
-                topRow.append(iconWrap, infoWrap);
-
-                const ingContainer = document.createElement('div');
-                ingContainer.className = 'crafting-ingredients';
-
-                let canCraft = !stn || stn.near;
-                const ingredients = rec.ingredients || [];
-                const maxQty = this.maxCraftable(rec);
-                if (!this.craftQty) this.craftQty = {};
-                const qty = Math.max(1, Math.min(this.craftQty[id] || 1, Math.max(1, maxQty)));
-                this.craftQty[id] = qty;
-                ingredients.forEach(ing => {
-                    const have = inv ? inv.count(ing.item) : 0;
-                    const need = ing.count * qty;
-                    if (have < need) canCraft = false;
-
-                    const itemDef = window.AveloraItems.get(ing.item);
-                    const name = itemDef ? itemDef.name : ing.item;
-
-                    const ingRow = document.createElement('div');
-                    ingRow.className = `crafting-ingredient-row ${have >= need ? 'has-enough' : 'not-enough'}`;
-
-                    const ingIcon = document.createElement('span');
-                    ingIcon.className = 'crafting-ing-icon';
-                    ingIcon.appendChild(makeIcon(itemDef));
-
-                    const ingName = document.createElement('span');
-                    ingName.className = 'crafting-ing-name';
-                    ingName.textContent = name;
-
-                    const ingCount = document.createElement('span');
-                    ingCount.className = 'crafting-ing-count';
-                    ingCount.textContent = `${have} / ${need}`;
-
-                    ingRow.append(ingIcon, ingName, ingCount);
-                    ingContainer.appendChild(ingRow);
-                });
-
-                const btnRow = document.createElement('div');
-                btnRow.className = 'crafting-btn-row';
-
-                const craftBtn = document.createElement('button');
-                craftBtn.type = 'button';
-                craftBtn.className = `craft-action-btn ${canCraft ? 'ready' : 'disabled'}`;
-                craftBtn.textContent = '⚒';
-                craftBtn.title = qty > 1 ? `Создать ×${qty}` : 'Создать';
-                craftBtn.setAttribute('aria-label', craftBtn.title);
-                craftBtn.disabled = !canCraft;
-
-                craftBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.craftRecipe(id, qty);
-                });
-
-                // Quantity picker: craft a whole batch with one click
-                const qtyBox = document.createElement('div');
-                qtyBox.className = 'craft-qty';
-                const mkBtn = (txt, title, fn) => {
-                    const b = document.createElement('button');
-                    b.type = 'button'; b.className = 'craft-qty-btn'; b.textContent = txt; b.title = title;
-                    b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
-                    return b;
-                };
-                const setQty = (v) => {
-                    this.craftQty[id] = Math.max(1, Math.min(Math.max(1, maxQty), v));
-                    this.renderCrafting();
-                };
-                const qInput = document.createElement('input');
-                qInput.type = 'number'; qInput.className = 'craft-qty-input';
-                qInput.min = '1'; qInput.max = String(Math.max(1, maxQty)); qInput.value = String(qty);
-                qInput.addEventListener('click', (e) => e.stopPropagation());
-                qInput.addEventListener('change', () => setQty(parseInt(qInput.value, 10) || 1));
-                qtyBox.append(
-                    mkBtn('−', 'Меньше', () => setQty(qty - 1)),
-                    qInput,
-                    mkBtn('+', 'Больше', () => setQty(qty + 1)),
-                    mkBtn('Макс', 'Сколько хватает материалов', () => setQty(maxQty))
-                );
-
-                btnRow.append(qtyBox, craftBtn);
-
-                card.append(topRow, ingContainer, btnRow);
-                this.craftingList.appendChild(card);
+            const byGroup = {};
+            knownIds.forEach(id => {
+                const rec = allRecipes[id];
+                const resItem = window.AveloraItems.get(rec.result.item);
+                let g = 'other';
+                if (rec.category === 'alchemy') g = 'potions';
+                else if (['tailoring', 'equipment', 'armor', 'jewelry'].includes(rec.category) || (resItem && resItem.use && resItem.use.type === 'equip')) g = 'equipment';
+                else if (['carpentry', 'materials', 'refining'].includes(rec.category) || (resItem && resItem.category === 'material')) g = 'materials';
+                (byGroup[g] = byGroup[g] || []).push(id);
             });
+
+            // Показываем группы
+            const shown = CRAFT_GROUPS.filter(g => byGroup[g[0]] || g[0] !== 'other');
+            const firstFull = shown.find(g => byGroup[g[0]]);
+            const hasPotions = shown.some(g => g[0] === 'potions');
+            if (!this.craftOpenGroup || !shown.some(g => g[0] === this.craftOpenGroup)) {
+                this.craftOpenGroup = hasPotions ? 'potions' : (firstFull ? firstFull[0] : 'potions');
+            }
+
+            shown.forEach(([key, title]) => {
+                const sec = document.createElement('div');
+                sec.className = 'skill-group craft-group' + (this.craftOpenGroup === key ? ' open' : '');
+
+                const head = document.createElement('button');
+                head.type = 'button';
+                head.className = 'skill-group-head craft-group-head';
+                head.setAttribute('aria-expanded', this.craftOpenGroup === key ? 'true' : 'false');
+                head.innerHTML = '<span class="skill-group-chev">▸</span><span class="skill-group-title"></span><span class="skill-group-count"></span>';
+                head.querySelector('.skill-group-title').textContent = title;
+                head.querySelector('.skill-group-count').textContent = String((byGroup[key] || []).length);
+
+                head.addEventListener('click', () => {
+                    const open = !sec.classList.contains('open');
+                    this.craftOpenGroup = open ? key : null;
+                    this.craftingList.querySelectorAll('.craft-group').forEach(s => {
+                        s.classList.remove('open');
+                        s.querySelector('.craft-group-head').setAttribute('aria-expanded', 'false');
+                    });
+                    if (open) {
+                        sec.classList.add('open');
+                        head.setAttribute('aria-expanded', 'true');
+                    }
+                });
+
+                const body = document.createElement('div');
+                body.className = 'skill-group-body craft-group-body';
+                sec.append(head, body);
+                this.craftingList.appendChild(sec);
+
+                const idsInGroup = byGroup[key] || [];
+                if (!idsInGroup.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'skill-group-empty';
+                    empty.textContent = 'Пока нет изученных рецептов';
+                    body.appendChild(empty);
+                } else {
+                    idsInGroup.forEach(id => {
+                        body.appendChild(this.craftCardEl(id, allRecipes[id]));
+                    });
+                }
+            });
+        }
+
+        craftCardEl(id, rec) {
+            const inv = this.state ? this.state.inventory : null;
+            const card = document.createElement('div');
+            card.className = 'crafting-card';
+
+            const resItemDef = window.AveloraItems.get(rec.result.item);
+            const iconDef = rec.iconData ? rec : resItemDef;
+
+            const topRow = document.createElement('div');
+            topRow.className = 'crafting-card-top';
+
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'crafting-card-icon craft-tip';
+            iconWrap.dataset.item = rec.result.item;
+            iconWrap.appendChild(makeIcon(iconDef));
+
+            const infoWrap = document.createElement('div');
+            infoWrap.className = 'crafting-card-info';
+            const title = document.createElement('div');
+            title.className = 'crafting-card-title craft-tip';
+            title.dataset.item = rec.result.item;
+            title.textContent = rec.name || (resItemDef ? resItemDef.name : id);
+            const desc = document.createElement('div');
+            desc.className = 'crafting-card-desc';
+            desc.textContent = rec.description || (resItemDef ? resItemDef.description : '');
+            infoWrap.append(title, desc);
+            const stn = this.stationInfo(rec);
+            if (stn) {
+                const sl = document.createElement('div');
+                sl.className = 'crafting-station ' + (stn.near ? 'near' : 'far');
+                sl.textContent = stn.near ? `✓ ${stn.name} рядом` : `Нужна: ${stn.name} — подойдите к ней`;
+                infoWrap.appendChild(sl);
+            }
+
+            topRow.append(iconWrap, infoWrap);
+
+            const ingContainer = document.createElement('div');
+            ingContainer.className = 'crafting-ingredients';
+
+            let canCraft = !stn || stn.near;
+            const ingredients = rec.ingredients || [];
+            const maxQty = this.maxCraftable(rec);
+            if (!this.craftQty) this.craftQty = {};
+            const qty = Math.max(1, Math.min(this.craftQty[id] || 1, Math.max(1, maxQty)));
+            this.craftQty[id] = qty;
+            ingredients.forEach(ing => {
+                const have = inv ? inv.count(ing.item) : 0;
+                const need = ing.count * qty;
+                if (have < need) canCraft = false;
+
+                const itemDef = window.AveloraItems.get(ing.item);
+                const name = itemDef ? itemDef.name : ing.item;
+
+                const ingRow = document.createElement('div');
+                ingRow.className = `crafting-ingredient-row ${have >= need ? 'has-enough' : 'not-enough'}`;
+
+                const ingIcon = document.createElement('span');
+                ingIcon.className = 'crafting-ing-icon craft-tip';
+                ingIcon.dataset.item = ing.item;
+                ingIcon.appendChild(makeIcon(itemDef));
+
+                const ingName = document.createElement('span');
+                ingName.className = 'crafting-ing-name';
+                ingName.textContent = name;
+
+                const ingCount = document.createElement('span');
+                ingCount.className = 'crafting-ing-count';
+                ingCount.textContent = `${have} / ${need}`;
+
+                ingRow.append(ingIcon, ingName, ingCount);
+                ingContainer.appendChild(ingRow);
+            });
+
+            const btnRow = document.createElement('div');
+            btnRow.className = 'crafting-btn-row';
+
+            const craftBtn = document.createElement('button');
+            craftBtn.type = 'button';
+            craftBtn.className = `craft-action-btn ${canCraft ? 'ready' : 'disabled'}`;
+            craftBtn.textContent = '⚒';
+            craftBtn.title = qty > 1 ? `Создать ×${qty}` : 'Создать';
+            craftBtn.setAttribute('aria-label', craftBtn.title);
+            craftBtn.disabled = !canCraft;
+
+            craftBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.craftRecipe(id, qty);
+            });
+
+            // Quantity picker: craft a whole batch with one click
+            const qtyBox = document.createElement('div');
+            qtyBox.className = 'craft-qty';
+            const mkBtn = (txt, tTitle, fn) => {
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'craft-qty-btn'; b.textContent = txt; b.title = tTitle;
+                b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+                return b;
+            };
+            const setQty = (v) => {
+                this.craftQty[id] = Math.max(1, Math.min(Math.max(1, maxQty), v));
+                this.renderCrafting();
+            };
+            const qInput = document.createElement('input');
+            qInput.type = 'number'; qInput.className = 'craft-qty-input';
+            qInput.min = '1'; qInput.max = String(Math.max(1, maxQty)); qInput.value = String(qty);
+            qInput.addEventListener('click', (e) => e.stopPropagation());
+            qInput.addEventListener('change', () => setQty(parseInt(qInput.value, 10) || 1));
+            qtyBox.append(
+                mkBtn('−', 'Меньше', () => setQty(qty - 1)),
+                qInput,
+                mkBtn('+', 'Больше', () => setQty(qty + 1)),
+                mkBtn('Макс', 'Сколько хватает материалов', () => setQty(maxQty))
+            );
+
+            btnRow.append(qtyBox, craftBtn);
+            card.append(topRow, ingContainer, btnRow);
+            return card;
         }
 
         /** Recipe with a `station` (e.g. planks -> sawmill): { name, near } or null when no station is needed. */
@@ -740,6 +836,16 @@
             st.inventory.add(resItem, resCount);
             st.save();
 
+            if (resItem === 'potion_health_small' || recipeId === 'potion_health_small') {
+                if (st.setQuestFlag) {
+                    st.setQuestFlag('potion_health_small_crafted', true);
+                }
+                if (this.game && this.game.dialog && this.game.dialog.updateTracker) {
+                    this.game.dialog.updateTracker();
+                }
+                if (this.updateQuestsProgress) this.updateQuestsProgress();
+            }
+
             const resDef = window.AveloraItems.get(resItem);
             const resName = resDef ? resDef.name : resItem;
             this.floatText(resCount > 1 ? `Создано: ${resName} ×${resCount}` : `Создано: ${resName}`, 'loot');
@@ -771,7 +877,7 @@
             this.setPanelAria(this.skillsPanel, open);
             if (this.skillsBtn) this.skillsBtn.classList.toggle('active', open);
             if (open) {
-                this.skillsOpenGroup = 'attack';
+                if (!this.skillsOpenGroup) this.skillsOpenGroup = 'attack';
                 this.renderSkills();
             }
             this.layoutPanels();
@@ -780,14 +886,19 @@
 
         /** Desktop: skills panel sits left of the inventory when both are open (unless user dragged it manually). */
         layoutPanels() {
+            const hasInv = !!this.game.isInventoryOpen;
             if (this.skillsPanel && !this.skillsPanel.dataset.dragged) {
-                this.skillsPanel.classList.toggle('beside-inventory', !!this.game.isInventoryOpen);
+                this.skillsPanel.classList.toggle('beside-inventory', hasInv);
+            }
+            if (this.craftingPanel && !this.craftingPanel.dataset.dragged) {
+                this.craftingPanel.classList.toggle('beside-inventory', hasInv);
             }
         }
 
         setupDraggablePanels() {
             this.makePanelDraggable(this.invPanel, '.inventory-header');
             this.makePanelDraggable(this.skillsPanel, '.inventory-header');
+            this.makePanelDraggable(this.craftingPanel, '.inventory-header');
             this.makePanelDraggable(this.chestPanel, '.inventory-header');
             this.makePanelDraggable(this.heroPanel, '.panel-header');
             this.makePanelDraggable(this.questsPanel, '.panel-header');
@@ -798,6 +909,7 @@
             window.addEventListener('resize', () => {
                 this.clampPanelInsideViewport(this.invPanel);
                 this.clampPanelInsideViewport(this.skillsPanel);
+                this.clampPanelInsideViewport(this.craftingPanel);
                 this.clampPanelInsideViewport(this.chestPanel);
                 this.clampPanelInsideViewport(this.heroPanel);
                 this.clampPanelInsideViewport(this.questsPanel);
@@ -1388,7 +1500,7 @@
             const grid = document.getElementById('doll-grid');
             if (!grid) return;
             const st = this.state;
-            const SLOT_NAMES = { head: 'Голова', cloak: 'Плащ', body: 'Тело', hands: 'Перчатки', ring: 'Кольцо', weapon: 'Оружие', feet: 'Сапоги' };
+            const SLOT_NAMES = { head: 'Голова', cloak: 'Плащ', body: 'Тело', hands: 'Перчатки', ring: 'Кольцо', ring2: 'Кольцо', weapon: 'Оружие', feet: 'Сапоги' };
             grid.querySelectorAll('.doll-slot').forEach(el => {
                 const slot = el.dataset.slot;
                 const key = slot === 'weapon' ? 'right' : slot;
@@ -1573,7 +1685,7 @@
                         title: q.name,
                         desc: q.summary || '',
                         completed: done,
-                        badge: done ? 'Завершено' : (p.ready ? 'Вернись к ' + (dlg.giverName(q) || 'заказчику') : dlg.questLabel(q, p)),
+                        badge: done ? 'Завершено' : (p.ready ? 'К сдаче' : (dlg.questBadge ? dlg.questBadge(q, p) : dlg.questLabel(q, p))),
                         reward: rw
                     };
                     if (done) {
@@ -1722,19 +1834,36 @@
             }
             const cb = this.game.combat;
             if (cb.isDead) return false;
-            if (cb.hp >= cb.maxHp) {
+
+            const trialQuestActive = st.questStatus('potion_trial') === 'active' && !st.getQuestFlag('potion_health_small_drank');
+            if (cb.hp >= cb.maxHp && !trialQuestActive) {
                 this.floatText('Здоровье уже полно', 'warn');
                 return false;
             }
             const amount = (def.use && def.use.amount) || 50;
-            const healed = Math.min(amount, cb.maxHp - cb.hp);
-            cb.heal(amount);
+            const healed = Math.min(amount, Math.max(0, cb.maxHp - cb.hp));
+            if (healed > 0) cb.heal(amount);
             st.inventory.remove(itemId, 1);
-            this.floatText(`+${healed} Здоровье`, 'heal');
-            const c = this.game.character;
-            if (c) {
-                this.floatAt(`+${healed}`, 'heal', c.position.x, c.position.y + 1.8, c.position.z);
+            if (healed > 0) {
+                this.floatText(`+${healed} Здоровье`, 'heal');
+                const c = this.game.character;
+                if (c) {
+                    this.floatAt(`+${healed}`, 'heal', c.position.x, c.position.y + 1.8, c.position.z);
+                }
+            } else {
+                this.floatText('Зелье выпито', 'heal');
             }
+
+            if (itemId === 'potion_health_small' || itemId === 'potion_health_large') {
+                if (st.setQuestFlag) {
+                    st.setQuestFlag('potion_health_small_drank', true);
+                }
+                if (this.game && this.game.dialog && this.game.dialog.updateTracker) {
+                    this.game.dialog.updateTracker();
+                }
+                if (this.updateQuestsProgress) this.updateQuestsProgress();
+            }
+
             this.renderInventory();
             this.renderHotbar();
             return true;
@@ -1759,6 +1888,14 @@
         dollSlotOf(itemId) {
             const s = window.AveloraItems.equipSlot(itemId);
             return s === 'right' ? 'weapon' : s;
+        }
+
+        /** Can item be equipped into this specific hero-panel doll slot? */
+        canEquipInDollSlot(itemId, dollSlot) {
+            const rawSlot = window.AveloraItems.equipSlot(itemId);
+            if (rawSlot === 'right') return dollSlot === 'weapon';
+            if (rawSlot === 'ring') return dollSlot === 'ring' || dollSlot === 'ring2';
+            return rawSlot === dollSlot;
         }
 
         /** Array of lines for item stats: main first (damage / armor / tool action), then stat bonuses. */
@@ -1872,25 +2009,39 @@
                 mk('tt-req' + (this.unmetRequirement(def) ? ' bad' : ''), 'Требуется: ' + parts.join(', '));
             }
             if (equippable && st) {
-                const slot = Items.equipSlot(itemId), curId = st.equipped[slot];
-                if (curId === itemId) mk('tt-cmp-head', 'Сейчас надето');
-                else if (!curId) mk('tt-cmp-head', 'Слот свободен — это будет первая вещь');
-                else {
-                    const cur = Items.get(curId);
-                    mk('tt-cmp-head', `Сейчас надето: ${cur ? cur.name : curId}`);
-                    if (cur) this.compareRows(def, cur).forEach(r => mk('tt-cmp ' + r.cls, r.text));
+                const slot = Items.equipSlot(itemId);
+                if (slot === 'ring') {
+                    const r1 = st.equipped.ring, r2 = st.equipped.ring2;
+                    if (r1 === itemId || r2 === itemId) {
+                        mk('tt-cmp-head', 'Сейчас надето');
+                    } else if (!r1 || !r2) {
+                        mk('tt-cmp-head', 'Есть свободный слот под кольцо');
+                    } else {
+                        const cur = Items.get(r1);
+                        mk('tt-cmp-head', `Заменит: ${cur ? cur.name : r1}`);
+                        if (cur) this.compareRows(def, cur).forEach(r => mk('tt-cmp ' + r.cls, r.text));
+                    }
+                } else {
+                    const curId = st.equipped[slot];
+                    if (curId === itemId) mk('tt-cmp-head', 'Сейчас надето');
+                    else if (!curId) mk('tt-cmp-head', 'Слот свободен — это будет первая вещь');
+                    else {
+                        const cur = Items.get(curId);
+                        mk('tt-cmp-head', `Сейчас надето: ${cur ? cur.name : curId}`);
+                        if (cur) this.compareRows(def, cur).forEach(r => mk('tt-cmp ' + r.cls, r.text));
+                    }
                 }
             }
             this.placeTooltip(el);
         }
 
-        /** Bag -> right hand. Returns true on success. */
-        equip(itemId) {
+        /** Bag -> right hand or specific equipment slot. Returns true on success. */
+        equip(itemId, targetSlot) {
             const st = this.state, def = window.AveloraItems.get(itemId);
             if (!st || !def) return false;
             const lack = this.unmetRequirement(def);
             if (lack) { this.floatText(lack, 'warn'); return false; }
-            const res = st.equipFromBag(itemId);
+            const res = st.equipFromBag(itemId, targetSlot);
             if (res === 'full') { this.floatText('Сумка полна: некуда убрать то, что в руке', 'warn'); return false; }
             if (res !== 'ok') { this.floatText('Этого нет в сумке', 'warn'); return false; }
             this.applyEquipment();
@@ -2557,6 +2708,8 @@
                     if (this.inputAllowed()) this.toggleHero();
                 } else if (e.code === 'KeyL') { // physical key: works in RU layout too (Д)
                     if (this.inputAllowed()) this.toggleQuests();
+                } else if (e.code === 'KeyN') { // physical key: works in RU layout too (Т): Ремесло
+                    if (this.inputAllowed()) this.toggleCrafting();
                 }
             });
 
@@ -2671,6 +2824,8 @@
             }
             const skill = target.closest('.skill-entry');
             if (skill) return { kind: 'skill', id: skill.dataset.skill, el: skill };
+            const craftTip = target.closest('.craft-tip');
+            if (craftTip && craftTip.dataset.item) return { kind: 'craft', item: craftTip.dataset.item, el: craftTip };
             return null;
         }
 
@@ -2678,6 +2833,7 @@
             if (src.kind === 'inv' || src.kind === 'chest') this.showTooltipFor(src.el, 'item', src.item, src.count);
             else if (src.kind === 'doll') this.showTooltipFor(src.el, 'item', src.item, undefined, true);
             else if (src.kind === 'skill') this.showTooltipFor(src.el, 'skill', src.id);
+            else if (src.kind === 'craft') this.showTooltipFor(src.el, 'item', src.item);
             else if (src.kind === 'slot' && src.entry) this.showTooltipFor(src.el, src.entry.type === 'skill' ? 'skill' : 'item', src.entry.id);
         }
 
@@ -2904,7 +3060,7 @@
             }
             if (tgt.kind === 'doll') {
                 if (src.kind !== 'inv') return null;
-                return window.AveloraItems.isEquippable(src.item) && this.dollSlotOf(src.item) === tgt.slot;
+                return window.AveloraItems.isEquippable(src.item) && this.canEquipInDollSlot(src.item, tgt.slot);
             }
             if (tgt.kind === 'inv') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
             if (tgt.kind === 'chest') return (src.kind === 'inv' || src.kind === 'chest') ? true : null;
@@ -2931,7 +3087,7 @@
 
             if (tgt && tgt.kind === 'doll') {
                 // bag item dragged onto the dressing-room: weapon slot takes equippable items
-                if (src.kind === 'inv' && window.AveloraItems.isEquippable(src.item) && this.dollSlotOf(src.item) === tgt.slot) this.equip(src.item);
+                if (src.kind === 'inv' && window.AveloraItems.isEquippable(src.item) && this.canEquipInDollSlot(src.item, tgt.slot)) this.equip(src.item, tgt.slot === 'weapon' ? 'right' : tgt.slot);
                 else if (src.kind === 'inv') this.showMessageAt(tgt.el, 'Сюда это не надеть');
                 return;
             }
@@ -3015,7 +3171,7 @@
             if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
             const el = document.elementFromPoint(x, y);
             if (!el) return false;
-            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #quantity-modal, #item-tooltip';
+            const sel = window.AVELORA_UI_SELECTOR || '#skill-bar, #inventory-panel, #chest-panel, #dialog-panel, #skills-panel, #crafting-panel, #quantity-modal, #item-tooltip';
             return !(el.closest && el.closest(sel));
         }
 
