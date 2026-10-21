@@ -197,12 +197,13 @@
             const customBosses = cfg.customBosses || ['yasha', 'thunderclaw'];
             const isCustomBoss = customBosses.includes(sp.type);
             const baseHp = isCustomBoss ? (mergedDef.hp || 320) : (cfg.baseHp !== undefined ? cfg.baseHp : 50);
-            const hpMult = isCustomBoss ? rm.hp : (level * rm.hp);
+            const hpGrowth = cfg.hpGrowthPerLevel !== undefined ? cfg.hpGrowthPerLevel : 0.20;
+            const hpMult = isCustomBoss ? rm.hp : (Math.pow(1 + hpGrowth, level - 1) * rm.hp);
             const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
 
             const baseDmg = isCustomBoss ? (mergedDef.damage || [18, 28]) : (cfg.baseDamage || [5, 8]);
-            const dmgGrowth = cfg.damageGrowthPerLevel !== undefined ? cfg.damageGrowthPerLevel : 0.25;
-            const dmgMult = isCustomBoss ? rm.dmg : ((1 + (level - 1) * dmgGrowth) * rm.dmg);
+            const dmgGrowth = cfg.damageGrowthPerLevel !== undefined ? cfg.damageGrowthPerLevel : 0.20;
+            const dmgMult = isCustomBoss ? rm.dmg : (Math.pow(1 + dmgGrowth, level - 1) * rm.dmg);
             const dmgMin = Math.max(1, Math.round((baseDmg[0] || 5) * dmgMult));
             const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 8) * dmgMult));
 

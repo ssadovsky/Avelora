@@ -1476,7 +1476,7 @@
             if (hero) {
                 const sm = hero.skillMult({ damage: { type: 'lightning' } }), pm = hero.skillMult({ damage: { type: 'physical' } });
                 setText('hero-stat-spell', `маг. +${Math.round((sm - 1) * 100)}% · физ. +${Math.round((pm - 1) * 100)}%`);
-                setText('hero-stat-regen', `${hero.manaRegen.toFixed(1)} / с`);
+                setText('hero-stat-regen', hero.manaRegen >= 100 ? `${fmt(Math.round(hero.manaRegen))} / с` : `${hero.manaRegen.toFixed(1)} / с`);
                 setText('hero-stat-armor', `${Math.round(hero.armor() * 10) / 10} (−${Math.round(hero.mitigation() * 100)}% урона)`);
                 setText('hero-stat-dodge', `${Math.round(hero.dodge() * 100)}%`);
             }

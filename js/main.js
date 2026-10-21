@@ -213,13 +213,8 @@ class AveloraGame {
     /** First thing that runs */
     async bootstrap() {
         const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
-        if (slots.length === 0) {
-            this.showCharacterSelect(false);
-            this.openCharacterCreateModal();
-        } else {
-            this.selectedSlotId = slots[0].slotId;
-            this.showCharacterSelect(false);
-        }
+        this.selectedSlotId = slots.length > 0 ? slots[0].slotId : null;
+        this.showCharacterSelect(false);
     }
 
     /** allowCancel: true when opened from the pause menu (an existing game session to go back to). */
@@ -357,6 +352,19 @@ class AveloraGame {
         this.csPreviewGroup.add(fillLight);
 
         this.csScene.add(this.csPreviewGroup);
+    }
+
+    clearPreviewCharacter() {
+        this.csCurrentPreviewClass = null;
+        if (this.csPreviewModel && this.csPreviewGroup) {
+            this.csPreviewGroup.remove(this.csPreviewModel);
+            this.csPreviewModel = null;
+        }
+        if (this.csMixer) {
+            this.csMixer.stopAllAction();
+            this.csMixer = null;
+        }
+        this.needsRender = true;
     }
 
     updatePreviewCharacter(classId) {
@@ -708,10 +716,7 @@ class AveloraGame {
 
         if (!slot) {
             previewBox.style.display = 'none';
-            if (this.csPreviewModel && this.csPreviewGroup) {
-                this.csPreviewGroup.remove(this.csPreviewModel);
-                this.csPreviewModel = null;
-            }
+            this.clearPreviewCharacter();
             return;
         }
 
@@ -841,12 +846,14 @@ class AveloraGame {
     closeCharacterCreateModal() {
         const modal = document.getElementById('cs-create-modal');
         if (modal) modal.style.display = 'none';
-        // Restore preview of currently selected slot if any
+        // Restore preview of currently selected slot if any, or clear pedestal
         const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
         const slot = slots.find(s => s.slotId === this.selectedSlotId);
         if (slot) {
             const details = window.AveloraSlots.getSlotDetails(slot);
             this.updatePreviewCharacter(details.classId);
+        } else {
+            this.clearPreviewCharacter();
         }
     }
 

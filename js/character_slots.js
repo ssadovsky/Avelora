@@ -69,7 +69,7 @@
         }
 
         if (!raw) {
-            return autoMigrateLegacy();
+            return [];
         }
 
         try {

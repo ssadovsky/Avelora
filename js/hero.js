@@ -93,12 +93,18 @@
             this.level = levelForXp(this.xp);
             const cls = this.classCfg(), M = CFG().multipliers, D = CFG().derived;
             const st = this.stats();
-            const baseM = cls.baseMana || 150;
-            const manaMult = cls && cls.manaPerLevel !== undefined ? cls.manaPerLevel : 0.5;
-            const lvlManaBonus = (this.level - 1) * (baseM * manaMult);
-            this.maxMana = Math.round(baseM + lvlManaBonus + st.int * D.manaPerInt * M.mana);
-            this.manaRegen = (cls.manaRegen + st.int * D.manaRegenPerInt) * M.regen;
-            if (this.mana > this.maxMana || heal) this.mana = this.maxMana;
+            const baseM = (cls && cls.baseMana) || 100;
+            const growth = (cls && cls.manaGrowth !== undefined) ? cls.manaGrowth : (CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20);
+            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
+            this.maxMana = Math.round(baseM * levelFactor + st.int * D.manaPerInt * M.mana);
+
+            // Регенерация маны: процент от maxMana (5%/сек по умолчанию) + бонус от Интеллекта
+            const cfgManaRegen = CFG().manaRegen || {};
+            const basePct = Number.isFinite(cfgManaRegen.percent) ? cfgManaRegen.percent : 0.05;
+            const intBonus = st.int * (D.manaRegenPerInt || 0.1) * 0.001;
+            this.manaRegen = Math.max(cls.manaRegen || 5, Math.round(this.maxMana * (basePct + intBonus) * M.regen));
+
+            if (this.mana > this.maxMana || heal || !Number.isFinite(this.mana) || this.mana <= 0) this.mana = this.maxMana;
             const cb = this.game.combat;
             if (cb) {
                 const hp = this.maxHp();
@@ -164,37 +170,48 @@
         maxHp() {
             const cls = this.classCfg();
             const base = (cls && cls.baseHp) || this.baseHp || 100;
-            const mult = cls && cls.hpPerLevel !== undefined ? cls.hpPerLevel : 0.5;
-            const lvlHpBonus = (this.level - 1) * (base * mult);
+            const growth = (cls && cls.hpGrowth !== undefined) ? cls.hpGrowth : (CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20);
+            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
             const strBonus = this.stats().str * CFG().derived.hpPerStr * CFG().multipliers.health;
-            return Math.max(1, Math.round(base + lvlHpBonus + strBonus));
+            return Math.max(1, Math.round(base * levelFactor + strBonus));
         }
 
         /** Damage multiplier of a weapon (item.json weapon.stat, default 'str'). */
         meleeMult(weapon) {
             const stat = (weapon && weapon.stat) || 'str';
-            return 1 + this.stats()[stat] * CFG().derived.damagePerStat * CFG().multipliers.damage;
+            const cls = this.classCfg();
+            const startStat = (cls && cls.start && cls.start[stat]) || 10;
+            const growth = CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20;
+            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
+            const gearStat = (this.gearStats() && this.gearStats()[stat]) || 0;
+            const baseMult = 1 + startStat * CFG().derived.damagePerStat;
+            const gearBonus = 1 + gearStat * CFG().derived.damagePerStat;
+            return baseMult * levelFactor * gearBonus * CFG().multipliers.damage;
         }
 
         /** Damage multiplier of a skill (by its damage type, or skill.json `stat`). */
         skillMult(def) {
             const map = CFG().damageStat;
             const stat = (def && def.stat) || map[(def && def.damage && def.damage.type) || 'default'] || map.default;
-            return 1 + this.stats()[stat] * CFG().derived.damagePerStat * CFG().multipliers.damage;
+            const cls = this.classCfg();
+            const startStat = (cls && cls.start && cls.start[stat]) || 10;
+            const growth = CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20;
+            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
+            const gearStat = (this.gearStats() && this.gearStats()[stat]) || 0;
+            const baseMult = 1 + startStat * CFG().derived.damagePerStat;
+            const gearBonus = 1 + gearStat * CFG().derived.damagePerStat;
+            return baseMult * levelFactor * gearBonus * CFG().multipliers.damage;
         }
 
         /** Dynamic mana cost of a skill, scaled symmetrically with skillMult damage bonus. */
         skillManaCost(def) {
             if (!def || !def.mana || def.mana <= 0) return 0;
             const base = def.mana;
-            if (def.damage) {
-                const mult = this.skillMult(def);
-                const derived = (CFG() && CFG().derived) || {};
-                const k = derived.manaCostScaling !== undefined ? derived.manaCostScaling : 1.0;
-                const manaMult = 1 + (mult - 1) * k;
-                return Math.max(1, Math.round(base * manaMult));
-            }
-            return base;
+            const mult = this.skillMult(def);
+            const derived = (CFG() && CFG().derived) || {};
+            const k = derived.manaCostScaling !== undefined ? derived.manaCostScaling : 0.25;
+            const manaMult = 1 + (mult - 1) * k;
+            return Math.max(1, Math.round(base * manaMult));
         }
 
         // -----------------------------------------------------------
