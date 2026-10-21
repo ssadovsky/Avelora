@@ -388,27 +388,9 @@
             100% { opacity: 0; }
         }
 
-        /* Hide all gameplay UI while in Character Selection */
-        body.charselect-mode #player-frame,
-        body.charselect-mode #target-frame,
-        body.charselect-mode #skill-bar,
-        body.charselect-mode #fps-counter,
-        body.charselect-mode #joy-zone,
-        body.charselect-mode #cam-btn,
-        body.charselect-mode #fp-crosshair,
-        body.charselect-mode #compass-btn,
-        body.charselect-mode #minimap-box,
-        body.charselect-mode #minimap-container,
-        body.charselect-mode #quest-tracker,
-        body.charselect-mode #top-right-btns,
-        body.charselect-mode #pause-btn,
-        body.charselect-mode #status-bar,
-        body.charselect-mode #inventory-panel,
-        body.charselect-mode #skills-panel,
-        body.charselect-mode #drag-ghost,
-        body.charselect-mode #item-tooltip,
-        body.charselect-mode .interactive-prompt,
-        body.charselect-mode .action-bar {
+        /* Character Selection is a standalone screen: hide EVERY game HUD element (current and future),
+           keep only the menu overlay, the canvas, the loading screen and the rotate-phone warning. */
+        body.charselect-mode > *:not(#character-select-overlay):not(#game-container):not(#loading-overlay):not(#orientation-warning):not(script):not(style):not(link) {
             display: none !important;
         }
 
@@ -481,6 +463,7 @@
             letter-spacing: 0.08rem;
         }
         .cs-hero-big-loc {
+            white-space: pre-line;
             font-size: 0.95rem;
             color: #8fa39e;
             letter-spacing: 0.05rem;
@@ -4610,7 +4593,7 @@
                 bottom: auto !important;
                 width: min(390px, calc(100% - 24px)) !important;
                 height: auto !important;
-                max-height: calc(100vh - 16px) !important;
+                max-height: calc(100% - 16px) !important;
                 padding: 8px 10px !important;
                 gap: 8px !important;
                 box-sizing: border-box !important;
@@ -4657,13 +4640,17 @@
                 font-size: 0.80rem !important;
                 line-height: 1.3 !important;
                 padding: 0 24px 6px 0 !important;
-                max-height: 65px !important;
+                /* the NPC's answer takes all free height (no tiny 4-line window); options keep their own strip */
+                flex: 1 1 auto !important;
+                min-height: 56px !important;
+                max-height: none !important;
+                overflow-y: auto !important;
             }
             .dlg-options {
                 overflow-y: auto !important;
-                flex: 1 1 auto !important;
+                flex: 0 1 auto !important;
                 min-height: 0 !important;
-                max-height: calc(100vh - 110px) !important;
+                max-height: 150px !important;
                 gap: 4px !important;
             }
             .dlg-opt {

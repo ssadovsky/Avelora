@@ -228,37 +228,19 @@ class AveloraGame {
         this.isCharacterSelectOpen = true;
         document.body.classList.add('charselect-mode');
 
-        // Atmospheric dark fantasy background & fog for showcase
-        if (this.scene) {
-            if (!this._origSceneBg) this._origSceneBg = this.scene.background;
-            if (!this._origSceneFog) this._origSceneFog = this.scene.fog;
-            this.scene.background = new THREE.Color(0x0e1418);
-            this.scene.fog = new THREE.FogExp2(0x0e1418, 0.035);
-        }
-
-        // Camera framing the character showcase stage
-        if (this.camera) {
-            this.camera.position.set(-0.35, 1.15, 2.7);
-            this.camera.lookAt(-0.35, 0.95, 0);
-        }
-
-        // If gameplay character mesh is live, hide it so it doesn't overlap
-        if (this.character && this.character.mesh) {
-            this.character.mesh.visible = false;
-        }
-
-        // Ensure showcase stage is active
-        if (!this.csPreviewGroup) {
+        // The menu has its OWN scene + camera (csScene / csCamera): the game world,
+        // its lights, water and hero are not drawn while the menu is open.
+        if (!this.csScene) {
             this.setupCharacterSelectStage();
-        } else {
-            this.csPreviewGroup.visible = true;
         }
+        this.frameCharSelectCamera();
 
         this.setupCharacterSelectEvents();
         this.renderCharacterSlots();
 
         const overlay = document.getElementById('character-select-overlay');
         if (overlay) overlay.classList.remove('hidden');
+        this.frameCharSelectCamera();
 
         const backBtn = document.getElementById('cs-btn-back') || document.getElementById('charselect-back');
         if (backBtn) backBtn.style.display = allowCancel ? '' : 'none';
@@ -270,18 +252,8 @@ class AveloraGame {
         this.isCharacterSelectOpen = false;
         document.body.classList.remove('charselect-mode');
 
-        if (this.csPreviewGroup) {
-            this.csPreviewGroup.visible = false;
-        }
-        if (this.character && this.character.mesh) {
-            this.character.mesh.visible = true;
-        }
-
-        // Restore scene background / fog
-        if (this.scene && this._origSceneBg) {
-            this.scene.background = this._origSceneBg;
-            this.scene.fog = this._origSceneFog;
-        }
+        // The game scene was never touched by the menu, nothing to restore.
+        this.needsRender = true;
 
         const overlay = document.getElementById('character-select-overlay');
         if (overlay) overlay.classList.add('hidden');
@@ -298,8 +270,32 @@ class AveloraGame {
         return bytes.buffer;
     }
 
+    /** Camera for the character showcase: whole pedestal + hero in frame (above the bottom button bar). */
+    frameCharSelectCamera() {
+        const cam = this.csCamera;
+        if (!cam) return;
+        const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+        cam.aspect = aspect;
+        // narrow / portrait screens: pull back so the hero still fits horizontally
+        const dist = aspect >= 1.2 ? 3.7 : 3.7 * Math.min(2.2, 1.2 / aspect);
+        cam.position.set(-0.35, 1.25, dist);
+        cam.lookAt(-0.35, 0.7, 0);
+        // Slide the picture sideways so the hero + pedestal stand exactly above the "ВОЙТИ В МИР" button
+        const W = window.innerWidth, H = window.innerHeight;
+        const btn = document.getElementById('cs-btn-enter-world');
+        const r = btn ? btn.getBoundingClientRect() : null;
+        const dx = (r && r.width > 0) ? Math.round(W / 2 - (r.left + r.width / 2)) : 0;
+        if (dx) cam.setViewOffset(W, H, dx, 0, W, H); else cam.clearViewOffset();
+        cam.updateProjectionMatrix();
+    }
+
     setupCharacterSelectStage() {
         if (this.csPreviewGroup) return;
+        this.csScene = new THREE.Scene();
+        this.csScene.background = new THREE.Color(0x0e1418);
+        this.csScene.fog = new THREE.FogExp2(0x0e1418, 0.035);
+        this.csCamera = new THREE.PerspectiveCamera(45, window.innerWidth / Math.max(1, window.innerHeight), 0.1, 60);
+        this.frameCharSelectCamera();
         this.csPreviewGroup = new THREE.Group();
 
         // 1. Pedestal: Dark circular stone slab (proportional to character)
@@ -360,7 +356,7 @@ class AveloraGame {
         fillLight.position.set(-2.5, 1.0, 2.0);
         this.csPreviewGroup.add(fillLight);
 
-        this.scene.add(this.csPreviewGroup);
+        this.csScene.add(this.csPreviewGroup);
     }
 
     updatePreviewCharacter(classId) {
@@ -725,10 +721,10 @@ class AveloraGame {
         if (nameEl) nameEl.textContent = details.name;
 
         const classEl = document.getElementById('cs-big-class');
-        if (classEl) classEl.textContent = `${details.className} • Уровень ${details.level} • Время в пути: ${details.playTimeStr}`;
+        if (classEl) classEl.textContent = `${details.className} • Уровень ${details.level}`;
 
         const locEl = document.getElementById('cs-big-loc');
-        if (locEl) locEl.textContent = `${details.locationName} • Золото: ${details.gold} 🪙`;
+        if (locEl) locEl.textContent = `${details.locationName} • Золото: ${details.gold} 🪙\nВремя в пути: ${details.playTimeStr}`;
 
         // Update 3D model in the center of the scene!
         this.updatePreviewCharacter(details.classId);
@@ -1697,10 +1693,7 @@ class AveloraGame {
             this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(w, h);
-            if (this.isCharacterSelectOpen) {
-                this.camera.position.set(-0.35, 1.15, 2.7);
-                this.camera.lookAt(-0.35, 0.95, 0);
-            }
+            if (this.isCharacterSelectOpen) this.frameCharSelectCamera();
             this.needsRender = true; // resize clears the canvas; redraw even if paused
             clearTimeout(this._gfxTimer);
             this._gfxTimer = setTimeout(() => this.applyGraphicsProfile(), 150);
@@ -3250,7 +3243,8 @@ class AveloraGame {
 
     /** Кадр: сцена + (опционально) виньетка поверх. Единая точка для всех renderer.render в animate(). */
     drawFrame() {
-        this.renderer.render(this.scene, this.camera);
+        if (this.isCharacterSelectOpen && this.csScene) this.renderer.render(this.csScene, this.csCamera);
+        else this.renderer.render(this.scene, this.camera);
         const G = window.GFX;
         if (this.vignetteMesh && G && G.vignette !== false && !G.noVig) {
             const r = this.renderer;

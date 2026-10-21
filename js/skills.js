@@ -377,7 +377,8 @@
         /** Skill defs of a character (empty -> the skills button is hidden). */
         forCharacter(charId) {
             const st = this.game.gameState;
-            const learned = (st && st.characterId === charId) ? st.learnedSkills : [];
+            // charId is the CLASS id ('mage'); the state's characterId is the slot id ('slot_...'), so compare the class too
+            const learned = (st && (st.characterId === charId || st.classId === charId)) ? st.learnedSkills : [];
             const ids = window.AveloraState ? window.AveloraState.characterSkills(charId, learned) : [];
             return ids.map(id => this.get(id)).filter(Boolean);
         }
