@@ -253,52 +253,6 @@
             white-space: nowrap;
         }
 
-        /* Storage management box */
-        .storage-box {
-            width: 100%;
-            background: rgba(18, 12, 12, 0.75);
-            border: 1px dashed rgba(168, 93, 93, 0.4);
-            border-radius: 6px;
-            padding: 18px 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 40px;
-        }
-        .storage-info {
-            text-align: left;
-        }
-        .storage-title {
-            font-size: 0.92rem;
-            color: #e0b4b4;
-            margin-bottom: 4px;
-            letter-spacing: 0.05rem;
-        }
-        .storage-status {
-            font-size: 0.8rem;
-            color: #8f7979;
-        }
-        .btn-danger {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            letter-spacing: 0.05rem;
-            font-family: inherit;
-            color: #ff9e9e;
-            background: rgba(60, 20, 20, 0.6);
-            border: 1px solid rgba(200, 80, 80, 0.4);
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-danger:hover {
-            background: rgba(100, 30, 30, 0.8);
-            border-color: #ff6b6b;
-            color: #ffffff;
-            box-shadow: 0 0 12px rgba(255, 80, 80, 0.3);
-        }
-
         /* Footer */
         .footer {
             margin-top: 20px;
@@ -383,15 +337,6 @@
             </div>
         </div>
 
-        <!-- Storage Management -->
-        <div class="storage-box">
-            <div class="storage-info">
-                <div class="storage-title">💾 Управление данными браузера</div>
-                <div class="storage-status" id="storage-status-text">Проверка сохранений...</div>
-            </div>
-            <button type="button" class="btn-danger" id="btn-clear-storage">Очистить все сохранения</button>
-        </div>
-
         <!-- Footer -->
         <div class="footer">
             Avelora &bull; Работает локально по <code>file://</code> и на хостинге &bull; Three.js PBR Engine
@@ -399,61 +344,11 @@
     </div>
 
     <script>
-        // Check local storage for Avelora saves
-        function updateStorageStatus() {
-            const statusEl = document.getElementById('storage-status-text');
-            if (!statusEl) return;
-            try {
-                let saveCount = 0;
-                const charSaves = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith('avelora_save_')) {
-                        saveCount++;
-                        const charId = key.replace('avelora_save_', '');
-                        charSaves.push(charId);
-                    }
-                }
-                if (saveCount > 0) {
-                    statusEl.textContent = 'Обнаружено сохранений: ' + saveCount + ' (' + charSaves.join(', ') + ')';
-                    statusEl.style.color = '#efcf7a';
-                } else {
-                    statusEl.textContent = 'Сохранённых данных нет (чистый профиль)';
-                    statusEl.style.color = '#7e8a89';
-                }
-            } catch (e) {
-                statusEl.textContent = 'Хранилище недоступно в текущем режиме';
-            }
-        }
-
-        // Clear all Avelora saves
-        document.getElementById('btn-clear-storage').addEventListener('click', () => {
-            if (!window.confirm('ВНИМАНИЕ: Вы действительно хотите стереть все сохранения игры Avelora в этом браузере?')) {
-                return;
-            }
-            try {
-                const keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && (key.startsWith('avelora_save_') || key.startsWith('avelora_state_'))) {
-                        keysToRemove.push(key);
-                    }
-                }
-                keysToRemove.forEach(k => localStorage.removeItem(k));
-                alert('Все сохранения Avelora успешно удалены.');
-                updateStorageStatus();
-            } catch (err) {
-                alert('Ошибка при очистке: ' + err);
-            }
-        });
-
         // Quick scroll to info
         document.getElementById('btn-quick-info').addEventListener('click', () => {
             const infoEl = document.getElementById('info-section');
             if (infoEl) infoEl.scrollIntoView({ behavior: 'smooth' });
         });
-
-        updateStorageStatus();
     </script>
 </body>
 </html>
