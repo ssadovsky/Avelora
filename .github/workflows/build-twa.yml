@@ -77,7 +77,6 @@ jobs:
           python3 -m http.server 8080 &
           sleep 1
           sed -i 's|https://ssadovsky.github.io/[Aa]velora/icons/|http://localhost:8080/icons/|g' js/twa-manifest.json
-          sed -i 's|https://ssadovsky.github.io/[Aa]velora/js/manifest.json|http://localhost:8080/js/manifest.json|g' js/twa-manifest.json
           cp js/twa-manifest.json ./twa-manifest.json
 
       - name: Regenerate Android project from twa-manifest.json

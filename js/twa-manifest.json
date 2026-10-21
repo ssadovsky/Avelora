@@ -33,5 +33,5 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://ssadovsky.github.io/avelora/",
-  "minSdkVersion": 21
+  "minSdkVersion": 24
 }
