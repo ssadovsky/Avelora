@@ -555,15 +555,21 @@ class AveloraGame {
         const modalConfirm = document.getElementById('cs-create-confirm');
         if (modalConfirm) modalConfirm.addEventListener('click', () => this.confirmCharacterCreate());
 
-        // Enter key in character name input
+        // Enter and Escape keys in character name input; stop bubbling so hotkeys don't intercept typing
         const nameInput = document.getElementById('cs-char-name-input');
         if (nameInput) {
             nameInput.addEventListener('keydown', (e) => {
+                e.stopPropagation();
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     this.confirmCharacterCreate();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.closeCharacterCreateModal();
                 }
             });
+            nameInput.addEventListener('keyup', (e) => e.stopPropagation());
+            nameInput.addEventListener('keypress', (e) => e.stopPropagation());
         }
 
         // Global Enter key: if character select overlay is visible and modal is NOT open, enter world
@@ -1723,6 +1729,21 @@ class AveloraGame {
         this.pauseResumeBtn = document.getElementById('pause-resume');
         window.addEventListener('keydown', (e) => {
             if (e.repeat) return;
+            const ae = document.activeElement;
+            const t = e.target;
+            if ((ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) ||
+                (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable))) {
+                return;
+            }
+            const csOverlay = document.getElementById('character-select-overlay');
+            if (csOverlay && !csOverlay.classList.contains('hidden')) {
+                const modal = document.getElementById('cs-create-modal');
+                if ((e.key === 'Escape' || e.code === 'Escape') && modal && modal.style.display !== 'none') {
+                    e.preventDefault();
+                    this.closeCharacterCreateModal();
+                }
+                return;
+            }
             if (e.key === 'Escape' || e.code === 'Escape') {
                 e.preventDefault();
                 // Escape закрывает карту если она открыта
@@ -1765,8 +1786,8 @@ class AveloraGame {
                     if (this.ui && this.ui.floatText) this.ui.floatText(on ? 'Хитбоксы: показаны (F4)' : 'Хитбоксы: скрыты', 'info');
                 }
             } else if (e.code === 'KeyM') {
-                e.preventDefault();
                 if (!this.isReady || !this.map) return;
+                e.preventDefault();
                 // При открытом меню паузы карта по M не открывается
                 const isMenuOpen = this.pauseOverlay && this.pauseOverlay.classList.contains('open');
                 if (isMenuOpen) return;
@@ -2036,7 +2057,11 @@ class AveloraGame {
         window.addEventListener('keydown', (e) => {
             if (!MOVE_CODES.includes(e.code)) return;
             const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+            const ae = document.activeElement;
+            if ((t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) ||
+                (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable))) return;
+            const csOverlay = document.getElementById('character-select-overlay');
+            if (csOverlay && !csOverlay.classList.contains('hidden')) return;
             this.moveKeys[e.code] = true;
             if (this.viewMode === 'first' && e.code.startsWith('Arrow')) e.preventDefault();
         });
