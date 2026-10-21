@@ -6,7 +6,7 @@
   "category": "attack",
   "cooldown": 8,
   "range": 20,
-  "speed": 15,
+  "speed": 24,
   "castTime": 0.6,
   "damage": {
     "min": 45,

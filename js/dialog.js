@@ -196,6 +196,25 @@
                 const hit = st ? st.getQuestFlag(o.flag || o.hitFlag || 'spark_hit_creature') : false;
                 return { have: hit ? 1 : 0, need: 1, ready: hit, hit };
             }
+            else if (o.type === 'build_building') {
+                const bType = o.building || 'sawmill';
+                let built = false;
+                if (st && st.buildings) {
+                    for (const loc in st.buildings) {
+                        const list = st.buildings[loc];
+                        if (Array.isArray(list) && list.some(b => b && b.type === bType)) {
+                            built = true;
+                            break;
+                        }
+                    }
+                }
+                return { have: built ? 1 : 0, need: 1, ready: built };
+            }
+            else if (o.type === 'learn_recipe') {
+                const rId = o.recipe || 'plank';
+                const known = !!st && st.knowsRecipe(rId);
+                return { have: known ? 1 : 0, need: 1, ready: known };
+            }
             return { have: Math.min(have, o.count || 1), need: o.count || 1, ready: have >= (o.count || 1) };
         }
 
@@ -211,6 +230,12 @@
             }
             if (o.type === 'hit_creature' || o.type === 'learn_and_hit') {
                 return p.ready ? 'К сдаче' : 'Поразить цель';
+            }
+            if (o.type === 'build_building') {
+                return p.ready ? 'К сдаче' : 'Построить';
+            }
+            if (o.type === 'learn_recipe') {
+                return p.ready ? 'К сдаче' : 'Изучить';
             }
             if (o.type === 'teleport_home') {
                 if (!p.knows) return 'Выучить заклинание';
@@ -243,6 +268,14 @@
                 if (!p.ready) return 'Порази «Искрой» любого монстра: 0/1';
                 return `Поговори с ${this.turnInName(q) || 'Лираэль'}`;
             }
+            if (o.type === 'build_building') {
+                if (p.ready) return `Поговори с ${this.turnInName(q) || 'Лираэль'}`;
+                return o.label || `Построй пильню в лагере: ${p.have}/${p.need}`;
+            }
+            if (o.type === 'learn_recipe') {
+                if (p.ready) return `Поговори с ${this.turnInName(q) || 'Оленихой'}`;
+                return o.label || `Изучи рецепт досок: ${p.have}/${p.need}`;
+            }
             const name = o.type === 'kill'
                 ? (o.label || (((defs.creatures || {})[o.creature]) || {}).name || o.creature)
                 : (window.AveloraItems.get(o.item) || {}).name || o.item;
@@ -261,8 +294,13 @@
             const st = this.state;
             if (!st) return false;
             if (!q.requires) return true;
-            if (Array.isArray(q.requires)) return q.requires.every(id => st.questStatus(id) === 'done');
-            return st.questStatus(q.requires) === 'done';
+            const isDone = (req) => {
+                if (st.questStatus(req) === 'done') return true;
+                if (req === 'bear_hunt' && st.questStatus('doe_report') === 'done') return true;
+                return false;
+            };
+            if (Array.isArray(q.requires)) return q.requires.every(isDone);
+            return isDone(q.requires);
         }
 
         /** game:creatureKilled — counts kills for active kill quests; a quest may kill a creature for good. */
@@ -945,6 +983,9 @@
                     if (!st.spendGold(price)) { this.ui.floatText('Не хватает золота', 'warn'); return; }
                     st.learnRecipe(id);
                     this.ui.floatText(`Изучен рецепт: ${rec.name}`, 'loot');
+                    window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                    if (this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                    this.updateTracker();
                     this.render();
                 });
                 row.append(p, b);

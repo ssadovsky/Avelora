@@ -363,6 +363,7 @@
             }
 
             window.dispatchEvent(new CustomEvent('game:nodeGathered', { detail: { id: entry.id } }));
+            if (g.hero) g.hero.addXp(10);
         }
 
         hit(entry, node) {
@@ -409,6 +410,7 @@
             const axis = new THREE.Vector3(fz, 0, -fx).normalize();
             this.falling.push({ entry, node, pivot, axis, fx, fz, t: 0, landed: false });
             window.dispatchEvent(new CustomEvent('game:treeFelled', { detail: { id: entry.id } }));
+            if (g.hero) g.hero.addXp(25);
             if (g.ui) g.ui.floatText(`${node.name || 'Дерево'} срублено`, 'info');
         }
 
@@ -445,6 +447,7 @@
 
             this.restoreTool();
             window.dispatchEvent(new CustomEvent('game:oreMined', { detail: { id: entry.id } }));
+            if (g.hero) g.hero.addXp(20);
             if (g.ui) g.ui.floatText(`${node.name || 'Жила'} выработана`, 'info');
         }
 

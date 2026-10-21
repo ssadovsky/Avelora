@@ -1422,6 +1422,9 @@
             const b = st.addBuilding(this.location.id, pl.def.id, pl.x, pl.z, pl.r);
             this.cancelPlacing();
             this.spawn(b);
+            window.dispatchEvent(new CustomEvent('game:questUpdated'));
+            if (this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+            if (this.game.ui && this.game.ui.dialog && this.game.ui.dialog.updateTracker) this.game.ui.dialog.updateTracker();
             if (this.game.ui) {
                 this.game.ui.floatText(`Построено: ${pl.def.name}`, 'gain');
                 if (this.game.ui.pulseInventory) this.game.ui.pulseInventory();

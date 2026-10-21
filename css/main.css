@@ -218,27 +218,27 @@
         /* View switch button + first-person crosshair */
         #cam-btn {
             position: fixed;
-            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 66px);
+            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 54px);
             right: max(env(safe-area-inset-right, 0px), 25px);
-            width: 54px;
-            height: 54px;
-            background: rgba(14, 18, 20, 0.88);
-            border: 2px solid rgba(212, 175, 55, 0.5);
+            width: 44px;
+            height: 44px;
+            background: radial-gradient(circle, rgba(28, 22, 14, 0.95) 0%, rgba(12, 10, 6, 0.95) 100%);
+            border: 2px solid rgba(212, 175, 55, 0.8);
             border-radius: 50%;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(212, 175, 55, 0.35);
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 24px;
+            font-size: 20px;
             line-height: 1;
             user-select: none;
             z-index: 100;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        #cam-btn:hover { transform: scale(1.1); border-color: #efcf7a; box-shadow: 0 0 18px rgba(239, 207, 122, 0.5); }
+        #cam-btn:hover { transform: scale(1.08); border-color: #ffd700; box-shadow: 0 0 16px rgba(255, 215, 0, 0.6); }
         #cam-btn:active { transform: scale(0.94); }
-        body.fp-view #cam-btn { border-color: #efcf7a; box-shadow: 0 0 14px rgba(239, 207, 122, 0.6); }
+        body.fp-view #cam-btn { border-color: #ffd700; box-shadow: 0 0 14px rgba(255, 215, 0, 0.7); }
         #fp-crosshair { display: none !important; }
 
         
@@ -250,12 +250,12 @@
             position: fixed;
             top: max(env(safe-area-inset-top, 0px), 20px);
             right: max(env(safe-area-inset-right, 0px), 25px);
-            width: 54px;
-            height: 54px;
-            background: rgba(14, 18, 20, 0.88);
-            border: 2px solid rgba(212, 175, 55, 0.5);
+            width: 44px;
+            height: 44px;
+            background: radial-gradient(circle, rgba(28, 22, 14, 0.95) 0%, rgba(12, 10, 6, 0.95) 100%);
+            border: 2px solid rgba(212, 175, 55, 0.8);
             border-radius: 50%;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 10px rgba(212, 175, 55, 0.35);
             cursor: pointer;
             display: flex;
             justify-content: center;
@@ -264,9 +264,9 @@
             z-index: 100;
         }
         #compass-btn:hover {
-            transform: scale(1.1);
-            border-color: #efcf7a;
-            box-shadow: 0 0 18px rgba(239, 207, 122, 0.5);
+            transform: scale(1.08);
+            border-color: #ffd700;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
         }
         #compass-btn:active {
             transform: scale(0.94);
@@ -281,36 +281,36 @@
         }
         .needle-north {
             position: absolute;
-            top: 7px;
+            top: 5px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-bottom: 18px solid #e63946;
+            border-left: 5.5px solid transparent;
+            border-right: 5.5px solid transparent;
+            border-bottom: 15px solid #e63946;
         }
         .needle-north::after {
             content: 'N';
             position: absolute;
-            top: 4px;
+            top: 3px;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 8px;
+            font-size: 7px;
             font-weight: bold;
             color: #ffffff;
             font-family: Arial, sans-serif;
         }
         .needle-south {
             position: absolute;
-            bottom: 7px;
+            bottom: 5px;
             left: 50%;
             transform: translateX(-50%);
             width: 0;
             height: 0;
-            border-left: 7px solid transparent;
-            border-right: 7px solid transparent;
-            border-top: 18px solid #8d99ae;
+            border-left: 5.5px solid transparent;
+            border-right: 5.5px solid transparent;
+            border-top: 15px solid #8d99ae;
         }
 
         /* Exit labels above location passages */
@@ -625,8 +625,44 @@
             text-overflow: ellipsis;
             max-width: 140px;
         }
-        .cs-slot-time {
-            white-space: nowrap;
+        .cs-slot-reorder {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .cs-slot-arrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 0 3px;
+            color: #d4af37;
+            font-size: 1.15rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+        }
+        .cs-slot-arrow:hover:not(:disabled) {
+            color: #fff2bf;
+            filter: drop-shadow(0 0 6px rgba(239, 207, 122, 0.9));
+            transform: scale(1.25);
+        }
+        .cs-slot-arrow:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        .cs-slot-arrow:disabled,
+        .cs-slot-arrow.disabled {
+            opacity: 0.18;
+            cursor: default;
+            color: #4a5452;
+            filter: none;
+            pointer-events: none;
         }
 
         /* Empty Slot */
@@ -946,6 +982,7 @@
             .cs-slot-level { font-size: 0.68rem; }
             .cs-slot-class { font-size: 0.66rem; }
             .cs-slot-meta { font-size: 0.62rem; }
+            .cs-slot-arrow { font-size: 1.1rem; padding: 0 4px; }
             .cs-bottom-bar {
                 left: 16px;
                 right: 280px;
@@ -2218,8 +2255,8 @@
             align-items: center !important;
             justify-content: center !important;
             overflow: hidden !important;
-            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 128px) !important;
-            right: max(env(safe-area-inset-right, 0px), 30px) !important;
+            top: calc(max(env(safe-area-inset-top, 0px), 20px) + 108px) !important;
+            right: max(env(safe-area-inset-right, 0px), 25px) !important;
             transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
         #quest-tracker.collapsed:hover {

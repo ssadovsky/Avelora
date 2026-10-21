@@ -605,7 +605,7 @@ class AveloraGame {
         }
 
         // Render filled slot cards
-        slots.forEach(slot => {
+        slots.forEach((slot, index) => {
             const details = window.AveloraSlots.getSlotDetails(slot);
             const isActive = slot.slotId === this.selectedSlotId;
 
@@ -650,10 +650,46 @@ class AveloraGame {
             loc.textContent = details.locationName;
             meta.appendChild(loc);
 
-            const time = document.createElement('div');
-            time.className = 'cs-slot-time';
-            time.textContent = details.playTimeStr;
-            meta.appendChild(time);
+            // Reorder arrows: ▲ and ▼
+            const reorderBox = document.createElement('div');
+            reorderBox.className = 'cs-slot-reorder';
+
+            const isFirst = index === 0;
+            const isLast = index === slots.length - 1;
+
+            const btnUp = document.createElement('button');
+            btnUp.type = 'button';
+            btnUp.className = 'cs-slot-arrow' + (isFirst ? ' disabled' : '');
+            btnUp.textContent = '▲';
+            btnUp.title = 'Переместить выше';
+            btnUp.disabled = isFirst;
+            btnUp.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isFirst) return;
+                if (window.AveloraSlots && window.AveloraSlots.moveCharacter) {
+                    window.AveloraSlots.moveCharacter(slot.slotId, -1);
+                    this.renderCharacterSlots();
+                }
+            });
+
+            const btnDown = document.createElement('button');
+            btnDown.type = 'button';
+            btnDown.className = 'cs-slot-arrow' + (isLast ? ' disabled' : '');
+            btnDown.textContent = '▼';
+            btnDown.title = 'Переместить ниже';
+            btnDown.disabled = isLast;
+            btnDown.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isLast) return;
+                if (window.AveloraSlots && window.AveloraSlots.moveCharacter) {
+                    window.AveloraSlots.moveCharacter(slot.slotId, 1);
+                    this.renderCharacterSlots();
+                }
+            });
+
+            reorderBox.appendChild(btnUp);
+            reorderBox.appendChild(btnDown);
+            meta.appendChild(reorderBox);
 
             mainBox.appendChild(meta);
             card.appendChild(mainBox);
@@ -2040,6 +2076,7 @@ class AveloraGame {
                 this.isRightMouseDown = true;
                 this.lastMouseX = e.clientX;
                 this.lastMouseY = e.clientY;
+                this.hideObjectTooltip();
             }
         });
 
@@ -2048,10 +2085,11 @@ class AveloraGame {
             if (e.button === 0) this.leftDown = false;
             if (e.button === 2) {
                 this.isRightMouseDown = false;
+                this.handleHover(e);
             }
             this.syncMouseButtons(e);
         });
-        window.addEventListener('blur', () => { this.moveKeys = {}; this.leftDown = false; this.isRightMouseDown = false; });
+        window.addEventListener('blur', () => { this.moveKeys = {}; this.leftDown = false; this.isRightMouseDown = false; this.hideObjectTooltip(); });
         // First-person movement keys (physical keys: work in any layout)
         const MOVE_CODES = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight'];
         window.addEventListener('keydown', (e) => {
@@ -2095,6 +2133,7 @@ class AveloraGame {
                 this.lastMouseX = e.clientX;
                 this.tiltCamera(e.clientY - this.lastMouseY, 0.005);   // mouse up/down: look up/down (both views)
                 this.lastMouseY = e.clientY;
+                this.hideObjectTooltip();
             }
             // Hover tooltip for interactable environment objects (trees/boulders/
             // shrubs/reeds) — skip while dragging the camera, matches click-to-move
@@ -2541,6 +2580,10 @@ class AveloraGame {
     // Озерье's per-mesh props didn't need). Text tooltip + cursor change only —
     // no outline/glow on the object itself, matching the original.
     handleHover(e) {
+        if (this.isRightMouseDown) {
+            this.hideObjectTooltip();
+            return;
+        }
         if (e.target && e.target.closest && e.target.closest(UI_SELECTOR)) {
             this.hideObjectTooltip();
             return;
@@ -2639,6 +2682,7 @@ class AveloraGame {
         if (r && !this.isRightMouseDown) {
             this.isRightMouseDown = true;
             this.lastMouseX = e.clientX; this.lastMouseY = e.clientY;
+            this.hideObjectTooltip();
         } else if (!r && this.isRightMouseDown) {
             this.isRightMouseDown = false;
         }
@@ -2778,10 +2822,11 @@ class AveloraGame {
         const mag = Math.hypot(fwd, str);
         if (mag > 1) { fwd /= mag; str /= mag; }
         const a = this.cameraAngle;
-        const faceCam = fp || rmb;
+        const twoButtonsRun = this.leftDown && rmb;
+        const faceCam = fp || twoButtonsRun;
         const manual = mag > 0.01;
 
-        if (faceCam && (fp || manual || !c.isMoving || c.driving)) {   // hero looks where the camera looks
+        if (faceCam && (fp || manual)) {   // hero looks where the camera looks
             c.currentRotation = a; c.targetRotation = a; c.isTurning = false;
         }
         if (manual) {   // steering by hand: drop auto-chase / auto-walk / click-to-move

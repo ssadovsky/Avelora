@@ -92,7 +92,9 @@
     "rooster_hunt",
     "fox_hunt",
     "boar_hunt",
-    "doe_report",
-    "minotaur_hunt"
+    "bear_hunt",
+    "minotaur_hunt",
+    "sawmill_build",
+    "plank_craft_learning"
   ]
 }

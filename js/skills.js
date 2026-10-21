@@ -818,7 +818,7 @@
             const projectiles = [];
             for (let i = 0; i < MAX_PROJECTILES; i++) {
                 const p = {
-                    active: false, fading: false, def: null,
+                    active: false, fading: false, def: null, targetCreature: null,
                     pos: new THREE.Vector3(), dir: new THREE.Vector3(), start: new THREE.Vector3(),
                     dist: 0, travelled: 0, age: 0, fade: 0, seed: 0, boltTimer: 0, emit: 0,
                     color: new THREE.Color(), core: new THREE.Color(),
@@ -917,11 +917,11 @@
             });
             const aim = this._v2 || (this._v2 = new THREE.Vector3());
             aim.set(rec.x, rec.y + rec.height * 0.5 - AIM_HEIGHT, rec.z);
-            this.spawnProjectile(def, aim);
+            this.spawnProjectile(def, aim, rec);
             return true;
         }
 
-        spawnProjectile(def, target) {
+        spawnProjectile(def, target, tgt = null) {
             const r = this.ensureResources();
             const p = r.projectiles.find(q => !q.active) || r.projectiles[0];
             const c = this.game.character;
@@ -939,6 +939,7 @@
             p.dist = Math.min(p.dist, (def.range || 12) + 1.0);
             p.pos.copy(start);
             p.def = def;
+            p.targetCreature = (tgt && this.game.creatures && this.game.creatures.isAlive(tgt)) ? tgt : null;
             p.travelled = 0; p.age = 0; p.fade = 0; p.emit = 0; p.boltTimer = 0;
             p.seed = Math.random() * 100;
             p.active = true; p.fading = false;
@@ -1263,7 +1264,16 @@
                         if (cst.nova) this.fireNova(cst.def);
                         else if (cst.def.type === 'rain') this.startRain(cst.def, cst.target);
                         else if (cst.def.type === 'strike') this.fireStrike(cst.def, cst.target, cst.tgt);
-                        else this.spawnProjectile(cst.def, cst.target);
+                        else {
+                            const cr = this.game.creatures;
+                            const aliveTgt = (cst.tgt && cr && cr.isAlive(cst.tgt)) ? cst.tgt
+                                : (this.game.combat && this.game.combat.selectedTarget && cr && cr.isAlive(this.game.combat.selectedTarget) ? this.game.combat.selectedTarget : null);
+                            if (aliveTgt) {
+                                cst.target.set(aliveTgt.x, aliveTgt.y + aliveTgt.height * 0.5 - AIM_HEIGHT, aliveTgt.z);
+                                if (this.game.character && this.game.character.faceTowards) this.game.character.faceTowards(aliveTgt.x, aliveTgt.z);
+                            }
+                            this.spawnProjectile(cst.def, cst.target, aliveTgt);
+                        }
                     }
                 }
             }
@@ -1304,40 +1314,81 @@
             p.age += delta;
 
             if (!p.fading) {
-                const step = (def.speed || 20) * delta;
+                const cr = this.game.creatures;
                 let hit = false;
                 let onGround = false;
-                if (p.travelled + step >= p.dist) {
-                    p.pos.copy(p.start).addScaledVector(p.dir, p.dist);
-                    p.travelled = p.dist;
-                    hit = true;
-                    onGround = true;
-                } else {
-                    // Sub-step so fast projectiles can't tunnel through a thin trunk
-                    const n = Math.max(1, Math.ceil(step / 0.35));
-                    const s = step / n;
-                    for (let k = 0; k < n && !hit; k++) {
-                        p.pos.addScaledVector(p.dir, s);
-                        p.travelled += s;
-                        const gy = this.game.terrain.getHeightAt(p.pos.x, p.pos.z);
-                        const cr = this.game.creatures;
-                        if (p.pos.y < gy + 0.05) { p.pos.y = gy + 0.08; hit = true; onGround = true; }
-                        else if (cr && cr.hitTest(p.pos)) {
-                            hit = true;
-                            onGround = p.pos.y - gy < 0.6;
-                            if (p.def && p.def.id === 'spark') {
-                                const st = this.game && this.game.gameState;
-                                if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
-                                const dlg = (this.game && this.game.ui && this.game.ui.dialog);
-                                if (dlg && dlg.updateTracker) dlg.updateTracker();
-                                if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
-                                window.dispatchEvent(new CustomEvent('game:questUpdated'));
+
+                // --- Homing: smooth steering towards target creature if alive ---
+                const tgt = p.targetCreature;
+                const tgtAlive = tgt && cr && cr.isAlive(tgt);
+                if (tgtAlive) {
+                    const tgtX = tgt.x;
+                    const tgtY = tgt.y + tgt.height * 0.55;
+                    const tgtZ = tgt.z;
+                    const toX = tgtX - p.pos.x;
+                    const toY = tgtY - p.pos.y;
+                    const toZ = tgtZ - p.pos.z;
+                    const distToTgt = Math.hypot(toX, toY, toZ);
+                    const hitR = (tgt.def && tgt.def.hitRadius) ? tgt.def.hitRadius : 0.45;
+                    const step = (def.speed || 20) * delta;
+
+                    // Direct hit if close enough or reached in this frame step
+                    if (distToTgt <= (hitR + 0.35) || distToTgt <= step) {
+                        p.pos.set(tgtX, tgtY, tgtZ);
+                        p.travelled += distToTgt;
+                        hit = true;
+                        onGround = false;
+                    } else {
+                        // Smoothly adjust direction towards target
+                        const invD = 1.0 / distToTgt;
+                        const desiredX = toX * invD;
+                        const desiredY = toY * invD;
+                        const desiredZ = toZ * invD;
+                        const turnFactor = Math.min(1.0, delta * 20.0);
+                        p.dir.x += (desiredX - p.dir.x) * turnFactor;
+                        p.dir.y += (desiredY - p.dir.y) * turnFactor;
+                        p.dir.z += (desiredZ - p.dir.z) * turnFactor;
+                        p.dir.normalize();
+                        p.dist = Math.min(p.travelled + distToTgt, (def.range || 12) + 6.0);
+                    }
+                } else if (tgt) {
+                    p.targetCreature = null;
+                }
+
+                if (!hit) {
+                    const step = (def.speed || 20) * delta;
+                    if (p.travelled + step >= p.dist) {
+                        p.pos.addScaledVector(p.dir, p.dist - p.travelled);
+                        p.travelled = p.dist;
+                        hit = true;
+                        onGround = true;
+                    } else {
+                        // Sub-step so fast projectiles can't tunnel through a thin trunk
+                        const n = Math.max(1, Math.ceil(step / 0.35));
+                        const s = step / n;
+                        for (let k = 0; k < n && !hit; k++) {
+                            p.pos.addScaledVector(p.dir, s);
+                            p.travelled += s;
+                            const gy = this.game.terrain ? this.game.terrain.getHeightAt(p.pos.x, p.pos.z) : p.pos.y;
+                            if (p.pos.y < gy + 0.05) { p.pos.y = gy + 0.08; hit = true; onGround = true; }
+                            else if (cr && cr.hitTest(p.pos)) {
+                                hit = true;
+                                onGround = p.pos.y - gy < 0.6;
                             }
+                            else if (this.hitsBlocker(p.pos)) { hit = true; onGround = p.pos.y - gy < 1.0; }
                         }
-                        else if (this.hitsBlocker(p.pos)) { hit = true; onGround = p.pos.y - gy < 1.0; }
                     }
                 }
+
                 if (hit) {
+                    if (p.def && p.def.id === 'spark') {
+                        const st = this.game && this.game.gameState;
+                        if (st && st.setQuestFlag) st.setQuestFlag('spark_hit_creature', true);
+                        const dlg = (this.game && this.game.ui && this.game.ui.dialog);
+                        if (dlg && dlg.updateTracker) dlg.updateTracker();
+                        if (this.game && this.game.ui && this.game.ui.updateQuestsProgress) this.game.ui.updateQuestsProgress();
+                        window.dispatchEvent(new CustomEvent('game:questUpdated'));
+                    }
                     this.impact(p, onGround);
                 } else {
                     this.placeProjectileVisuals(p, delta);
@@ -1352,7 +1403,7 @@
                 }
             } else {
                 p.fade += delta;
-                if (p.fade >= TRAIL_FADE) { p.active = false; p.fading = false; return; }
+                if (p.fade >= TRAIL_FADE) { p.active = false; p.fading = false; p.targetCreature = null; return; }
             }
             this.pushTrail(p, size);
         }
@@ -1588,6 +1639,7 @@
             if (!r) return;
             r.projectiles.forEach(p => {
                 p.active = p.fading = false;
+                p.targetCreature = null;
                 p.coreSprite.visible = p.glowSprite.visible = p.shadeSprite.visible = p.filaments.visible = false;
             });
             r.impacts.forEach(m => {

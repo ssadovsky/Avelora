@@ -106,6 +106,17 @@
         return tex;
     }
 
+    function isQuestAvailable(st, q) {
+        if (!q.requires) return true;
+        const isDone = (req) => {
+            if (st.questStatus(req) === 'done') return true;
+            if (req === 'bear_hunt' && st.questStatus('doe_report') === 'done') return true;
+            return false;
+        };
+        if (Array.isArray(q.requires)) return q.requires.every(isDone);
+        return isDone(q.requires);
+    }
+
     function getNpcQuestMarkerState(game, npc) {
         if (!npc || !npc.quests || !game || !game.gameState) return null;
         const st = game.gameState;
@@ -119,7 +130,7 @@
             const status = st.questStatus(qid);
             if (status === 'done') continue;
 
-            const available = !q.requires || st.questStatus(q.requires) === 'done';
+            const available = isQuestAvailable(st, q);
             if (!available) continue;
             const isGiver = !q.giver || q.giver === npc.id;
             const isTurnIn = (q.turnInNpc || q.giver || npc.id) === npc.id;
@@ -127,12 +138,17 @@
             if (!status) {
                 if (isGiver) hasAvailable = true;
             } else if (status === 'active' && isTurnIn) {
-                const o = q.objective || {};
-                let have = 0;
-                if (o.type === 'collect') have = (st.inventory ? st.inventory.count(o.item) : 0);
-                else if (o.type === 'kill') have = (st.questKills && st.questKills[qid]) || 0;
-                if (have >= (o.count || 0)) {
-                    hasReadyToTurnIn = true;
+                if (game.dialog && game.dialog.questProgress) {
+                    if (game.dialog.questProgress(q).ready) hasReadyToTurnIn = true;
+                } else {
+                    const o = q.objective || {};
+                    let have = 0;
+                    if (o.type === 'collect') have = (st.inventory ? st.inventory.count(o.item) : 0);
+                    else if (o.type === 'kill') have = (st.questKills && st.questKills[qid]) || 0;
+                    else if (o.type === 'talk') have = 1;
+                    if (have >= (o.count || 1)) {
+                        hasReadyToTurnIn = true;
+                    }
                 }
             }
         }
@@ -939,6 +955,10 @@
             if (pile.dynamic) state.takeGround(this.location.id, pile.data.uid, n);
             else state.addTaken(this.location.id, pile.data.id, n);
             state.inventory.add(itemId, n);
+            if (!pile.dynamic && this.game.hero) {
+                if (itemId === 'fern') this.game.hero.addXp(10 * n);
+                else if (itemId === 'stone') this.game.hero.addXp(10 * n);
+            }
             this.rebuildPile(pile);
             if (pile.dynamic && pile.remaining <= 0) this.piles.delete(pile.id);
             if (ui) {

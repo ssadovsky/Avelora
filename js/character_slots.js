@@ -184,6 +184,21 @@
         return true;
     }
 
+    function moveCharacter(slotId, direction) {
+        const slots = getSlots();
+        const idx = slots.findIndex(s => s.slotId === slotId);
+        if (idx === -1) return false;
+        const targetIdx = idx + direction;
+        if (targetIdx < 0 || targetIdx >= slots.length) return false;
+
+        const temp = slots[idx];
+        slots[idx] = slots[targetIdx];
+        slots[targetIdx] = temp;
+
+        saveSlots(slots);
+        return true;
+    }
+
     function exportSlotData(slotId) {
         const slots = getSlots();
         const slot = slots.find(s => s.slotId === slotId);
@@ -283,6 +298,7 @@
         getClassForSaveId,
         createCharacter,
         deleteCharacter,
+        moveCharacter,
         exportSlotData,
         importSlotData,
         downloadSlotFile,

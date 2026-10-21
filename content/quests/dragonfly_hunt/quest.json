@@ -2,7 +2,7 @@
   "id": "dragonfly_hunt",
   "name": "Янтарные стрекозы",
   "giver": "doe_druid",
-  "requires": "wolf_hunt",
+  "requires": "plank_craft_learning",
   "summary": "Убей 5 янтарных стрекоз на северо-западе долины.",
   "objective": {
     "type": "kill",
