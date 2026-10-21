@@ -644,19 +644,20 @@ class AveloraGame {
             mainBox.appendChild(meta);
             card.appendChild(mainBox);
 
-            // Single click selects
+            // First click selects; a click on the already selected character enters the world
             card.addEventListener('click', () => {
+                if (this.selectedSlotId === slot.slotId && card.classList.contains('active')) {
+                    const now = performance.now();
+                    if (now - (this._csEnterAt || 0) < 2000) return;   // ignore rapid extra clicks while loading
+                    this._csEnterAt = now;
+                    this.enterWorldWithSlot(slot);
+                    return;
+                }
                 this.selectedSlotId = slot.slotId;
                 const allCards = slotsList.querySelectorAll('.cs-slot-card');
                 allCards.forEach(c => c.classList.remove('active'));
                 card.classList.add('active');
                 this.updateSlotPreview();
-            });
-
-            // Double click enters world
-            card.addEventListener('dblclick', () => {
-                this.selectedSlotId = slot.slotId;
-                this.enterWorldWithSlot(slot);
             });
 
             slotsList.appendChild(card);

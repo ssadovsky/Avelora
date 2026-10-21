@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Experience</title>
-    <link rel="stylesheet" href="css/main.css?v=20261021_dlg1">
+    <link rel="stylesheet" href="css/main.css?v=20261021_gameui1">
 </head>
 <body>
 
@@ -104,6 +104,12 @@
         </div>
     </div>
 
+
+    <!-- 3D Canvas: lives outside both screens (menu and game UI) -->
+    <div id="game-container"></div>
+
+    <!-- ============ GAME UI: the whole in-game HUD / panels. Hidden as ONE block while the character menu is open ============ -->
+    <div id="game-ui">
 
     <div id="cam-btn" title="Вид от первого лица / от третьего (или колесо мыши за пределом зума)">🎥</div>
     <div id="fp-crosshair"></div>
@@ -514,9 +520,6 @@
         <div class="death-subtitle">Возрождение…</div>
     </div>
 
-    <!-- 3D Canvas -->
-    <div id="game-container"></div>
-
     <!-- Labels over location exits & arrival banner -->
     <div id="world-labels"></div>
     <div id="location-banner"></div>
@@ -657,6 +660,8 @@
         </div>
     </div>
 
+    </div><!-- /#game-ui -->
+
     <!-- Portrait Orientation Warning -->
     <div id="orientation-warning" aria-hidden="true">
         <svg class="orient-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -700,7 +705,7 @@
     <script src="js/items.js?v=20261020_fist1"></script>
     <script src="js/game_state.js?v=20261021_wowslots1"></script>
     <script src="js/world_objects.js?v=20261018_perf1"></script>
-    <script src="js/building.js?v=20261018_scale1"></script>
+    <script src="js/building.js?v=20261021_gameui1"></script>
     <!-- Game Configuration & Balance (js/config/) -->
     <script src="js/config/progression.js?v=20261021_progbal1"></script>
     <script src="js/config/creatures.js?v=20261020_spark1"></script>
@@ -709,12 +714,12 @@
     <script src="js/combat.js?v=20261019_range1"></script>
     <script src="js/hero.js?v=20261019_mana1"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
-    <script src="js/dialog.js?v=20261021_dlgturnin1"></script>
+    <script src="js/dialog.js?v=20261021_gameui1"></script>
     <script src="js/skills.js?v=20261021_slotfix1"></script>
-    <script src="js/ui_hotbar.js?v=20261021_timefmt1"></script>
+    <script src="js/ui_hotbar.js?v=20261021_gameui1"></script>
     <script src="js/character.js?v=20261020_staffglow1"></script>
     <script src="js/map.js?v=20261013_map2"></script>
-    <script src="js/main.js?v=20261021_csscene3"></script>
+    <script src="js/main.js?v=20261021_csclick1"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

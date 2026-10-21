@@ -594,7 +594,7 @@
                 <div class="build-section">Построено здесь</div>
                 <div id="build-list"></div>
                 <div class="build-hint">Возводить можно только на территории лагеря. Перед установкой нужно выбрать место: R — повернуть, ЛКМ — построить, Esc — отмена. Клавиша B — открыть/закрыть меню.</div>`;
-            document.body.appendChild(panel);
+            (document.getElementById('game-ui') || document.body).appendChild(panel);
             E.panel = panel;
             E.cards = panel.querySelector('#build-cards');
             E.list = panel.querySelector('#build-list');
@@ -612,7 +612,7 @@
                     <button type="button" id="build-ok" title="Построить (ЛКМ / Enter)">✔ Построить</button>
                     <button type="button" id="build-cancel" title="Отмена (Esc)">✖ Отмена</button>
                 </div>`;
-            document.body.appendChild(bar);
+            (document.getElementById('game-ui') || document.body).appendChild(bar);
             E.bar = bar;
             E.barTitle = bar.querySelector('#build-bar-title');
             E.barStatus = bar.querySelector('#build-bar-status');

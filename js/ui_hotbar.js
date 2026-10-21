@@ -2548,7 +2548,7 @@
             el.style.left = (r.left + r.width / 2) + 'px';
             el.style.top = (r.top - 6 - ((n - 1) % 4) * 22) + 'px';
             el.style.animationDelay = (delay || 0) + 's';
-            document.body.appendChild(el);
+            (document.getElementById('game-ui') || document.body).appendChild(el);
             el.addEventListener('animationend', () => { el.remove(); this._bagFloats = Math.max(0, (this._bagFloats || 1) - 1); });
         }
 

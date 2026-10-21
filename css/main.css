@@ -388,11 +388,9 @@
             100% { opacity: 0; }
         }
 
-        /* Character Selection is a standalone screen: hide EVERY game HUD element (current and future),
-           keep only the menu overlay, the canvas, the loading screen and the rotate-phone warning. */
-        body.charselect-mode > *:not(#character-select-overlay):not(#game-container):not(#loading-overlay):not(#orientation-warning):not(script):not(style):not(link) {
-            display: none !important;
-        }
+        /* Two screens, two containers: #character-select-overlay (menu) and #game-ui (all in-game HUD).
+           #game-ui has no position / z-index of its own, so it does not change stacking of its children. */
+        body.charselect-mode #game-ui { display: none !important; }
 
         /* Character Select Screen (WoW-style layout) */
         #character-select-overlay {

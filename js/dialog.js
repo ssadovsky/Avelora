@@ -52,7 +52,7 @@
             ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend', 'mousedown', 'mouseup'].forEach(evt => {
                 this.tracker.addEventListener(evt, (e) => e.stopPropagation());
             });
-            document.body.appendChild(this.tracker);
+            (document.getElementById('game-ui') || document.body).appendChild(this.tracker);
             window.addEventListener('game:creatureKilled', (e) => this.onKilled(e.detail));
             window.addEventListener('game:questUpdated', () => { this.updateTracker(); if (this.isOpen()) this.render(); });
         }
