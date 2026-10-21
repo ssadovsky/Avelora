@@ -100,7 +100,7 @@ class AveloraGame {
         this.mouse = new THREE.Vector2();
 
         // Diablo Camera Settings
-        this.minDistance = 3.0; // closer zoom for inspecting characters
+        this.minDistance = 4.0; // closest zoom in the main mode
         this.maxDistance = 42.0;
         // Camera modes: 'main' (0%..25%) | 'topdown' (25%..100%) | 'first' (1st person)
         this.camMode = 'main';
@@ -1017,7 +1017,7 @@ class AveloraGame {
         if (loc && typeof loc.cameraAngle === 'number') {
             this.cameraAngle = this.targetCameraAngle = loc.cameraAngle;
         }
-        this.minDistance = (loc && typeof loc.minDistance === 'number') ? loc.minDistance : 3.0;
+        this.minDistance = (loc && typeof loc.minDistance === 'number') ? loc.minDistance : 4.0;
         this.maxDistance = (loc && typeof loc.maxDistance === 'number') ? loc.maxDistance : 42.0;
 
         const limits = this.getCameraZoomLimits();
@@ -1033,7 +1033,7 @@ class AveloraGame {
 
     /** Returns min, max, default distances for current mode brackets */
     getCameraZoomLimits() {
-        const minD = (typeof this.minDistance === 'number') ? this.minDistance : 3.0;
+        const minD = (typeof this.minDistance === 'number') ? this.minDistance : 4.0;
         const maxD = (typeof this.maxDistance === 'number') ? this.maxDistance : 42.0;
         const span = Math.max(0.1, maxD - minD);
         const d25 = minD + span * 0.25;
