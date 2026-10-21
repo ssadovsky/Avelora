@@ -50,11 +50,22 @@
     // Skills that every save made before skills had to be learned already owns
     const LEGACY_SKILLS = [];
 
+    function resolveClassId(id) {
+        if (!id) return 'mage';
+        if (id === 'mage' || id === 'archer' || id === 'warrior') return id;
+        if (window.AveloraSlots && window.AveloraSlots.getClassForSaveId) {
+            const cls = window.AveloraSlots.getClassForSaveId(id);
+            if (cls) return cls;
+        }
+        return 'mage';
+    }
+
     /** Every skill this character CAN learn (content/characters/<id>/skills.json + universal skills like home_recall). */
     function skillCatalog(characterId) {
         const chars = (window.GAME_CONTENT && window.GAME_CONTENT.characters) || {};
         const skills = (window.GAME_CONTENT && window.GAME_CONTENT.skills) || {};
-        const cfg = chars[characterId];
+        const classKey = resolveClassId(characterId);
+        const cfg = chars[classKey] || chars[characterId] || chars.mage;
         let own = (cfg && Array.isArray(cfg.skills)) ? cfg.skills.filter(id => Object.prototype.hasOwnProperty.call(skills, id)) : [];
         UNIVERSAL_SKILLS.forEach(u => {
             if (Object.prototype.hasOwnProperty.call(skills, u) && !own.includes(u)) own.push(u);
@@ -276,17 +287,18 @@
     }
 
     class CharacterState {
-        constructor(characterId, data) {
+        constructor(characterId, data, classId) {
             data = data || {};
             this.characterId = characterId;
+            this.classId = classId || data.classId || resolveClassId(characterId);
             this.inventory = new window.AveloraItems.Inventory(sanitizeInventory(data.inventory), () => this.save());
             // Learned skills (bought from NPCs, dialog.js). A new character knows none; an older save keeps what it had.
-            const cat = skillCatalog(characterId);
+            const cat = skillCatalog(this.classId);
             if (Array.isArray(data.learnedSkills)) this.learnedSkills = data.learnedSkills.filter(id => cat.includes(id));
             else this.learnedSkills = data.version ? LEGACY_SKILLS.filter(id => cat.includes(id)) : [];
             this.learnedRecipes = sanitizeLearnedRecipes(data.learnedRecipes);
             this.questFlags = (data.questFlags && typeof data.questFlags === 'object') ? Object.assign({}, data.questFlags) : {};
-            this.hotbar = sanitizeHotbar(data.hotbar, characterId, this.learnedSkills);
+            this.hotbar = sanitizeHotbar(data.hotbar, this.classId, this.learnedSkills);
             this.pickupsTaken = sanitizeTaken(data.pickupsTaken);
             const eq = (data.equipped && typeof data.equipped === 'object') ? data.equipped : {};
             this.equipped = { right: null, head: null, cloak: null, body: null, hands: null, ring: null, ring2: null, feet: null };
@@ -680,6 +692,7 @@
             return {
                 version: STATE_VERSION,
                 characterId: this.characterId,
+                classId: this.classId,
                 inventory: this.inventory.toJSON(),
                 hotbar: this.hotbar.map(e => (e ? { type: e.type, id: e.id } : null)),
                 pickupsTaken: this.pickupsTaken,
@@ -705,7 +718,7 @@
         }
     }
 
-    function load(characterId) {
+    function load(characterId, classId) {
         let data = null;
         try {
             const raw = window.localStorage.getItem(keyFor(characterId));
@@ -721,10 +734,10 @@
             console.warn('[Avelora] state for "' + characterId + '" is unreadable, starting empty', e);
         }
         try {
-            return new CharacterState(characterId, data);
+            return new CharacterState(characterId, data, classId);
         } catch (e) {
             console.warn('[Avelora] state for "' + characterId + '" failed to sanitize, starting empty', e);
-            return new CharacterState(characterId, null);
+            return new CharacterState(characterId, null, classId);
         }
     }
 

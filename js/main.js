@@ -208,133 +208,731 @@ class AveloraGame {
     }
 
     // ---------------------------------------------------------------
-    // Character selection & save-driven bootstrap
+    // Character selection & save-driven bootstrap (WoW-style)
     // ---------------------------------------------------------------
-    /** First thing that runs: exactly one valid save -> load it straight away, otherwise ask. */
+    /** First thing that runs */
     async bootstrap() {
-        // characters with `disabled: true` (characters.js) are kept in the game but cannot be played yet
-        const saves = ((window.AveloraSave && window.AveloraSave.listValidSaves()) || []).filter(e => !e.character.disabled);
-        if (saves.length === 1) {
-            const { character, save } = saves[0];
-            await this.startGame(character, { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r }, relocated: !!save.relocated });
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        if (slots.length === 0) {
+            this.showCharacterSelect(false);
+            this.openCharacterCreateModal();
         } else {
+            this.selectedSlotId = slots[0].slotId;
             this.showCharacterSelect(false);
         }
     }
 
     /** allowCancel: true when opened from the pause menu (an existing game session to go back to). */
     showCharacterSelect(allowCancel) {
-        this.isPaused = true; // belt-and-braces: animate() should touch nothing while this is up
-        this.renderCharacterCards(allowCancel);
+        this.isPaused = true;
+        this.isCharacterSelectOpen = true;
+        document.body.classList.add('charselect-mode');
+
+        // Atmospheric dark fantasy background & fog for showcase
+        if (this.scene) {
+            if (!this._origSceneBg) this._origSceneBg = this.scene.background;
+            if (!this._origSceneFog) this._origSceneFog = this.scene.fog;
+            this.scene.background = new THREE.Color(0x0e1418);
+            this.scene.fog = new THREE.FogExp2(0x0e1418, 0.035);
+        }
+
+        // Camera framing the character showcase stage
+        if (this.camera) {
+            this.camera.position.set(-0.35, 1.15, 2.7);
+            this.camera.lookAt(-0.35, 0.95, 0);
+        }
+
+        // If gameplay character mesh is live, hide it so it doesn't overlap
+        if (this.character && this.character.mesh) {
+            this.character.mesh.visible = false;
+        }
+
+        // Ensure showcase stage is active
+        if (!this.csPreviewGroup) {
+            this.setupCharacterSelectStage();
+        } else {
+            this.csPreviewGroup.visible = true;
+        }
+
+        this.setupCharacterSelectEvents();
+        this.renderCharacterSlots();
+
         const overlay = document.getElementById('character-select-overlay');
         if (overlay) overlay.classList.remove('hidden');
+
+        const backBtn = document.getElementById('cs-btn-back') || document.getElementById('charselect-back');
+        if (backBtn) backBtn.style.display = allowCancel ? '' : 'none';
+
         this.hideLoading();
     }
 
     hideCharacterSelect() {
+        this.isCharacterSelectOpen = false;
+        document.body.classList.remove('charselect-mode');
+
+        if (this.csPreviewGroup) {
+            this.csPreviewGroup.visible = false;
+        }
+        if (this.character && this.character.mesh) {
+            this.character.mesh.visible = true;
+        }
+
+        // Restore scene background / fog
+        if (this.scene && this._origSceneBg) {
+            this.scene.background = this._origSceneBg;
+            this.scene.fog = this._origSceneFog;
+        }
+
         const overlay = document.getElementById('character-select-overlay');
         if (overlay) overlay.classList.add('hidden');
+        this.closeCharacterCreateModal();
     }
 
-    renderCharacterCards(allowCancel) {
-        const grid = document.getElementById('charselect-grid');
-        if (!grid) return;
-        grid.innerHTML = '';
+    base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
 
-        const saves = (window.AveloraSave && window.AveloraSave.listValidSaves()) || [];
-        const saveByCharId = {};
-        saves.forEach(entry => { saveByCharId[entry.character.id] = entry.save; });
+    setupCharacterSelectStage() {
+        if (this.csPreviewGroup) return;
+        this.csPreviewGroup = new THREE.Group();
 
-        (window.CHARACTER_CATALOG || []).forEach(char => {
-            if (char.hidden || char.disabled) return;
-            const save = saveByCharId[char.id] || null;
+        // 1. Pedestal: Dark circular stone slab (proportional to character)
+        const pedestalGeo = new THREE.CylinderGeometry(0.65, 0.72, 0.08, 48);
+        const pedestalMat = new THREE.MeshStandardMaterial({
+            color: 0x12171a,
+            roughness: 0.85,
+            metalness: 0.15
+        });
+        const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+        pedestal.position.set(-0.35, -0.04, 0);
+        pedestal.receiveShadow = true;
+        this.csPreviewGroup.add(pedestal);
+
+        // 2. Glowing Golden Rune Ring on top of the stone
+        const ringGeo = new THREE.RingGeometry(0.42, 0.56, 48);
+        ringGeo.rotateX(-Math.PI / 2);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xc3a05f,
+            transparent: true,
+            opacity: 0.45,
+            side: THREE.DoubleSide
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(-0.35, 0.003, 0);
+        this.csPreviewGroup.add(ring);
+
+        // Outer ornate gold rim
+        const rimGeo = new THREE.TorusGeometry(0.65, 0.012, 12, 48);
+        rimGeo.rotateX(Math.PI / 2);
+        const rimMat = new THREE.MeshStandardMaterial({
+            color: 0x9a8045,
+            metalness: 0.8,
+            roughness: 0.35
+        });
+        const rim = new THREE.Mesh(rimGeo, rimMat);
+        rim.position.set(-0.35, 0.003, 0);
+        this.csPreviewGroup.add(rim);
+
+        // 3. Stage Lighting (moody, contrasted dark fantasy showcase)
+        const amb = new THREE.AmbientLight(0x28323a, 0.7);
+        this.csPreviewGroup.add(amb);
+
+        const keyLight = new THREE.DirectionalLight(0xffecd0, 2.0);
+        keyLight.position.set(1.5, 3.8, 3.0);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        this.csPreviewGroup.add(keyLight);
+
+        // Golden rim / back light to outline the character silhouette against the dark background
+        const rimLight = new THREE.DirectionalLight(0xefcf7a, 1.6);
+        rimLight.position.set(-2.0, 2.5, -2.5);
+        this.csPreviewGroup.add(rimLight);
+
+        // Cool blue fill from bottom-left
+        const fillLight = new THREE.DirectionalLight(0x40607a, 0.7);
+        fillLight.position.set(-2.5, 1.0, 2.0);
+        this.csPreviewGroup.add(fillLight);
+
+        this.scene.add(this.csPreviewGroup);
+    }
+
+    updatePreviewCharacter(classId) {
+        if (!classId) classId = 'mage';
+        if (this.csCurrentPreviewClass === classId && this.csPreviewModel) return;
+        this.csCurrentPreviewClass = classId;
+
+        if (!this.csPreviewGroup) {
+            this.setupCharacterSelectStage();
+        }
+
+        const catalog = window.CHARACTER_CATALOG || [];
+        const charConfig = catalog.find(c => c.id === classId) || catalog[0];
+        if (!charConfig) return;
+
+        const modelKey = charConfig.modelKey;
+        if (!window.AveloraAssets) return;
+
+        window.AveloraAssets.ensure(modelKey).then(() => {
+            if (!this.isCharacterSelectOpen || this.csCurrentPreviewClass !== classId) return;
+            const b64 = window.GAME_ASSETS && window.GAME_ASSETS.models[modelKey];
+            if (!b64) return;
+
+            try {
+                const buffer = this.base64ToArrayBuffer(b64);
+                const loader = new THREE.GLTFLoader();
+                loader.parse(buffer, '', (gltf) => {
+                    if (!this.isCharacterSelectOpen || this.csCurrentPreviewClass !== classId) return;
+
+                    if (this.csPreviewModel) {
+                        this.csPreviewGroup.remove(this.csPreviewModel);
+                        this.csPreviewModel = null;
+                    }
+                    if (this.csMixer) {
+                        this.csMixer.stopAllAction();
+                        this.csMixer = null;
+                    }
+
+                    const model = gltf.scene;
+                    const scale = charConfig.scale || 1.0;
+                    model.scale.set(scale, scale, scale);
+                    model.position.set(-0.35, 0, 0);
+
+                    // Face toward the camera (+Z)
+                    const faceAngle = (charConfig.facingOffset || 0) + Math.PI;
+                    model.rotation.y = faceAngle;
+
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            if (child.material) {
+                                child.material.roughness = Math.max(0.35, child.material.roughness || 0.6);
+                                child.material.metalness = Math.min(0.2, child.material.metalness || 0.0);
+                            }
+                        }
+                    });
+
+                    // Play Idle animation
+                    const mixer = new THREE.AnimationMixer(model);
+                    this.csMixer = mixer;
+
+                    const clips = gltf.animations || [];
+                    const idleName = (charConfig.animMap && charConfig.animMap.idle) || 'Idle';
+                    let clip = clips.find(c => c.name.toLowerCase() === idleName.toLowerCase())
+                        || clips.find(c => c.name.toLowerCase().includes('idle'))
+                        || clips[0];
+
+                    if (clip) {
+                        const action = mixer.clipAction(clip);
+                        action.play();
+                    }
+
+                    this.csPreviewModel = model;
+                    this.csPreviewGroup.add(model);
+                    this.needsRender = true;
+                }, (err) => console.error('[Avelora] GLTF parse error for preview', err));
+            } catch (err) {
+                console.error('[Avelora] could not build character preview', err);
+            }
+        });
+    }
+
+    setupCharacterSelectEvents() {
+        if (this._charSelectEventsBound) return;
+        this._charSelectEventsBound = true;
+
+        // "ВОЙТИ В МИР" button
+        const enterBtn = document.getElementById('cs-btn-enter-world');
+        if (enterBtn) {
+            enterBtn.addEventListener('click', () => {
+                const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+                if (slots.length === 0) {
+                    this.openCharacterCreateModal();
+                    return;
+                }
+                const slot = slots.find(s => s.slotId === this.selectedSlotId) || slots[0];
+                if (slot) this.enterWorldWithSlot(slot);
+            });
+        }
+
+        // "Новый персонаж" button
+        const createBtn = document.getElementById('cs-btn-create-new');
+        if (createBtn) {
+            createBtn.addEventListener('click', () => this.openCharacterCreateModal());
+        }
+
+        // "Удалить" button
+        const deleteBtn = document.getElementById('cs-btn-delete-char');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', () => this.deleteSelectedCharacter());
+        }
+
+        // "Импорт" button & File input (strictly loads from .json file)
+        const importBtn = document.getElementById('cs-btn-import');
+        const fileInput = document.getElementById('cs-file-input');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                if (fileInput) {
+                    fileInput.value = '';
+                    fileInput.click();
+                } else {
+                    this.handleSlotImport();
+                }
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) return;
+                window.AveloraSlots.importSlotFile(file, (res) => {
+                    if (res.ok) {
+                        this.selectedSlotId = res.slot.slotId;
+                        alert(`Персонаж «${res.slot.name}» успешно импортирован из файла!`);
+                        this.renderCharacterSlots();
+                    } else {
+                        alert('Ошибка импорта: ' + res.error);
+                    }
+                    fileInput.value = '';
+                });
+            });
+        }
+
+        // "Экспорт" button
+        const exportBtn = document.getElementById('cs-btn-export');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+                const slot = slots.find(s => s.slotId === this.selectedSlotId);
+                if (!slot) return;
+                const ok = window.AveloraSlots.downloadSlotFile(slot.slotId);
+                if (ok) {
+                    alert(`Файл сохранения персонажа «${slot.name}» скачан на устройство!`);
+                } else {
+                    this.handleSlotExport();
+                }
+            });
+        }
+
+        // "Назад в игру" button (mid-session)
+        const backBtn = document.getElementById('cs-btn-back');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideCharacterSelect();
+                this.setPaused(true);
+            });
+        }
+        const oldBackBtn = document.getElementById('charselect-back');
+        if (oldBackBtn && oldBackBtn !== backBtn) {
+            oldBackBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideCharacterSelect();
+                this.setPaused(true);
+            });
+        }
+
+        // Modal close buttons
+        const modalClose = document.getElementById('cs-create-close');
+        if (modalClose) modalClose.addEventListener('click', () => this.closeCharacterCreateModal());
+        const modalCancel = document.getElementById('cs-create-cancel');
+        if (modalCancel) modalCancel.addEventListener('click', () => this.closeCharacterCreateModal());
+        const modalBackdrop = document.getElementById('cs-create-backdrop');
+        if (modalBackdrop) modalBackdrop.addEventListener('click', () => this.closeCharacterCreateModal());
+
+        // Modal confirm button
+        const modalConfirm = document.getElementById('cs-create-confirm');
+        if (modalConfirm) modalConfirm.addEventListener('click', () => this.confirmCharacterCreate());
+
+        // Enter key in character name input
+        const nameInput = document.getElementById('cs-char-name-input');
+        if (nameInput) {
+            nameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.confirmCharacterCreate();
+                }
+            });
+        }
+
+        // Global Enter key: if character select overlay is visible and modal is NOT open, enter world
+        window.addEventListener('keydown', (e) => {
+            const overlay = document.getElementById('character-select-overlay');
+            const modal = document.getElementById('cs-create-modal');
+            if (overlay && !overlay.classList.contains('hidden') && (!modal || modal.style.display === 'none')) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+                    const slot = slots.find(s => s.slotId === this.selectedSlotId) || slots[0];
+                    if (slot) this.enterWorldWithSlot(slot);
+                }
+            }
+        });
+    }
+
+    renderCharacterSlots() {
+        const slotsList = document.getElementById('cs-slots-list');
+        if (!slotsList) return;
+        slotsList.innerHTML = '';
+
+        const maxSlots = window.AveloraSlots ? window.AveloraSlots.MAX_SLOTS : 8;
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+
+        // Counter
+        const counterEl = document.getElementById('cs-slot-counter');
+        if (counterEl) counterEl.textContent = `${slots.length} / ${maxSlots}`;
+
+        // Ensure valid selection
+        if (!this.selectedSlotId || !slots.some(s => s.slotId === this.selectedSlotId)) {
+            this.selectedSlotId = slots.length > 0 ? slots[0].slotId : null;
+        }
+
+        // Render filled slot cards
+        slots.forEach(slot => {
+            const details = window.AveloraSlots.getSlotDetails(slot);
+            const isActive = slot.slotId === this.selectedSlotId;
 
             const card = document.createElement('div');
-            card.className = 'charcard';
+            card.className = 'cs-slot-card' + (isActive ? ' active' : '');
+            card.dataset.slotId = slot.slotId;
 
-            const icon = document.createElement('div');
-            icon.className = 'charcard-icon';
-            icon.textContent = char.icon;
-            card.appendChild(icon);
+            // Icon / Avatar
+            const iconBox = document.createElement('div');
+            iconBox.className = 'cs-slot-icon-box';
+            iconBox.textContent = details.icon || '🔮';
+            card.appendChild(iconBox);
+
+            // Main Info
+            const mainBox = document.createElement('div');
+            mainBox.className = 'cs-slot-main';
+
+            const header = document.createElement('div');
+            header.className = 'cs-slot-header';
 
             const name = document.createElement('div');
-            name.className = 'charcard-name';
-            name.textContent = char.name;
-            card.appendChild(name);
+            name.className = 'cs-slot-name';
+            name.textContent = details.name;
+            header.appendChild(name);
+
+            const level = document.createElement('div');
+            level.className = 'cs-slot-level';
+            level.textContent = `Ур. ${details.level}`;
+            header.appendChild(level);
+            mainBox.appendChild(header);
 
             const cls = document.createElement('div');
-            cls.className = 'charcard-class';
-            cls.textContent = char.className;
-            card.appendChild(cls);
+            cls.className = 'cs-slot-class';
+            cls.textContent = details.className;
+            mainBox.appendChild(cls);
 
-            const progress = document.createElement('div');
-            progress.className = 'charcard-progress';
-            if (char.disabled) {
-                progress.textContent = 'Скоро';
-                card.appendChild(progress);
-                grid.appendChild(card);
-                return;
-            }
-            if (save) {
-                const loc = window.LOCATIONS && window.LOCATIONS[save.locationId];
-                progress.textContent = 'Прогресс: ' + (loc ? loc.name : save.locationId);
-            } else {
-                progress.textContent = 'Нет сохранения';
-            }
-            card.appendChild(progress);
+            const meta = document.createElement('div');
+            meta.className = 'cs-slot-meta';
 
-            const mainBtn = document.createElement('button');
-            mainBtn.type = 'button';
-            mainBtn.className = 'pause-btn primary';
-            mainBtn.textContent = save ? 'Продолжить' : 'Новая игра';
-            mainBtn.addEventListener('click', () => this.chooseCharacter(char, save));
-            card.appendChild(mainBtn);
+            const loc = document.createElement('div');
+            loc.className = 'cs-slot-loc';
+            loc.textContent = details.locationName;
+            meta.appendChild(loc);
 
-            if (save) {
-                const trashBtn = document.createElement('button');
-                trashBtn.type = 'button';
-                trashBtn.className = 'charcard-trash';
-                trashBtn.title = 'Удалить сохранение';
-                trashBtn.setAttribute('aria-label', 'Удалить сохранение');
-                trashBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-                trashBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (!window.confirm(`Удалить сохранение для персонажа «${char.name}»?`)) return;
-                    window.AveloraSave.deleteSave(char.id);
-                    if (this.gameState && this.gameState.characterId === char.id) this.gameState.discard();
-                    this.renderCharacterCards(allowCancel);
-                });
-                card.appendChild(trashBtn);
+            const time = document.createElement('div');
+            time.className = 'cs-slot-time';
+            time.textContent = details.playTimeStr;
+            meta.appendChild(time);
 
-                const newGameBtn = document.createElement('button');
-                newGameBtn.type = 'button';
-                newGameBtn.className = 'charcard-newgame';
-                newGameBtn.textContent = 'Начать заново';
-                newGameBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (!window.confirm(`Удалить сохранение и начать заново за «${char.name}»?`)) return;
-                    window.AveloraSave.deleteSave(char.id); // also clears avelora_state_<id>
-                    if (this.gameState && this.gameState.characterId === char.id) this.gameState.discard();
-                    this.chooseCharacter(char, null);
-                });
-                card.appendChild(newGameBtn);
-            }
+            mainBox.appendChild(meta);
+            card.appendChild(mainBox);
 
-            grid.appendChild(card);
+            // Single click selects
+            card.addEventListener('click', () => {
+                this.selectedSlotId = slot.slotId;
+                const allCards = slotsList.querySelectorAll('.cs-slot-card');
+                allCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                this.updateSlotPreview();
+            });
+
+            // Double click enters world
+            card.addEventListener('dblclick', () => {
+                this.selectedSlotId = slot.slotId;
+                this.enterWorldWithSlot(slot);
+            });
+
+            slotsList.appendChild(card);
         });
 
-        const backBtn = document.getElementById('charselect-back');
-        if (backBtn) backBtn.style.display = allowCancel ? '' : 'none';
+        // Render empty slot cards
+        for (let i = slots.length; i < maxSlots; i++) {
+            const emptyCard = document.createElement('div');
+            emptyCard.className = 'cs-slot-empty';
+            emptyCard.innerHTML = `<span class="cs-empty-plus">+</span><span>Пустой слот</span>`;
+            emptyCard.title = 'Нажмите, чтобы создать нового персонажа';
+            emptyCard.addEventListener('click', () => this.openCharacterCreateModal());
+            slotsList.appendChild(emptyCard);
+        }
+
+        // Disable "Новый персонаж" button if full
+        const createBtn = document.getElementById('cs-btn-create-new');
+        if (createBtn) {
+            createBtn.style.opacity = slots.length >= maxSlots ? '0.5' : '1';
+            createBtn.style.pointerEvents = slots.length >= maxSlots ? 'none' : '';
+        }
+
+        // Update action buttons and preview
+        const hasSelection = !!this.selectedSlotId;
+        const enterBtn = document.getElementById('cs-btn-enter-world');
+        if (enterBtn) {
+            enterBtn.disabled = slots.length === 0;
+            enterBtn.style.opacity = slots.length === 0 ? '0.5' : '1';
+        }
+        const deleteBtn = document.getElementById('cs-btn-delete-char');
+        if (deleteBtn) {
+            deleteBtn.style.display = hasSelection ? '' : 'none';
+        }
+        const exportBtn = document.getElementById('cs-btn-export');
+        if (exportBtn) {
+            exportBtn.style.display = hasSelection ? '' : 'none';
+        }
+
+        this.updateSlotPreview();
     }
 
-    async chooseCharacter(char, save) {
+    updateSlotPreview() {
+        const previewBox = document.getElementById('cs-selected-preview');
+        if (!previewBox) return;
+
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        const slot = slots.find(s => s.slotId === this.selectedSlotId);
+
+        if (!slot) {
+            previewBox.style.display = 'none';
+            if (this.csPreviewModel && this.csPreviewGroup) {
+                this.csPreviewGroup.remove(this.csPreviewModel);
+                this.csPreviewModel = null;
+            }
+            return;
+        }
+
+        const details = window.AveloraSlots.getSlotDetails(slot);
+        previewBox.style.display = 'flex';
+
+        const nameEl = document.getElementById('cs-big-name');
+        if (nameEl) nameEl.textContent = details.name;
+
+        const classEl = document.getElementById('cs-big-class');
+        if (classEl) classEl.textContent = `${details.className} • Уровень ${details.level} • Время в пути: ${details.playTimeStr}`;
+
+        const locEl = document.getElementById('cs-big-loc');
+        if (locEl) locEl.textContent = `${details.locationName} • Золото: ${details.gold} 🪙`;
+
+        // Update 3D model in the center of the scene!
+        this.updatePreviewCharacter(details.classId);
+    }
+
+    async enterWorldWithSlot(slot) {
+        if (!slot) return;
         this.tryLockLandscape();
         clearTimeout(this.loadingHideTimer);
-        this.showLoading('Avelora', char && char.name ? `Входит ${char.name}...` : 'Вход в средневековый мир...');
+
+        const details = window.AveloraSlots.getSlotDetails(slot);
+        const charConfig = details.charConfig || (window.CHARACTER_CATALOG && window.CHARACTER_CATALOG[0]);
+        const customConfig = { ...charConfig, name: slot.name || charConfig.name };
+
+        this.showLoading('Avelora', `Входит ${customConfig.name}...`);
         await nextFrame();
         await nextFrame();
         this.hideCharacterSelect();
         if (this.pauseOverlay) this.pauseOverlay.classList.remove('open');
+
+        let save = null;
+        if (window.AveloraSave && window.AveloraSave.loadSave) {
+            save = window.AveloraSave.loadSave(slot.saveId);
+        }
+
+        const opts = save ? {
+            saveId: slot.saveId,
+            locationId: save.locationId,
+            position: { x: save.x, z: save.z, r: save.r },
+            relocated: !!save.relocated
+        } : {
+            saveId: slot.saveId
+        };
+
+        await this.startGame(customConfig, opts);
+    }
+
+    openCharacterCreateModal() {
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        const maxSlots = window.AveloraSlots ? window.AveloraSlots.MAX_SLOTS : 8;
+        if (slots.length >= maxSlots) {
+            alert(`Все слоты персонажей заняты (максимум ${maxSlots}). Удалите ненужного персонажа.`);
+            return;
+        }
+
+        const modal = document.getElementById('cs-create-modal');
+        if (!modal) return;
+
+        const classContainer = document.getElementById('cs-class-cards');
+        if (classContainer) {
+            classContainer.innerHTML = '';
+            const catalog = (window.CHARACTER_CATALOG || []).filter(c => !c.hidden);
+            let firstSelectable = null;
+
+            catalog.forEach(char => {
+                const card = document.createElement('div');
+                card.className = 'cs-class-card' + (char.disabled ? ' disabled' : '');
+                card.dataset.classId = char.id;
+
+                const icon = document.createElement('div');
+                icon.className = 'cs-class-card-icon';
+                icon.textContent = char.icon || '⚔️';
+                card.appendChild(icon);
+
+                const name = document.createElement('div');
+                name.className = 'cs-class-card-name';
+                name.textContent = char.className || char.name;
+                card.appendChild(name);
+
+                const desc = document.createElement('div');
+                desc.className = 'cs-class-card-desc';
+                desc.textContent = char.disabled ? 'Скоро в игре' : (char.description || (char.id === 'mage' ? 'Владыка стихийной магии' : 'Герой Авелоры'));
+                card.appendChild(desc);
+
+                if (!char.disabled) {
+                    if (!firstSelectable) firstSelectable = char;
+                    card.addEventListener('click', () => {
+                        this._createSelectedClassId = char.id;
+                        classContainer.querySelectorAll('.cs-class-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        const nameInput = document.getElementById('cs-char-name-input');
+                        if (nameInput && (!nameInput.value || nameInput.value === 'Маг' || nameInput.value === 'Лучница' || nameInput.value === 'Воин')) {
+                            nameInput.value = char.name;
+                        }
+                        // Update 3D preview model to match clicked class!
+                        this.updatePreviewCharacter(char.id);
+                    });
+                }
+
+                classContainer.appendChild(card);
+            });
+
+            // Default selection
+            const defaultClass = firstSelectable || catalog[0];
+            if (defaultClass) {
+                this._createSelectedClassId = defaultClass.id;
+                const firstCard = classContainer.querySelector(`.cs-class-card[data-class-id="${defaultClass.id}"]`);
+                if (firstCard) firstCard.classList.add('selected');
+                this.updatePreviewCharacter(defaultClass.id);
+            }
+        }
+
+        const nameInput = document.getElementById('cs-char-name-input');
+        if (nameInput) {
+            const defChar = (window.CHARACTER_CATALOG || []).find(c => c.id === this._createSelectedClassId);
+            nameInput.value = (defChar && defChar.name) || 'Маг';
+            setTimeout(() => { nameInput.focus(); nameInput.select(); }, 50);
+        }
+
+        modal.style.display = 'flex';
+    }
+
+    closeCharacterCreateModal() {
+        const modal = document.getElementById('cs-create-modal');
+        if (modal) modal.style.display = 'none';
+        // Restore preview of currently selected slot if any
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        const slot = slots.find(s => s.slotId === this.selectedSlotId);
+        if (slot) {
+            const details = window.AveloraSlots.getSlotDetails(slot);
+            this.updatePreviewCharacter(details.classId);
+        }
+    }
+
+    confirmCharacterCreate() {
+        const classId = this._createSelectedClassId || 'mage';
+        const nameInput = document.getElementById('cs-char-name-input');
+        const customName = nameInput ? nameInput.value.trim() : '';
+
+        const newSlot = window.AveloraSlots.createCharacter(classId, customName);
+        if (!newSlot) return;
+
+        this.closeCharacterCreateModal();
+        this.selectedSlotId = newSlot.slotId;
+        this.enterWorldWithSlot(newSlot);
+    }
+
+    deleteSelectedCharacter() {
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        const slot = slots.find(s => s.slotId === this.selectedSlotId);
+        if (!slot) return;
+
+        const details = window.AveloraSlots.getSlotDetails(slot);
+        const confirmed = window.confirm(
+            `Удалить персонажа «${details.name}» (${details.className}, Ур. ${details.level})?\n\n` +
+            `Все сохранения, предметы в инвентаре и прогресс квестов этого персонажа будут удалены безвозвратно.`
+        );
+        if (!confirmed) return;
+
+        window.AveloraSlots.deleteCharacter(slot.slotId);
+        if (this.gameState && this.currentSaveId === slot.saveId) {
+            this.gameState.discard();
+        }
+
+        this.selectedSlotId = null;
+        this.renderCharacterSlots();
+    }
+
+    handleSlotImport() {
+        // First check for legacy hero
+        const importedCount = window.AveloraSlots.importLegacyHero();
+        if (importedCount > 0) {
+            alert(`Успешно импортировано сохранений: ${importedCount}`);
+            this.renderCharacterSlots();
+            return;
+        }
+
+        // Otherwise prompt for JSON backup
+        const jsonStr = window.prompt('Вставьте JSON строку данных сохранения персонажа:');
+        if (!jsonStr) return;
+
+        const res = window.AveloraSlots.importSlotData(jsonStr);
+        if (res.ok) {
+            this.selectedSlotId = res.slot.slotId;
+            alert(`Персонаж «${res.slot.name}» успешно импортирован!`);
+            this.renderCharacterSlots();
+        } else {
+            alert('Ошибка импорта: ' + res.error);
+        }
+    }
+
+    handleSlotExport() {
+        const slots = window.AveloraSlots ? window.AveloraSlots.getSlots() : [];
+        const slot = slots.find(s => s.slotId === this.selectedSlotId);
+        if (!slot) return;
+
+        const jsonStr = window.AveloraSlots.exportSlotData(slot.slotId);
+        if (!jsonStr) {
+            alert('Не удалось сформировать данные сохранения.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                alert(`Сохранение персонажа «${slot.name}» скопировано в буфер обмена!\n\nВы можете сохранить его в текстовый файл.`);
+            }).catch(() => {
+                window.prompt('Скопируйте данные персонажа:', jsonStr);
+            });
+        } else {
+            window.prompt('Скопируйте данные персонажа:', jsonStr);
+        }
+    }
+
+    async chooseCharacter(char, save) {
         const opts = save
             ? { locationId: save.locationId, position: { x: save.x, z: save.z, r: save.r }, relocated: !!save.relocated }
             : {};
@@ -447,8 +1045,9 @@ class AveloraGame {
         if (this.setInventoryOpen) this.setInventoryOpen(false);
 
         this.currentCharacterConfig = characterConfig;
+        this.currentSaveId = (opts && opts.saveId) || characterConfig.id;
         // Per-character inventory/hotbar/pickups (separate key from the position save)
-        this.gameState = window.AveloraState ? window.AveloraState.load(characterConfig.id) : null;
+        this.gameState = window.AveloraState ? window.AveloraState.load(this.currentSaveId, characterConfig.id) : null;
 
         let startId = (opts.locationId && window.LOCATIONS[opts.locationId]) ? opts.locationId : this.getStartLocationId();
 
@@ -553,7 +1152,8 @@ class AveloraGame {
     /** Persists the current character's location + exact position. No-op until a character is playing. */
     saveProgress() {
         if (!this.currentCharacterConfig || !this.character || !this.location || !window.AveloraSave) return;
-        window.AveloraSave.writeSave(this.currentCharacterConfig.id, {
+        const saveId = this.currentSaveId || this.currentCharacterConfig.id;
+        window.AveloraSave.writeSave(saveId, {
             locationId: this.location.id,
             x: this.character.position.x,
             z: this.character.position.z,
@@ -1097,6 +1697,10 @@ class AveloraGame {
             this.camera.aspect = w / h;
             this.camera.updateProjectionMatrix();
             this.renderer.setSize(w, h);
+            if (this.isCharacterSelectOpen) {
+                this.camera.position.set(-0.35, 1.15, 2.7);
+                this.camera.lookAt(-0.35, 0.95, 0);
+            }
             this.needsRender = true; // resize clears the canvas; redraw even if paused
             clearTimeout(this._gfxTimer);
             this._gfxTimer = setTimeout(() => this.applyGraphicsProfile(), 150);
@@ -2666,7 +3270,7 @@ class AveloraGame {
         // Расписание: каждый показанный кадр сдвигает _nextFrameAt ровно на 1000/fpsCap, поэтому средний FPS равен лимиту
         // на любой частоте монитора (75/144/165 Гц и т.д.); допуск 3 мс только сглаживает дрожание rAF и не накапливается.
         // Пропущенный кадр не трогает clock, поэтому delta копится и скорость симуляции не меняется.
-        if (!this.isPaused && window.GFX && window.GFX.fpsCap > 0) {
+        if ((!this.isPaused || this.isCharacterSelectOpen) && window.GFX && window.GFX.fpsCap > 0) {
             const nowMs = performance.now();
             const minMs = 1000 / window.GFX.fpsCap;
             if (this._capMs !== minMs) { this._capMs = minMs; this._nextFrameAt = 0; }   // смена профиля — расписание заново
@@ -2676,6 +3280,13 @@ class AveloraGame {
 
         const delta = Math.min(this.clock.getDelta(), 0.1);
         this.updateFPS(delta);
+
+        // LIVE 3D CHARACTER PREVIEW: updates idle animation in real time
+        if (this.isCharacterSelectOpen) {
+            if (this.csMixer) this.csMixer.update(delta);
+            this.drawFrame();
+            return;
+        }
 
         // PAUSED: freeze all simulation (movement, animations, water, wind,
         // particles, markers, camera, timers). Only redraw the frozen frame

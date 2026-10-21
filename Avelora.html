@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Experience</title>
-    <link rel="stylesheet" href="css/main.css?v=20261021_dlg8lines1">
+    <link rel="stylesheet" href="css/main.css?v=20261021_wowslots3">
 </head>
 <body>
 
@@ -18,12 +18,90 @@
         <div class="loading-spinner"></div>
     </div>
 
-    <!-- Character Select Screen (shown at startup when there's 0 or 2+ saves, or from pause menu) -->
-    <div id="character-select-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="charselect-title">
-        <h1 class="charselect-title" id="charselect-title">Avelora</h1>
-        <div class="charselect-subtitle">Выберите персонажа</div>
-        <div class="charselect-grid" id="charselect-grid"><!-- карточки персонажей рендерятся из main.js --></div>
-        <button type="button" class="pause-btn charselect-back" id="charselect-back" style="display:none">Отмена</button>
+    <!-- Character Select Screen (WoW-style layout) -->
+    <div id="character-select-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="cs-logo-title">
+        <!-- Top branding bar -->
+        <div class="cs-topbar">
+            <div class="cs-logo" id="cs-logo-title">AVELORA</div>
+            <div class="cs-realm-badge">Священная Долина • Королевство Авелора</div>
+        </div>
+
+        <!-- Center preview info of currently highlighted character -->
+        <div class="cs-center-info" id="cs-selected-preview">
+            <div class="cs-hero-big-name" id="cs-big-name">Маг</div>
+            <div class="cs-hero-big-class" id="cs-big-class">Азур Аркмаг • Уровень 17</div>
+            <div class="cs-hero-big-loc" id="cs-big-loc">Лесная опушка</div>
+        </div>
+
+        <!-- Right side: WoW Character Slots Panel -->
+        <div class="cs-right-panel">
+            <div class="cs-panel-header">
+                <div class="cs-panel-title">ПЕРСОНАЖИ</div>
+                <div class="cs-panel-counter" id="cs-slot-counter">1 / 5</div>
+            </div>
+
+            <div class="cs-slots-list" id="cs-slots-list">
+                <!-- Character slot cards dynamically injected by main.js -->
+            </div>
+
+            <div class="cs-panel-footer">
+                <button type="button" class="cs-btn cs-create-btn" id="cs-btn-create-new">
+                    <span class="cs-btn-plus">+</span> Новый персонаж
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom action bar -->
+        <div class="cs-bottom-bar">
+            <div class="cs-bottom-left">
+                <button type="button" class="cs-btn-sub" id="cs-btn-import" title="Импортировать персонажа из JSON файла">📥 Импорт</button>
+                <input type="file" id="cs-file-input" accept=".json,application/json" style="display:none">
+                <button type="button" class="cs-btn-sub" id="cs-btn-export" title="Экспортировать выбранного персонажа в JSON файл">📤 Экспорт</button>
+                <button type="button" class="cs-btn-sub" id="cs-btn-back" style="display:none">Назад в игру</button>
+            </div>
+
+            <div class="cs-bottom-center">
+                <button type="button" class="cs-btn-play" id="cs-btn-enter-world">
+                    ВОЙТИ В МИР
+                </button>
+            </div>
+
+            <div class="cs-bottom-right">
+                <button type="button" class="cs-btn-delete" id="cs-btn-delete-char" title="Удалить выбранного персонажа">
+                    Удалить
+                </button>
+            </div>
+        </div>
+
+        <!-- Character Creation Modal / Panel -->
+        <div class="cs-create-modal" id="cs-create-modal" style="display:none">
+            <div class="cs-create-backdrop" id="cs-create-backdrop"></div>
+            <div class="cs-create-box">
+                <div class="cs-create-header">
+                    <h2>СОЗДАНИЕ ПЕРСОНАЖА</h2>
+                    <button type="button" class="cs-modal-close" id="cs-create-close" aria-label="Закрыть">×</button>
+                </div>
+
+                <div class="cs-create-body">
+                    <div class="cs-create-section-title">ВЫБЕРИТЕ КЛАСС</div>
+                    <div class="cs-class-cards" id="cs-class-cards">
+                        <!-- Class selection cards: Mage, Archer, Warrior -->
+                    </div>
+
+                    <div class="cs-create-section-title">ИМЯ ГЕРОЯ</div>
+                    <div class="cs-name-row">
+                        <input type="text" id="cs-char-name-input" maxlength="20" placeholder="Введите имя персонажа..." autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="cs-create-actions">
+                    <button type="button" class="cs-btn-sub" id="cs-create-cancel">Отмена</button>
+                    <button type="button" class="cs-btn-play cs-btn-create-confirm" id="cs-create-confirm">
+                        СОЗДАТЬ И ВОЙТИ
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -618,8 +696,9 @@
     <script src="js/environment.js?v=20261018_opt1"></script>
     <script src="js/characters.js?v=20261011_p1"></script>
     <script src="js/save.js?v=20261016_fb1"></script>
+    <script src="js/character_slots.js?v=20261021_wowslots3"></script>
     <script src="js/items.js?v=20261020_fist1"></script>
-    <script src="js/game_state.js?v=20261020_sparkfix3"></script>
+    <script src="js/game_state.js?v=20261021_wowslots1"></script>
     <script src="js/world_objects.js?v=20261018_perf1"></script>
     <script src="js/building.js?v=20261018_scale1"></script>
     <!-- Game Configuration & Balance (js/config/) -->
@@ -635,7 +714,7 @@
     <script src="js/ui_hotbar.js?v=20261021_timefmt1"></script>
     <script src="js/character.js?v=20261020_staffglow1"></script>
     <script src="js/map.js?v=20261013_map2"></script>
-    <script src="js/main.js?v=20261020_craftui1"></script>
+    <script src="js/main.js?v=20261021_wowslots3"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
