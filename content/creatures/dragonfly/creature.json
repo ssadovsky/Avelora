@@ -1,10 +1,10 @@
 {
   "id": "dragonfly",
   "name": "Янтарная стрекоза",
-  "hp": 55,
+  "hp": 95,
   "damage": [
-    4,
-    8
+    8,
+    14
   ],
   "attackRange": 1.2,
   "attackCooldown": 1.4,
@@ -19,6 +19,6 @@
   "scale": 1.0,
   "flyHeight": 1.25,
   "drops": [],
-  "xp": 30,
-  "level": 4
+  "xp": 75,
+  "level": 8
 }

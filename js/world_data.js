@@ -311,17 +311,17 @@ window.LOCATIONS = {
             { id: 'fox_5', type: 'fire_fox', level: 5, x: 100.0, z: -43.0, r: 4.1 },
             // Серый волк по центру севера долины у горной гряды (5 уровень, Элита, квест «Охота на волка»)
             { id: 'forest_wolf', type: 'wolf', level: 7, rank: 'elite', x: 0.0, z: -72.0, r: 0.0 },
-            // 10 янтарных стрекоз на северо-западе: летают над лугом (4 уровень, квест Оленихи)
-            { id: 'dragonfly_1', type: 'dragonfly', level: 4, x: -66.0, z: -58.0, r: 1.70 },
-            { id: 'dragonfly_2', type: 'dragonfly', level: 4, x: -48.1, z: -54.5, r: 3.40 },
-            { id: 'dragonfly_3', type: 'dragonfly', level: 4, x: -76.2, z: -37.3, r: 5.10 },
-            { id: 'dragonfly_4', type: 'dragonfly', level: 4, x: -83.0, z: -54.0, r: 0.60 },
-            { id: 'dragonfly_5', type: 'dragonfly', level: 4, x: -57.7, z: -41.0, r: 2.30 },
-            { id: 'dragonfly_6', type: 'dragonfly', level: 4, x: -86.3, z: -28.4, r: 4.00 },
-            { id: 'dragonfly_7', type: 'dragonfly', level: 4, x: -57.2, z: -64.4, r: 5.70 },
-            { id: 'dragonfly_8', type: 'dragonfly', level: 4, x: -79.4, z: -64.5, r: 1.20 },
-            { id: 'dragonfly_9', type: 'dragonfly', level: 4, x: -36.4, z: -62.1, r: 2.90 },
-            { id: 'dragonfly_10', type: 'dragonfly', level: 4, x: -69.0, z: -46.5, r: 4.60 },
+            // 10 янтарных стрекоз на северо-западе: летают над лугом (8 уровень, квест Оленихи)
+            { id: 'dragonfly_1', type: 'dragonfly', level: 8, x: -66.0, z: -58.0, r: 1.70 },
+            { id: 'dragonfly_2', type: 'dragonfly', level: 8, x: -48.1, z: -54.5, r: 3.40 },
+            { id: 'dragonfly_3', type: 'dragonfly', level: 8, x: -76.2, z: -37.3, r: 5.10 },
+            { id: 'dragonfly_4', type: 'dragonfly', level: 8, x: -83.0, z: -54.0, r: 0.60 },
+            { id: 'dragonfly_5', type: 'dragonfly', level: 8, x: -57.7, z: -41.0, r: 2.30 },
+            { id: 'dragonfly_6', type: 'dragonfly', level: 8, x: -86.3, z: -28.4, r: 4.00 },
+            { id: 'dragonfly_7', type: 'dragonfly', level: 8, x: -57.2, z: -64.4, r: 5.70 },
+            { id: 'dragonfly_8', type: 'dragonfly', level: 8, x: -79.4, z: -64.5, r: 1.20 },
+            { id: 'dragonfly_9', type: 'dragonfly', level: 8, x: -36.4, z: -62.1, r: 2.90 },
+            { id: 'dragonfly_10', type: 'dragonfly', level: 8, x: -69.0, z: -46.5, r: 4.60 },
             // 10 лесных пчел на поляне (1 уровень, расширенная зона клевера X: 76..103, Z: 12..31)
             { id: 'bee_1',  type: 'bee', level: 3, x: 80.0, z: 22.0, r: 0.4 },
             { id: 'bee_2',  type: 'bee', level: 3, x: 86.5, z: 15.5, r: 2.1 },
@@ -350,8 +350,8 @@ window.LOCATIONS = {
             { id: 'badger_14', type: 'badger', level: 2, x: 51.0, z: 75.8, r: 2.43 },
             { id: 'badger_15', type: 'badger', level: 2, x: 80.4, z: 63.1, r: 4.51 },
             { id: 'waterfall_fawn', type: 'fawn', level: 5, rank: 'elite', x: 110.0, z: 12.0, r: 2.8 },
-            // Рунный вепрь-страж у портала в Золотую саванну (6 уровень, Элита)
-            { id: 'portal_rune_boar', type: 'rune_boar', level: 6, rank: 'elite', x: -118.0, z: 8.0, r: 1.57 },
+            // Рунный вепрь-страж у портала в Золотую саванну (10 уровень, Элита)
+            { id: 'portal_rune_boar', type: 'rune_boar', level: 10, rank: 'elite', x: -118.0, z: 8.0, r: 1.57 },
             // 10 обычных вепрей на северо-востоке долины (4 уровень, квест «Охота на вепрей»)
             { id: 'boar_1', type: 'boar', level: 6, x: 66.0, z: -58.0, r: 1.20 },
             { id: 'boar_2', type: 'boar', level: 6, x: 52.0, z: -62.0, r: 4.00 },
@@ -369,17 +369,17 @@ window.LOCATIONS = {
             { id: 'waterfall_red_panda', type: 'red_panda', level: 3, x: 127.0, z: -9.0, r: -1.57 },
             // Оленёнок рядом с друидом
             { id: 'doe_fawn', type: 'spotted_fawn', level: 1, x: 8.0, z: 7.5, r: -2.30 },
-            // Синие пауки на юго-западе долины (5 уровень, квест «Синие пауки»)
-            { id: 'blue_spider_1', type: 'blue_spider', level: 5, x: -100.0, z: 40.0, r: 0.00 },
-            { id: 'blue_spider_2', type: 'blue_spider', level: 5, x: -88.0, z: 38.0, r: 1.90 },
-            { id: 'blue_spider_3', type: 'blue_spider', level: 5, x: -76.0, z: 42.0, r: 3.80 },
-            { id: 'blue_spider_4', type: 'blue_spider', level: 5, x: -64.0, z: 40.0, r: 5.70 },
-            { id: 'blue_spider_5', type: 'blue_spider', level: 5, x: -54.0, z: 47.0, r: 1.32 },
-            { id: 'blue_spider_6', type: 'blue_spider', level: 5, x: -96.0, z: 51.0, r: 3.22 },
-            { id: 'blue_spider_7', type: 'blue_spider', level: 5, x: -82.0, z: 52.0, r: 5.12 },
-            { id: 'blue_spider_8', type: 'blue_spider', level: 5, x: -68.0, z: 55.0, r: 0.74 },
-            { id: 'blue_spider_9', type: 'blue_spider', level: 5, x: -57.0, z: 59.0, r: 2.64 },
-            { id: 'blue_spider_10', type: 'blue_spider', level: 5, x: -91.0, z: 60.0, r: 4.54 },
+            // Синие пауки на юго-западе долины (9 уровень, квест «Синие пауки»)
+            { id: 'blue_spider_1', type: 'blue_spider', level: 9, x: -100.0, z: 40.0, r: 0.00 },
+            { id: 'blue_spider_2', type: 'blue_spider', level: 9, x: -88.0, z: 38.0, r: 1.90 },
+            { id: 'blue_spider_3', type: 'blue_spider', level: 9, x: -76.0, z: 42.0, r: 3.80 },
+            { id: 'blue_spider_4', type: 'blue_spider', level: 9, x: -64.0, z: 40.0, r: 5.70 },
+            { id: 'blue_spider_5', type: 'blue_spider', level: 9, x: -54.0, z: 47.0, r: 1.32 },
+            { id: 'blue_spider_6', type: 'blue_spider', level: 9, x: -96.0, z: 51.0, r: 3.22 },
+            { id: 'blue_spider_7', type: 'blue_spider', level: 9, x: -82.0, z: 52.0, r: 5.12 },
+            { id: 'blue_spider_8', type: 'blue_spider', level: 9, x: -68.0, z: 55.0, r: 0.74 },
+            { id: 'blue_spider_9', type: 'blue_spider', level: 9, x: -57.0, z: 59.0, r: 2.64 },
+            { id: 'blue_spider_10', type: 'blue_spider', level: 9, x: -91.0, z: 60.0, r: 4.54 },
             // Рыжие петухи: поляна к западу от барсучьего луга (3 уровень)
             { id: 'rooster_1', type: 'rooster', level: 5, x: 18.0, z: 44.0, r: 0.00 },
             { id: 'rooster_2', type: 'rooster', level: 5, x: 28.0, z: 41.0, r: 1.70 },

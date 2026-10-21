@@ -1,10 +1,10 @@
 {
   "id": "blue_spider",
   "name": "Синий паук",
-  "hp": 60,
+  "hp": 115,
   "damage": [
-    5,
-    9
+    10,
+    16
   ],
   "attackRange": 0.85,
   "attackCooldown": 1.2,
@@ -28,6 +28,6 @@
     6,
     10
   ],
-  "xp": 34,
-  "level": 4
+  "xp": 90,
+  "level": 9
 }
