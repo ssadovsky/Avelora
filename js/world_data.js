@@ -96,6 +96,7 @@ window.LOCATIONS = {
                 shoreSmooth: true
             },
             hills: { amplitude: 1.6, inclineX: 0.2, inclineZ: -0.15 },
+            stoneTexture: 'pebbleTrailDiff',   // покрытие центральной дороги: речная галька (Poly Haven ganges_river_pebbles)
             // Дороги локации:
             // 1. Грунтовая дорожка от точки старта до водопада и Лираэль
             // 2. Каменная мостовая от водопада (120, 4) к озеру в центре (-18, -16)
@@ -127,7 +128,7 @@ window.LOCATIONS = {
         atmosphere: { sky: 0xc6dbe3, skyTop: 0x4a8fc9, fogDensity: 0.0055 },
         cameraAngle: 0.0,           // на старте камера смотрит на север (по тропе к Лираэль)
         // Зоны без папоротников (поляна барсуков): эллипсы {x, z, rx, rz}
-        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }, { x: 25.5, z: -17.5, rx: 6.0, rz: 8.5 }],   // 2-й: беседка и подход к ней
+        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }, { x: 24.5, z: -16.5, rx: 6.5, rz: 8.5 }],   // 2-й: беседка и подход к ней
 
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
@@ -425,7 +426,7 @@ window.LOCATIONS = {
             // Домик (фасад с дверью смотрит на запад) и наковальня рядом
             { id: 'forestEdge.cottage', prop: 'cottage', x: 70.0, z: -15.0, r: 0.0 },
             { id: 'forestEdge.anvil', prop: 'anvil', x: 65.9, z: -12.0, r: 0.5 },
-            { id: 'forestEdge.gazebo', prop: 'gazebo', x: 25.5, z: -20.1, r: 0.0 },
+            { id: 'forestEdge.gazebo', prop: 'gazebo', x: 25.5, z: -20.1, r: -0.41 },
             // фиалки и пучки травы на пчелиной поляне
             { id: 'forestEdge.violets_1', prop: 'violet_flowerbed', x: 79, z: 19, r: 0.4, s: 0.5 },
             { id: 'forestEdge.violets_2', prop: 'violet_flowerbed', x: 84, z: 20.5, r: 1.9, s: 0.6 },

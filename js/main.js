@@ -698,7 +698,7 @@ class AveloraGame {
             card.addEventListener('click', () => {
                 if (this.selectedSlotId === slot.slotId && card.classList.contains('active')) {
                     const now = performance.now();
-                    if (now - (this._csEnterAt || 0) < 2000) return;   // ignore rapid extra clicks while loading
+                    if (now - (this._csEnterAt || 0) < 500) return;   // ignore rapid extra clicks while loading
                     this._csEnterAt = now;
                     this.enterWorldWithSlot(slot);
                     return;

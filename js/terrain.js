@@ -553,7 +553,7 @@ class LakesideTerrain {
             beachDiff = texLoader.load(shoreTex);
         }
 
-        const stoneTrailDiff = texLoader.load(assets.stoneTrailDiff || assets.gravelDiff || assets.beachDiff);
+        const stoneTrailDiff = texLoader.load((this.locTerrain.stoneTexture && assets[this.locTerrain.stoneTexture]) || assets.stoneTrailDiff || assets.gravelDiff || assets.beachDiff);
         // groundMode:
         // 0: default single texture
         // 1: 'moss2' (forestEdge: подстилка + пятна травы и темный подлесок)
