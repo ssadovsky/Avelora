@@ -12,8 +12,8 @@
   "runSpeed": 3.6,
   "behavior": "retaliate",
   "aggroRadius": 0,
-  "leashRadius": 6,
-  "wanderRadius": 2.5,
+  "leashRadius": 16,
+  "wanderRadius": 0,
   "respawnMinutes": 4,
   "hitRadius": 1.8,
   "scale": 2.8,
@@ -23,4 +23,4 @@
   ],
   "xp": 0,
   "level": 1
-}
+}

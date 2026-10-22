@@ -194,8 +194,53 @@ class LakesideTerrain {
      * to the height at the centre, over the next `blend` metres it eases back to the natural relief (smoothstep, no steps).
      * Used for portal pads. Everything (mesh, characters, grass, trees, pathfinding) reads the same function.
      */
+    /** Сглаживание рельефа вдоль дороги (path.smooth = {width, blend, win}): профиль высоты вдоль оси усредняется, поперёк — ровная полоса и плавный откос. */
+    _buildRoadSmooth() {
+        this._rs = [];
+        (this.paths || []).forEach(pp => {
+            if (!pp.smooth || !pp.points || pp.points.length < 2) return;
+            const sm = pp.smooth, STEP = 1.5, xs = [], zs = [];
+            for (let i = 0; i < pp.points.length - 1; i++) {
+                const a = pp.points[i], b = pp.points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+                const n = Math.max(1, Math.round(L / STEP));
+                for (let k = 0; k < n; k++) { xs.push(a[0] + (b[0] - a[0]) * k / n); zs.push(a[1] + (b[1] - a[1]) * k / n); }
+            }
+            const e = pp.points[pp.points.length - 1]; xs.push(e[0]); zs.push(e[1]);
+            let hs = xs.map((x, i) => this._getRawHeightBase(x, zs[i]));
+            const R = sm.win || 4;
+            for (let pass = 0; pass < 3; pass++) {
+                const o = hs.slice();
+                for (let i = 0; i < hs.length; i++) { let s = 0, c = 0; for (let j = Math.max(0, i - R); j <= Math.min(hs.length - 1, i + R); j++) { s += hs[j]; c++; } o[i] = s / c; }
+                hs = o;
+            }
+            const hw = sm.width || 3.0, bl = sm.blend || 6.0, m = hw + bl;
+            this._rs.push({ xs, zs, hs, hw, bl, x0: Math.min(...xs) - m, x1: Math.max(...xs) + m, z0: Math.min(...zs) - m, z1: Math.max(...zs) + m });
+        });
+    }
+
+    _roadSmoothedH(x, z, h) {
+        if (this._rs === undefined) this._buildRoadSmooth();
+        for (let r = 0; r < this._rs.length; r++) {
+            const q = this._rs[r];
+            if (x < q.x0 || x > q.x1 || z < q.z0 || z > q.z1) continue;
+            let bd = 1e9, bh = 0;
+            for (let i = 0; i < q.xs.length - 1; i++) {
+                const ax = q.xs[i], az = q.zs[i], dx = q.xs[i + 1] - ax, dz = q.zs[i + 1] - az;
+                const l2 = dx * dx + dz * dz || 1e-9;
+                const t = Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / l2));
+                const d = Math.hypot(x - (ax + dx * t), z - (az + dz * t));
+                if (d < bd) { bd = d; bh = q.hs[i] + (q.hs[i + 1] - q.hs[i]) * t; }
+            }
+            if (bd >= q.hw + q.bl) continue;
+            const u = bd <= q.hw ? 1 : 1 - (bd - q.hw) / q.bl;
+            h += (bh - h) * u * u * (3 - 2 * u);
+        }
+        return h;
+    }
+
     getRawHeightAt(x, z) {
-        const h = this._getRawHeightBase(x, z);
+        let h = this._getRawHeightBase(x, z);
+        if (this.paths && this._rs !== null) { h = this._roadSmoothedH(x, z, h); if (this._rs && !this._rs.length) this._rs = null; }
         const fs = this.locTerrain.flatSpots;
         if (!fs || !fs.length) return h;
         if (!this._flatH) this._flatH = [];
