@@ -382,7 +382,7 @@
                 rec.mixer = null; rec.actions = {}; rec.current = null; rec.anim = null;
                 if (tpl.clips.length) {
                     rec.mixer = new THREE.AnimationMixer(model);
-                    ['Idle', 'Walk', 'Run', 'Attack', 'Hit', 'Death', 'Dance1', 'Dance2', 'Dance3'].forEach(n => {
+                    ['Idle', 'Walk', 'Run', 'Swim', 'Attack', 'Hit', 'Death', 'Dance1', 'Dance2', 'Dance3'].forEach(n => {
                         const clip = findClip(tpl.clips, n);
                         if (!clip) return;
                         const a = rec.mixer.clipAction(clip);
@@ -439,7 +439,16 @@
         // Animation
         // -----------------------------------------------------------
         /** Cross-fade to a clip by name; `restart` replays a one-shot clip. Missing clip -> procedural only. */
+        /** Водоплавающие (def.swimmer): 0..1 — насколько существо «в воде» (у самого берега плавно, дно ниже ~0.05 м). */
+        swimK(rec) {
+            if (!rec.def.swimmer || !this.terrain || !this.terrain.getHeightAt) return 0;
+            const wy = this.terrain.getHeightAt(rec.x, rec.z);
+            const t = Math.min(1, Math.max(0, (0.05 - wy) / 0.1));
+            return t * t * (3 - 2 * t);
+        }
+
         play(rec, name, fade, restart) {
+            if (rec.def.swimmer && (name === 'Walk' || name === 'Run') && rec.actions.Swim && this.swimK(rec) > 0.5) name = 'Swim';
             if (rec.anim === name && !restart) return;
             rec.anim = name;
             rec.animT = 0;
@@ -526,6 +535,14 @@
                 }
                 if (rec.staggerT > 0 && !this.hasClip(rec, 'Hit')) {
                     rx -= rec.staggerT * 0.6;
+                }
+            }
+            // водоплавающие (swimmer): тело на уровне воды (y=0) и осадка swimSink — не бегут по воде, а плывут
+            if (rec.def.swimmer && rec.state !== 'dead') {
+                const k = this.swimK(rec);
+                if (k > 0) {
+                    const wy = this.terrain.getHeightAt(rec.x, rec.z);
+                    py += k * (Math.max(0, -wy) - (rec.def.swimSink || 0.13));
                 }
             }
             // земноводные (waterSink, м): на мелководье тело садится глубже — торчит над водой примерно наполовину

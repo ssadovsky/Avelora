@@ -53,7 +53,7 @@
         'spotted_fawn': '🦌', 'forest_doe': '🦌', 'rooster': '🐓', 'fire_fox': '🦊',
         'red_panda': '🐼', 'hyena': '🐕', 'cave_lion': '🦁', 'komodo': '🦎',
         'lizard': '🦎', 'lizard_soldier': '🦎', 'kobold': '⛏️', 'minotaur': '🐂',
-        'thunderclaw': '🦖', 'yasha': '🐊', 'sarcosuchus': '🐊', 'rhino': '🦏', 'fire_elemental': '🔥',
+        'thunderclaw': '🦖', 'yasha': '🐊', 'sarcosuchus': '🐊', 'rhino': '🦏', 'duck': '🦆', 'fire_elemental': '🔥',
         'water_elemental': '💧', 'air_elemental': '💨', 'stone_elemental': '🗿'
     };
 

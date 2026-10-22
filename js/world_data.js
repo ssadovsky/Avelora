@@ -369,8 +369,13 @@ window.LOCATIONS = {
             { id: 'boar_8', type: 'boar', level: 6, x: 52.0, z: -36.0, r: 4.40 },
             { id: 'boar_9', type: 'boar', level: 6, x: 38.0, z: -44.0, r: 2.80 },
             { id: 'boar_10', type: 'boar', level: 6, x: 82.0, z: -62.0, r: 0.30 },
-            // Оленёнок у озера (1 уровень, мирный)
-            { id: 'stump_fawn',  type: 'fawn', level: 1, x: 4.0, z: -7.0,  r: 1.2 },
+            // Утки на мелководье озера у (-10, -30), 6 шт, вразброс (1 уровень, мирные)
+            { id: 'lake_duck_1', type: 'duck', level: 1, x: -12, z: -34, r: 0.8 },
+            { id: 'lake_duck_2', type: 'duck', level: 1, x: -6, z: -30.5, r: 2.4 },
+            { id: 'lake_duck_3', type: 'duck', level: 1, x: -1, z: -28, r: 4.0 },
+            { id: 'lake_duck_4', type: 'duck', level: 1, x: -16.5, z: -37.5, r: 5.5 },
+            { id: 'lake_duck_5', type: 'duck', level: 1, x: -4, z: -25.5, r: 1.3 },
+            { id: 'lake_duck_6', type: 'duck', level: 1, x: -14, z: -28.5, r: 3.4 },
             // Красная панда за водопадом (3 уровень, защищается боксом)
             { id: 'waterfall_red_panda', type: 'red_panda', level: 3, x: 127.0, z: -9.0, r: -1.57 },
             // Оленёнок рядом с друидом

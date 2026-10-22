@@ -1,0 +1,34 @@
+{
+  "id": "duck",
+  "name": "Утка",
+  "level": 1,
+  "hp": 14,
+  "damage": [
+    1,
+    2
+  ],
+  "attackRange": 0.5,
+  "attackCooldown": 1.5,
+  "walkSpeed": 0.6,
+  "runSpeed": 2.4,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 9,
+  "wanderRadius": 5,
+  "respawnMinutes": 4,
+  "hitRadius": 0.6,
+  "scale": 1.0,
+  "gold": [
+    0,
+    1
+  ],
+  "xp": 6,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 1
+    }
+  ],
+  "swimmer": true,
+  "swimSink": 0.13
+}
