@@ -1,0 +1,6 @@
+{
+  "id": "npc_blacksmith",
+  "name": "Торвальд Железнорук",
+  "obstacle": 0.5,
+  "npc": "blacksmith"
+}

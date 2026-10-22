@@ -1,0 +1,38 @@
+{
+  "id": "triceratops",
+  "name": "Трицератопс",
+  "level": 10,
+  "hp": 300,
+  "damage": [
+    18,
+    26
+  ],
+  "attackRange": 2.0,
+  "attackCooldown": 2.2,
+  "walkSpeed": 0.9,
+  "runSpeed": 3.4,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 16,
+  "wanderRadius": 4,
+  "respawnMinutes": 6,
+  "hitRadius": 2.2,
+  "hitBox": [
+    1.9,
+    3.0,
+    6.5,
+    0
+  ],
+  "scale": 1.0,
+  "gold": [
+    4,
+    8
+  ],
+  "xp": 150,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 5
+    }
+  ]
+}

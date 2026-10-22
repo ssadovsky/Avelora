@@ -372,6 +372,9 @@ window.LOCATIONS = {
             { id: 'boar_9', type: 'boar', level: 6, x: 38.0, z: -44.0, r: 2.80 },
             { id: 'boar_10', type: 'boar', level: 6, x: 82.0, z: -62.0, r: 0.30 },
             // Утки на мелководье озера у (-10, -30), 6 шт, вразброс (1 уровень, мирные)
+            // Динозавры у озера (не агрессивны, 10 ур.): Йекелоптерус у воды, Трицератопс на берегу севернее
+            { id: 'lake_jaekelopterus', type: 'jaekelopterus', level: 10, x: 6.0, z: -5.5, r: 0.0 },
+            { id: 'lake_triceratops', type: 'triceratops', level: 10, x: 13.0, z: -15.5, r: -1.5708 },
             { id: 'lake_duck_1', type: 'duck', level: 1, x: -12, z: -34, r: 0.8 },
             { id: 'lake_duck_2', type: 'duck', level: 1, x: -6, z: -30.5, r: 2.4 },
             { id: 'lake_duck_3', type: 'duck', level: 1, x: -1, z: -28, r: 4.0 },
@@ -442,6 +445,8 @@ window.LOCATIONS = {
             { id: 'forestEdge.tuft_6', prop: 'grass_tuft', x: 94, z: 29.5, r: 0.8, s: 1.15 },
             { id: 'forestEdge.tuft_7', prop: 'grass_tuft', x: 101.5, z: 24, r: 3.6, s: 0.95 },
             { id: 'forestEdge.tuft_8', prop: 'grass_tuft', x: 85, z: 13.5, r: 2.2, s: 1.05 },
+            // Кузнец Торвальд у нового домика, рядом с наковальней (лицом к ней)
+            { id: 'forestEdge.blacksmith', prop: 'npc_blacksmith', x: 68.5, z: -11.5, r: 0.9 },
             // Лираэль, Хранительница Каменного Дозора (NPC у водопада)
             { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 },
             // Олениха-друид (NPC): в тени одинокого большого дерева (14, 8.5), берёт отчёты по заданиям от Лираэль
@@ -1063,6 +1068,11 @@ window.LOCATIONS = {
             { id: 'homeCamp.campfire', prop: 'campfire', x: -14.0, z: -9.0, r: 0.5, s: 1.7 },
             // Сундук для излишков (содержимое хранится в сохранении персонажа)
             { id: 'homeCamp.chest1', prop: 'chest', x: -18.5, z: -9.5, r: 0.5 }
+        ],
+
+        // Элиара Полуночная: танцует у лагеря (элита 20 ур., не агрессивна; пока здесь, позже решим)
+        creatures: [
+            { id: 'homeCamp.dancer', type: 'midnight_dancer', level: 20, rank: 'elite', x: -9.0, z: -6.0, r: 1.57 }
         ]
     },
 

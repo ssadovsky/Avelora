@@ -1,0 +1,29 @@
+{
+  "id": "midnight_dancer",
+  "name": "Элиара Полуночная",
+  "level": 20,
+  "rank": "elite",
+  "hp": 650,
+  "damage": [
+    32,
+    46
+  ],
+  "attackRange": 1.0,
+  "attackCooldown": 2.4,
+  "walkSpeed": 1.2,
+  "runSpeed": 5.0,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 14,
+  "wanderRadius": 0,
+  "dance": true,
+  "respawnMinutes": 10,
+  "hitRadius": 0.55,
+  "scale": 1.0,
+  "gold": [
+    18,
+    30
+  ],
+  "xp": 700,
+  "drops": []
+}
