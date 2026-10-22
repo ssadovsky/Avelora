@@ -3068,7 +3068,7 @@ class AveloraGame {
         const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
         for (let i = 0; i < blockers.length; i++) {
             const d = this._modelRayLimit(blockers[i], head, dir, dist * k);
-            if (d !== null) k = Math.min(k, Math.max((d - 0.4) / dist, 0.6 / dist));
+            if (d !== null) k = Math.min(k, Math.max((d - 0.4) / dist, Math.min(0.6, d * 0.5) / dist));
         }
         cam.x = head.x + dx * k; cam.y = head.y + dy * k; cam.z = head.z + dz * k;
         const g = t.getHeightAt(cam.x, cam.z) + 0.6;

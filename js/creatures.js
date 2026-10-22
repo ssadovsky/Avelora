@@ -346,8 +346,15 @@
                     const ph = isFlyer
                         ? Math.max(1.35, tpl.height * 2.5 + 0.6)
                         : Math.max(H.minHeight, tpl.height * H.heightMul);
-                    const geo = new THREE.CylinderGeometry(pr, pr, ph, 12, 1);
-                    geo.translate(0, isFlyer ? ph * 0.5 - 0.35 : ph / 2 - 0.1, 0);
+                    let geo;
+                    if (Array.isArray(def.hitBox) && def.hitBox.length >= 3) {
+                        // длинное тело (крокодил): коробка [ширина, высота, длина, сдвиг по Z] вместо цилиндра — кликается и голова, и хвост
+                        geo = new THREE.BoxGeometry(def.hitBox[0], def.hitBox[1], def.hitBox[2]);
+                        geo.translate(0, def.hitBox[1] / 2 - 0.1, def.hitBox[3] || 0);
+                    } else {
+                        geo = new THREE.CylinderGeometry(pr, pr, ph, 12, 1);
+                        geo.translate(0, isFlyer ? ph * 0.5 - 0.35 : ph / 2 - 0.1, 0);
+                    }
                     this.proxyGeos[rec.type] = geo;
                 }
                 const proxy = new THREE.Mesh(this.proxyGeos[rec.type], window.AveloraWorldObjects
@@ -520,6 +527,11 @@
                 if (rec.staggerT > 0 && !this.hasClip(rec, 'Hit')) {
                     rx -= rec.staggerT * 0.6;
                 }
+            }
+            // земноводные (waterSink, м): на мелководье тело садится глубже — торчит над водой примерно наполовину
+            if (rec.def.waterSink && rec.state !== 'dead' && this.terrain && this.terrain.getHeightAt) {
+                const wy = this.terrain.getHeightAt(rec.x, rec.z);
+                if (wy < 0) py -= rec.def.waterSink * Math.min(1, -wy / 0.4);
             }
             m.position.set(0, py, pz);
             m.rotation.set(rx, ry, rz);
@@ -907,21 +919,20 @@
             rec.timer = 2 + Math.random() * 2;
         }
 
+        // Сетка прямоугольная (halfWorldX/Z, cellWidth/Height): переводим через worldToGrid самой сетки.
+        // (Раньше здесь читались несуществующие pf.halfWorld / pf.cellSize -> NaN -> «всегда непроходимо»: мобы не блуждали.)
         isWalkable(x, z) {
             const pf = this.pathfinder;
             if (!pf) return true;
-            const gx = Math.floor((x + pf.halfWorld) / pf.cellSize), gz = Math.floor((z + pf.halfWorld) / pf.cellSize);
-            return pf.isWalkable(gx, gz);
+            const g = pf.worldToGrid(x, z);
+            return pf.isWalkable(g.x, g.z);
         }
 
         losTo(rec, x, z) {
             const pf = this.pathfinder;
             if (!pf) return true;
-            const h = pf.halfWorld, cs = pf.cellSize, n = pf.gridSize - 1;
-            const cl = v => Math.max(0, Math.min(n, v));
-            return pf.hasLineOfSight(
-                cl(Math.floor((rec.x + h) / cs)), cl(Math.floor((rec.z + h) / cs)),
-                cl(Math.floor((x + h) / cs)), cl(Math.floor((z + h) / cs)));
+            const a = pf.worldToGrid(rec.x, rec.z), b = pf.worldToGrid(x, z);
+            return pf.hasLineOfSight(a.x, a.z, b.x, b.z);
         }
 
         /**

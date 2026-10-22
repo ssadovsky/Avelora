@@ -317,6 +317,10 @@ class DiabloPathfinder {
             if (curX === x1 && curZ === z1) break;
 
             let e2 = 2 * err;
+            // диагональный шаг не должен протискиваться между двумя угловыми стенами (диагональная цепочка клеток — сплошная стена)
+            if (e2 > -dz && e2 < dx) {
+                if (!this.isWalkable(curX + sx, curZ) || !this.isWalkable(curX, curZ + sz)) return false;
+            }
             if (e2 > -dz) {
                 err -= dz;
                 curX += sx;

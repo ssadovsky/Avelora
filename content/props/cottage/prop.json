@@ -1,0 +1,7 @@
+{
+  "id": "cottage",
+  "name": "Домик",
+  "obstacle": 0,
+  "obstacleShapes": [{ "type": "box", "hx": 1.75, "hz": 1.75, "r": 0.4, "step": 0.35, "exact": true }],
+  "cameraBlock": true
+}

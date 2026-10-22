@@ -1,0 +1,46 @@
+{
+  "id": "sarcosuchus",
+  "name": "Саркозух",
+  "level": 6,
+  "rank": "elite",
+  "hp": 220,
+  "damage": [
+    12,
+    18
+  ],
+  "attackRange": 1.0,
+  "attackCooldown": 2.0,
+  "walkSpeed": 0.7,
+  "runSpeed": 3.2,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 16,
+  "wanderRadius": 7,
+  "respawnMinutes": 6,
+  "hitRadius": 1.9,
+  "hitBox": [
+    1.5,
+    1.1,
+    5.6,
+    -0.5
+  ],
+  "scale": 1.0,
+  "waterSink": 0.12,
+  "proceduralIdle": true,
+  "gold": [
+    4,
+    8
+  ],
+  "xp": 55,
+  "tiltSpan": [
+    -0.5,
+    0.6,
+    0.55
+  ],
+  "drops": [
+    {
+      "item": "meat",
+      "count": 4
+    }
+  ]
+}

@@ -12,7 +12,8 @@
 // шейдер в каждом пикселе. Было 48; 16 ближайших к герою визуально то же, а пиксель заметно дешевле (телефон).
 const TERRAIN_AO_N = 16;
 // Текстура расстояния до троп хранит расстояние до PATH_DIST_MAX м (дальше маски троп всё равно нулевые)
-const PATH_DIST_MAX = 8.0;
+const PATH_DIST_MAX = 8.0;
+const OCT_SIN = [0, 0.70711, 1, 0.70711, 0, -0.70711, -1, -0.70711], OCT_COS = [1, 0.70711, 0, -0.70711, -1, -0.70711, 0, 0.70711];
 const PATH_DIST_PX_PER_M = 2;
 window.TERRAIN_AO_N = TERRAIN_AO_N;
 
@@ -169,7 +170,11 @@ class LakesideTerrain {
                 const lx = dx * p.cos - dz * p.sin;
                 const lz = dx * p.sin + dz * p.cos;
                 const alx = Math.abs(lx);
-                if (alx <= p.hx && lz >= -p.hz && lz <= p.hz) return p.y;   // deck
+                if (p.oct) {   // восьмиугольный настил (беседка): плоская сторона к локальному +Z
+                    let m = -1e9;
+                    for (let k = 0; k < 8; k++) { const v = lx * OCT_SIN[k] + lz * OCT_COS[k]; if (v > m) m = v; }
+                    if (m <= p.oct) return p.y;
+                } else if (alx <= p.hx && lz >= -p.hz && lz <= p.hz) return p.y;   // deck
                 if (lz > p.hz && lz < p.hz + p.rampLen && alx < p.rampHx + 0.25) {   // ramp down to the ground
                     let plane = p.y + (p.endY - p.y) * ((lz - p.hz) / p.rampLen);
                     if (alx > p.rampHx) plane -= (alx - p.rampHx) * 4;               // soft side edge
@@ -569,15 +574,20 @@ class LakesideTerrain {
             let stoneWidth = 2.8;
 
             (this.paths || []).forEach(pp => {
+                if (pp.thin) return;   // тонкие тропинки ширину общей маски не задают
+                if (pp.type === 'stone') stoneWidth = pp.width || stoneWidth;
+                else dirtWidth = pp.width || dirtWidth;
+            });
+            const dirtOff = [], stoneOff = [];
+            (this.paths || []).forEach(pp => {
                 const isStone = (pp.type === 'stone');
                 const targetSegs = isStone ? stoneSegs : dirtSegs;
-                if (isStone) {
-                    stoneWidth = pp.width || stoneWidth;
-                } else {
-                    dirtWidth = pp.width || dirtWidth;
-                }
+                const targetOff = isStone ? stoneOff : dirtOff;
+                // тонкая тропинка: расстояние до неё увеличивается на разницу полуширин, шейдер остаётся общим
+                const off = pp.thin ? Math.max(0, ((isStone ? stoneWidth : dirtWidth) - (pp.width || 1.0)) * 0.5) : 0;
                 for (let i = 0; i + 1 < pp.points.length && targetSegs.length < 16; i++) {
                     targetSegs.push(new THREE.Vector4(pp.points[i][0], pp.points[i][1], pp.points[i + 1][0], pp.points[i + 1][1]));
+                    targetOff.push(off);
                 }
             });
 
@@ -595,7 +605,7 @@ class LakesideTerrain {
             shader.uniforms.uStoneWidth = { value: stoneWidth };
 
             // Расстояние до троп считается один раз на локацию в текстуру (раньше — циклом по 2×16 отрезкам в каждом пикселе)
-            const pathTex = this._buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone);
+            const pathTex = this._buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone, dirtOff, stoneOff);
             shader.uniforms.uPathDist = { value: pathTex.texture };
             shader.uniforms.uPathRect = { value: pathTex.rect };
 
@@ -937,11 +947,11 @@ class LakesideTerrain {
      * только по прямоугольнику вокруг троп. Строится один раз на локацию; шейдер берёт одно чтение вместо цикла
      * по отрезкам в каждом пикселе. Отрезки и ширины — те же, что раньше шли в uniform-массивы, вид не меняется.
      */
-    _buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone) {
+    _buildPathDistTexture(dirtSegs, nDirt, stoneSegs, nStone, dirtOff = [], stoneOff = []) {
         if (this._pathTex) return this._pathTex;
         const segs = [];
-        for (let i = 0; i < nDirt; i++) segs.push([dirtSegs[i], 0]);
-        for (let i = 0; i < nStone; i++) segs.push([stoneSegs[i], 1]);
+        for (let i = 0; i < nDirt; i++) segs.push([dirtSegs[i], 0, dirtOff[i] || 0]);
+        for (let i = 0; i < nStone; i++) segs.push([stoneSegs[i], 1, stoneOff[i] || 0]);
         let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
         segs.forEach(([v]) => {
             minX = Math.min(minX, v.x, v.z); maxX = Math.max(maxX, v.x, v.z);
@@ -960,7 +970,7 @@ class LakesideTerrain {
             const dist = [new Float32Array(W * H).fill(PATH_DIST_MAX), new Float32Array(W * H).fill(PATH_DIST_MAX)];
             const sx = (maxX - minX) / W, sz = (maxZ - minZ) / H;
             // каждый отрезок обновляет только пиксели в своей рамке ± PATH_DIST_MAX
-            segs.forEach(([v, ch]) => {
+            segs.forEach(([v, ch, off]) => {
                 const ax = v.x, az = v.y, bx = v.z, bz = v.w;
                 const abx = bx - ax, abz = bz - az, ab2 = Math.max(abx * abx + abz * abz, 1e-4);
                 const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - PATH_DIST_MAX - minX) / sx));
@@ -975,7 +985,7 @@ class LakesideTerrain {
                         let t = ((px - ax) * abx + (pz - az) * abz) / ab2;
                         t = t < 0 ? 0 : (t > 1 ? 1 : t);
                         const dx = px - (ax + abx * t), dz = pz - (az + abz * t);
-                        const d = Math.sqrt(dx * dx + dz * dz);
+                        const d = Math.sqrt(dx * dx + dz * dz) + off;
                         const k = j * W + i;
                         if (d < D[k]) D[k] = d;
                     }

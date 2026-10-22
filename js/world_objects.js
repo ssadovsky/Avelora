@@ -300,15 +300,65 @@
             if (obstacle > 0 && this.pathfinder && !p.noObstacle) {
                 this.pathfinder.addObstacle(p.x, p.z, Math.max(obstacle, MIN_NAV_OBSTACLE));
             }
+            // составная непроходимая форма (prop.json "obstacleShapes"): box {hx,hz,cx,cz} — прямоугольник, ring {radius,step,gapDeg,r} — кольцо с проёмом у локального +Z
+            if (def.obstacleShapes && this.pathfinder && !p.noObstacle) {
+                const cr = Math.cos(p.r || 0), sr = Math.sin(p.r || 0);
+                const put = (lx, lz, rad, exact) => this.pathfinder.addObstacle(p.x + (lx * cr + lz * sr) * s, p.z + (-lx * sr + lz * cr) * s, exact ? rad * s : Math.max(rad * s, MIN_NAV_OBSTACLE));
+                def.obstacleShapes.forEach(sh => {
+                    const rad = sh.r || 0.55, step = sh.step || 0.7;
+                    if (sh.type === 'box') {
+                        const nx = Math.max(1, Math.ceil(2 * sh.hx / step)), nz = Math.max(1, Math.ceil(2 * sh.hz / step));
+                        for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++)
+                            put((sh.cx || 0) - sh.hx + 2 * sh.hx * i / nx, (sh.cz || 0) - sh.hz + 2 * sh.hz * j / nz, rad, sh.exact);
+                    } else if (sh.type === 'octagon') {
+                        // восьмиугольный заборчик: apothem — расстояние до сторон, вход (плоская сторона) у локального +Z; gapHalf — полуширина проёма
+                        const R = sh.apothem / Math.cos(Math.PI / 8), gh = sh.gapHalf || 1.3;
+                        for (let k = 0; k < 8; k++) {
+                            const a0 = Math.PI / 8 + k * Math.PI / 4, a1 = a0 + Math.PI / 4;
+                            const x0 = R * Math.sin(a0), z0 = R * Math.cos(a0), x1 = R * Math.sin(a1), z1 = R * Math.cos(a1);
+                            const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, z1 - z0) / step));
+                            for (let i = 0; i < n; i++) {
+                                const lx = x0 + (x1 - x0) * i / n, lz = z0 + (z1 - z0) * i / n;
+                                if (lz > 0 && Math.abs(lx) < gh && lz > sh.apothem * 0.9) continue;
+                                put(lx, lz, rad, sh.exact);
+                            }
+                        }
+                    } else if (sh.type === 'ring') {
+                        const n = Math.max(8, Math.round(2 * Math.PI * sh.radius / step));
+                        const gap = (sh.gapDeg || 0) * Math.PI / 180;
+                        for (let i = 0; i < n; i++) {
+                            const a = 2 * Math.PI * i / n, d = Math.min(a, 2 * Math.PI - a);
+                            if (d < gap) continue;
+                            put(sh.radius * Math.sin(a), sh.radius * Math.cos(a), rad, sh.exact);
+                        }
+                    }
+                });
+            }
             return this.loadTemplates('props', p.prop, def).then(variants => {
                 if (this.disposed) return null;
                 const v = variants[(p.variant || 0) % variants.length];
                 const obj = v.clone();
-                obj.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) - 0.02, p.z);
+                obj.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) - 0.02 + (p.dy || 0), p.z);
                 obj.rotation.y = p.r || 0;
                 obj.scale.setScalar(s);
                 obj.name = `prop:${p.id || p.prop}`;
                 this.root.add(obj);
+                // ходимая платформа (prop.json "platform": {oct|hx,hz, y, rampLen, rampHx}): герой поднимается на настил по ступенькам
+                if (def.platform && this.terrain.addPlatform) {
+                    const pf = def.platform, c = Math.cos(p.r || 0), sn = Math.sin(p.r || 0);
+                    const half = (pf.oct || pf.hz || 2) * s, rl = (pf.rampLen || 0.7) * s;
+                    const ex = p.x + sn * (half + rl), ez = p.z + c * (half + rl);   // конец пандуса (локальный +Z)
+                    const base = obj.position.y;
+                    this.terrain.addPlatform({
+                        id: 'prop:' + (p.id || p.prop), x: p.x, z: p.z, cos: c, sin: sn,
+                        oct: pf.oct ? pf.oct * s : 0, hx: (pf.hx || half) * s, hz: half,
+                        y: base + (pf.y || 0) * s, rampLen: rl, rampHx: (pf.rampHx || 0.7) * s,
+                        endY: this.terrain.getHeightAt(ex, ez),
+                        reach2: Math.pow(half * 1.5 + rl + 0.8, 2)
+                    });
+                }
+                // крупный твёрдый проп (дом): камера не лезет внутрь модели (prop.json "cameraBlock": true)
+                if (def.cameraBlock && this.game.addCameraBlocker) this.game.addCameraBlocker(obj);
                 const size = v.userData.size;
                 const rec = {
                     id: p.id || p.prop, prop: p.prop, x: p.x, z: p.z,

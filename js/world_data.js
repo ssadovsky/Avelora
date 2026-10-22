@@ -80,7 +80,7 @@ window.LOCATIONS = {
             // Горный перевал (ущелье) на запад в Золотую саванну
             mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
             // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
-            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }],
+            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }],   // 2-й: под домиком, 3-й: под беседкой
             // Арочный вырез в восточном горном барьере для грота (севернее водопада)
             caves: [
                 { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
@@ -115,6 +115,10 @@ window.LOCATIONS = {
                         [120.0, 4.0], [98.0, 5.0], [75.0, 7.5], [52.0, 5.0],
                         [30.0, 1.0], [15.0, -2.0]
                     ]
+                },
+                {   // тонкая тропинка от каменной дороги к домику (70, -15), вход на юг
+                    type: 'dirt', thin: true, width: 1.2, clearMargin: 1.4,
+                    points: [[73.4, 4.9], [73.4, 2.0], [72.2, -2.0], [70.8, -7.0], [70.0, -11.9]]
                 }
             ]
         },
@@ -122,7 +126,7 @@ window.LOCATIONS = {
         atmosphere: { sky: 0xc6dbe3, skyTop: 0x4a8fc9, fogDensity: 0.0055 },
         cameraAngle: 0.0,           // на старте камера смотрит на север (по тропе к Лираэль)
         // Зоны без папоротников (поляна барсуков): эллипсы {x, z, rx, rz}
-        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }],
+        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }, { x: 25.5, z: -17.5, rx: 6.0, rz: 8.5 }],   // 2-й: беседка и подход к ней
 
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
@@ -194,7 +198,9 @@ window.LOCATIONS = {
             { x: 30.0, z: 51.0, radius: 18.0 },  // поляна петухов (к западу от барсуков)
             { x: -78.0, z: 49.0, radius: 28.0 }, // юго-западная поляна синих пауков
             { x: 72.0, z: 72.0, radius: 11.0 }, { x: 55.0, z: 64.0, radius: 8.0 }, { x: 90.0, z: 64.0, radius: 8.0 },
-            { x: 107.0, z: 67.5, radius: 6.5 }   // стартовый лагерь: пень с топором, брёвна, камни, посох
+            { x: 107.0, z: 67.5, radius: 6.5 },  // стартовый лагерь: пень с топором, брёвна, камни, посох
+            { x: 70.0, z: -14.0, radius: 8.0 },  // домик и наковальня (70, -15)
+            { x: 25.5, z: -20.1, radius: 4.5 }   // беседка между четырьмя дубами
         ],
 
         groups: [
@@ -410,6 +416,25 @@ window.LOCATIONS = {
 
         props: [
             { id: 'start_stump', prop: 'stump', x: 107.0, z: 68.0, r: 0.4, s: 1.0 },
+            // Домик (фасад с дверью смотрит на запад) и наковальня рядом
+            { id: 'forestEdge.cottage', prop: 'cottage', x: 70.0, z: -15.0, r: 0.0 },
+            { id: 'forestEdge.anvil', prop: 'anvil', x: 65.9, z: -12.0, r: 0.5 },
+            { id: 'forestEdge.gazebo', prop: 'gazebo', x: 25.5, z: -20.1, r: 0.0 },
+            // фиалки и пучки травы на пчелиной поляне
+            { id: 'forestEdge.violets_1', prop: 'violet_flowerbed', x: 79, z: 19, r: 0.4, s: 0.5 },
+            { id: 'forestEdge.violets_2', prop: 'violet_flowerbed', x: 84, z: 20.5, r: 1.9, s: 0.6 },
+            { id: 'forestEdge.violets_3', prop: 'violet_flowerbed', x: 90, z: 18, r: 3.1, s: 0.45 },
+            { id: 'forestEdge.violets_4', prop: 'violet_flowerbed', x: 95, z: 27, r: 5.0, s: 0.55 },
+            { id: 'forestEdge.violets_5', prop: 'violet_flowerbed', x: 88, z: 29, r: 2.4, s: 0.5 },
+            { id: 'forestEdge.violets_6', prop: 'violet_flowerbed', x: 100, z: 16.5, r: 0.9, s: 0.575 },
+            { id: 'forestEdge.tuft_1', prop: 'grass_tuft', x: 81.5, z: 24, r: 0.2, s: 1.0 },
+            { id: 'forestEdge.tuft_2', prop: 'grass_tuft', x: 87, z: 22.5, r: 1.5, s: 1.2 },
+            { id: 'forestEdge.tuft_3', prop: 'grass_tuft', x: 92.5, z: 20.5, r: 2.9, s: 0.9 },
+            { id: 'forestEdge.tuft_4', prop: 'grass_tuft', x: 97, z: 22, r: 4.1, s: 1.1 },
+            { id: 'forestEdge.tuft_5', prop: 'grass_tuft', x: 78.5, z: 30, r: 5.5, s: 1.0 },
+            { id: 'forestEdge.tuft_6', prop: 'grass_tuft', x: 94, z: 29.5, r: 0.8, s: 1.15 },
+            { id: 'forestEdge.tuft_7', prop: 'grass_tuft', x: 101.5, z: 24, r: 3.6, s: 0.95 },
+            { id: 'forestEdge.tuft_8', prop: 'grass_tuft', x: 85, z: 13.5, r: 2.2, s: 1.05 },
             // Лираэль, Хранительница Каменного Дозора (NPC у водопада)
             { id: 'forestEdge.lirael', prop: 'npc_lirael', x: 129.0, z: 19.5, r: 0.0 },
             // Олениха-друид (NPC): в тени одинокого большого дерева (14, 8.5), берёт отчёты по заданиям от Лираэль
@@ -822,9 +847,16 @@ window.LOCATIONS = {
             { id: 'sv_komodo_2', type: 'komodo', x: -10.0, z: 20.0, r: 2.70 },
             { id: 'sv_komodo_3', type: 'komodo', x: -78.0, z: -22.0, r: 4.40 },
             { id: 'sv_komodo_4', type: 'komodo', x: -60.0, z: 38.0, r: 6.10 },
+            // Саркозухи: на мелководье озера (наполовину в воде), могут выползать на берег; не агрессивные (retaliate)
+            { id: 'sv_sarco_1', type: 'sarcosuchus', x: -25.8, z: -9.3, r: 1.31 },
+            { id: 'sv_sarco_2', type: 'sarcosuchus', x: -40.4, z: 4.5, r: -0.26 },
+            { id: 'sv_sarco_3', type: 'sarcosuchus', x: -47.7, z: -15.1, r: -1.83 },
+            { id: 'sv_sarco_4', type: 'sarcosuchus', x: -36.0, z: -26.6, r: 3.14 },
             { id: 'sv_lion_1', type: 'cave_lion', x: 18.0, z: -66.0, r: 2.00 },
             { id: 'sv_lion_2', type: 'cave_lion', x: 34.0, z: -72.0, r: 3.70 },
             { id: 'sv_lion_3', type: 'cave_lion', x: 4.0, z: -74.0, r: 5.40 },
+            // Серый носорог: элита, северо-запад у края карты, за гиеньими лугами (агрессивный, радиус 10 м)
+            { id: 'sv_rhino_1', type: 'rhino', x: -112.0, z: -76.0, r: 1.57 },
             // Ящеры-солдаты в лагере (расширены по всей восточной и юго-восточной части)
             { id: 'sv_soldier_1', type: 'lizard_soldier', x: 105.6, z: 49.0, r: 0.50 },
             { id: 'sv_soldier_2', type: 'lizard_soldier', x: 98.2, z: 55.8, r: 2.20 },

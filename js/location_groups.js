@@ -88,7 +88,7 @@
                     const len2 = dx * dx + dz * dz;
                     const tVal = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
                     const cx = ax + tVal * dx, cz = az + tVal * dz;
-                    const d = Math.hypot(x - cx, z - cz) - halfW;
+                    const d = Math.hypot(x - cx, z - cz) - halfW + (p.thin ? 6.0 - (p.clearMargin || 1.4) : 0);   // thin: растения отступают только на clearMargin м
                     if (d < minD) minD = d;
                 }
             }
