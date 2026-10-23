@@ -258,6 +258,25 @@ class LakesideTerrain {
             const w = t * t * (3.0 - 2.0 * t);
             out += (this._flatH[i] - out) * w;
         }
+        // Небольшие горки по краям среза модели ущелья (z = 96.5) до южного края локации: закрывают торцы обрезанной скалы
+        const rt = this.locTerrain.rockTint;
+        if (rt && z > 93.5 && Math.abs(x - rt.x) < 10.0) {
+            if (this._passBaseY === undefined) this._passBaseY = this._getRawHeightBase(rt.x, 79.0) + 0.24;
+            const ss = (a, b, v) => { const u = Math.min(1.0, Math.max(0.0, (v - a) / (b - a))); return u * u * (3.0 - 2.0 * u); };
+            const dx = x - rt.x;
+            const wz = (0.75 * ss(92.5, 96.6, z) + 0.18 * ss(92.5, 99.4, z)) * (1.0 + 0.01 * ss(98.0, 99.8, z));   // у края локации выше, к скале плавный спуск
+            const z1 = ss(96.0, 97.0, z);
+            let ly = -99.0;
+            if (dx <= -1.0) {
+                ly = -1.35 + 5.95 * ss(-1.1, -2.3, dx) * (1.0 - ss(-6.4, -9.8, dx));
+            } else if (dx >= 1.0) {
+                ly = -0.35 + 5.95 * ss(1.1, 2.3, dx) * (1.0 - ss(6.8, 10.0, dx));
+            }
+            if (ly > -50.0) {
+                const cap = this._passBaseY - 0.35 + (ly + 0.35) * wz;
+                if (cap > out) out = cap;
+            }
+        }
         return out;
     }
 
@@ -398,7 +417,19 @@ class LakesideTerrain {
                 const crags = Math.pow(sharpRidge, 1.8) * 2.4;
                 const microCrags = Math.abs(this.noise.noise2D(x * 0.15, z * 0.15)) * 0.85;
 
-                let mHeight = smoothFactor * baseHeight + smoothFactor * (crags + microCrags);
+                // Около оси ущелья (rimDip) острые гряды (crags) гасятся — мягкие округлые склоны без углов
+                let cragK = 1.0;
+                const rd0 = this.locTerrain.rimDip || [];
+                for (let di = 0; di < rd0.length; di++) {
+                    const D0 = rd0[di];
+                    const q0 = Math.min(1.0, Math.abs(x - D0.x) / D0.w);
+                    const s0 = q0 * q0 * (3.0 - 2.0 * q0);
+                    cragK = Math.min(cragK, (D0.cragK !== undefined ? D0.cragK : 0.3) + (1.0 - (D0.cragK !== undefined ? D0.cragK : 0.3)) * s0);
+                }
+                // Гладкая замена острым гребням: у оси ущелья (cragK->0) вместо abs()-изломов - мягкий низкочастотный шум
+                const cragSoft = 1.25 + 0.45 * this.noise.noise2D(x * 0.03 + 11.0, z * 0.03 - 7.0);
+                const cragMix = cragSoft + ((crags + microCrags) - cragSoft) * cragK;
+                let mHeight = smoothFactor * baseHeight + smoothFactor * cragMix;
 
                 // Мягкий «провал» гор вдоль линии края (rimDip): минимум у оси ущелья (k0), плавно до полной высоты на расстоянии w по бокам
                 const rd = this.locTerrain.rimDip || [];
@@ -604,7 +635,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v33_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v38_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);

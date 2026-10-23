@@ -80,9 +80,9 @@ window.LOCATIONS = {
             // Горный перевал (ущелье) на запад в Золотую саванну
             mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
             // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
-            rimDip: [{ x: 0.0, k0: 0.55, w: 30.0 }],
+            rimDip: [{ x: 0.0, k0: 0.85, w: 30.0, cragK: 0.0 }],
             rockTint: { x: 0.0, z: 94.0, tintRadius: 26.0, tintStrength: 0.9 },
-            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 2.4, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.4, blend: 1.2, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
+            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 4.5, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.6, blend: 6.5, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
             // Арочный вырез в восточном горном барьере для грота (севернее водопада)
             caves: [
                 { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
@@ -997,9 +997,9 @@ window.LOCATIONS = {
             landFloor: 0.85,
             mountainRim: { width: 16.0, height: 6.0 },
             mountainPasses: [],
-            rimDip: [{ x: 0.0, k0: 0.55, w: 30.0 }],
+            rimDip: [{ x: 0.0, k0: 0.85, w: 30.0, cragK: 0.0 }],
             rockTint: { x: 0.0, z: 94.0, tintRadius: 26.0, tintStrength: 0.9 },
-            flatSpots: [{ x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 2.4, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.4, blend: 1.2, hFrom: [0.0, 79.0], dh: -0.11 }],
+            flatSpots: [{ x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 4.5, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.6, blend: 6.5, hFrom: [0.0, 79.0], dh: -0.11 }],
             waterBody: { type: 'lake', x: -30.0, z: -5.0, radius: 17.0, depth: -1.2, beachWidth: 14.0, shoreSmooth: true },
             hills: { amplitude: 2.0, inclineX: 0.1, inclineZ: -0.1 },
             stoneTexture: 'pebbleTrailDiff',
