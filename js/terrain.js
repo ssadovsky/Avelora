@@ -268,7 +268,7 @@ class LakesideTerrain {
             const z1 = ss(96.0, 97.0, z);
             let ly = -99.0;
             if (dx <= -1.0) {
-                ly = -1.35 + 5.95 * ss(-1.1, -2.3, dx) * (1.0 - ss(-6.4, -9.8, dx));
+                ly = -0.35 + 5.95 * ss(-1.1, -2.3, dx) * (1.0 - ss(-6.8, -10.0, dx));   // зеркально правой
             } else if (dx >= 1.0) {
                 ly = -0.35 + 5.95 * ss(1.1, 2.3, dx) * (1.0 - ss(6.8, 10.0, dx));
             }
@@ -635,7 +635,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v38_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v41_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
