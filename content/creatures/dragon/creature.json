@@ -1,0 +1,47 @@
+{
+  "id": "dragon",
+  "name": "Бурый дракон",
+  "level": 22,
+  "hp": 2600,
+  "damage": [
+    70,
+    100
+  ],
+  "attackRange": 3.8,
+  "attackCooldown": 3.0,
+  "walkSpeed": 1.8,
+  "runSpeed": 6.0,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 36,
+  "wanderRadius": 10,
+  "respawnMinutes": 30,
+  "hitRadius": 4.0,
+  "hitBox": [
+    4.0,
+    3.5,
+    8.0,
+    0
+  ],
+  "scale": 1.0,
+  "gold": [
+    40,
+    70
+  ],
+  "xp": 2500,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 12
+    },
+    {
+      "item": "bear_hide",
+      "count": 3
+    }
+  ],
+  "idlePause": [
+    8,
+    16
+  ],
+  "hpBarHeight": 3.3
+}

@@ -1,0 +1,49 @@
+{
+  "id": "red_dragon",
+  "name": "Красный дракон",
+  "level": 25,
+  "hp": 4000,
+  "damage": [
+    80,
+    120
+  ],
+  "attackRange": 4.2,
+  "attackCooldown": 3.2,
+  "walkSpeed": 1.6,
+  "runSpeed": 5.0,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 36,
+  "wanderRadius": 9,
+  "respawnMinutes": 40,
+  "hitRadius": 4.5,
+  "hitBox": [
+    6.0,
+    3.0,
+    6.0,
+    0
+  ],
+  "scale": 1.0,
+  "flyHeight": 3.2,
+  "proceduralIdle": true,
+  "gold": [
+    60,
+    100
+  ],
+  "xp": 4000,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 15
+    },
+    {
+      "item": "bear_hide",
+      "count": 4
+    }
+  ],
+  "idlePause": [
+    8,
+    16
+  ],
+  "hpBarHeight": 3.6
+}

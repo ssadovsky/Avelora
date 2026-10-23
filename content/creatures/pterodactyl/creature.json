@@ -1,0 +1,40 @@
+{
+  "id": "pterodactyl",
+  "name": "Птеродактиль",
+  "level": 9,
+  "hp": 180,
+  "damage": [
+    12,
+    18
+  ],
+  "attackRange": 2.6,
+  "attackCooldown": 2.0,
+  "walkSpeed": 2.4,
+  "runSpeed": 6.0,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 30,
+  "wanderRadius": 14,
+  "respawnMinutes": 5,
+  "hitRadius": 1.8,
+  "hitBox": [
+    4.0,
+    1.5,
+    2.5,
+    0
+  ],
+  "scale": 1.0,
+  "flyHeight": 2.2,
+  "gold": [
+    2,
+    5
+  ],
+  "xp": 120,
+  "drops": [
+    {
+      "item": "meat",
+      "count": 2
+    }
+  ],
+  "hpBarHeight": 2.3
+}

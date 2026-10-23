@@ -1392,7 +1392,7 @@
                 if (!want) { this.hideHpBar(rec); continue; }
                 this.ensureHpBar(rec);
                 if (!rec.hpEl) continue;
-                _v.set(rec.x, rec.y + rec.height + 0.35, rec.z).project(g.camera);
+                _v.set(rec.x, rec.y + (rec.def.hpBarHeight || rec.height) + 0.35, rec.z).project(g.camera);   // hpBarHeight: у летунов анимация поднимает тело выше габарита позы
                 if (_v.z >= 1 || _v.x < -1.1 || _v.x > 1.1 || _v.y < -1.1 || _v.y > 1.1) { this.hideHpBar(rec); continue; }
                 if (!rec.hpShown) { rec.hpEl.style.display = 'block'; rec.hpShown = true; }
                 const frac = Math.round(rec.hp / rec.maxHp * 100) / 100;
@@ -1408,7 +1408,7 @@
         aliveCount() { return this.list.filter(r => this.isAlive(r)).length; }
         /** Screen position of a creature's body (tests click/tap on it). */
         screenPos(rec) {
-            _v.set(rec.x, rec.y + rec.height * 0.5, rec.z).project(this.game.camera);
+            _v.set(rec.x, rec.y + (rec.def.hpBarHeight || rec.height) * 0.5, rec.z).project(this.game.camera);
             return [(_v.x + 1) / 2 * window.innerWidth, (1 - _v.y) / 2 * window.innerHeight];
         }
 

@@ -1,0 +1,9 @@
+{
+  "id": "rune_portal",
+  "name": "Рунный портал",
+  "obstacle": 0,
+  "platform": { "oct": 1.95, "y": 0.7, "rampLen": 1.6, "rampHx": 1.0 },
+  "obstacleShapes": [
+    { "type": "ring", "radius": 2.55, "step": 0.55, "gapDeg": 24, "r": 0.5, "exact": true }
+  ]
+}

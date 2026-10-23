@@ -68,7 +68,7 @@
             station: 'forge',
             name: 'Кузня',
             desc: 'Открытая кузня под навесом: каменный горн с трубой, наковальня, бадья для закалки, верстак. Рядом с ней можно ковать (рецепты со станцией «кузня»).',
-            cost: [{ item: 'stone', count: 14 }, { item: 'log', count: 4 }, { item: 'plank', count: 6 }],
+            cost: [{ item: 'stone', count: 14 }, { item: 'iron_ore', count: 6 }, { item: 'log', count: 4 }, { item: 'plank', count: 6 }],
             mesh: 'smithy',
             rects: [
                 { x0: -2.7, x1: 2.7, z0: -2.25, z1: -0.55 },       // задняя стена и горн
@@ -715,11 +715,13 @@
                     <div class="inventory-title">Строительство</div>
                     <button type="button" id="build-close" title="Закрыть" aria-label="Закрыть">×</button>
                 </div>
+                <div id="build-scroll">
                 <div class="build-section">Постройки</div>
                 <div id="build-cards"></div>
                 <div class="build-section">Построено здесь</div>
                 <div id="build-list"></div>
-                <div class="build-hint">Возводить можно только на территории лагеря. Перед установкой нужно выбрать место: R — повернуть, ЛКМ — построить, Esc — отмена. Клавиша B — открыть/закрыть меню.</div>`;
+                <div class="build-hint">Возводить можно только на территории лагеря. Перед установкой нужно выбрать место: R — повернуть, ЛКМ — построить, Esc — отмена. Клавиша B — открыть/закрыть меню.</div>
+                </div>`;
             (document.getElementById('game-ui') || document.body).appendChild(panel);
             E.panel = panel;
             E.cards = panel.querySelector('#build-cards');
@@ -841,10 +843,12 @@
                 if (!def) return;
                 const card = document.createElement('div');
                 card.className = 'build-card';
+                let canBuild = true;
                 const costHtml = def.cost.map(c => {
                     const it = Items.get(c.item);
                     const have = st ? st.inventory.count(c.item) : 0;
                     const okc = FREE_BUILD || have >= c.count;
+                    if (!okc) canBuild = false;
                     return `<span class="${okc ? 'ok' : 'bad'}">${it ? it.name : c.item} ${have}/${c.count}</span>`;
                 }).join('');
                 card.innerHTML = `
@@ -853,10 +857,11 @@
                         <div class="build-card-name">${def.name}</div>
                         <div class="build-card-desc">${def.desc}</div>
                         <div class="build-cost">${FREE_BUILD ? '<span class="ok">Бесплатно (тест)</span>' : costHtml}</div>
-                        <button type="button" class="build-go">Разместить</button>
+                        <button type="button" class="build-go"${canBuild ? '' : ' disabled title="Не хватает материалов"'}>Разместить</button>
                     </div>`;
                 card.querySelector('.build-go').addEventListener('click', (e) => {
                     e.stopPropagation();
+                    if (!canBuild) return;
                     this.closePanel();
                     m.startPlacing(id);
                 });

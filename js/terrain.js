@@ -12,7 +12,8 @@
 // шейдер в каждом пикселе. Было 48; 16 ближайших к герою визуально то же, а пиксель заметно дешевле (телефон).
 const TERRAIN_AO_N = 16;
 // Текстура расстояния до троп хранит расстояние до PATH_DIST_MAX м (дальше маски троп всё равно нулевые)
-const PATH_DIST_MAX = 8.0;
+const PATH_DIST_MAX = 8.0;
+
 const OCT_SIN = [0, 0.70711, 1, 0.70711, 0, -0.70711, -1, -0.70711], OCT_COS = [1, 0.70711, 0, -0.70711, -1, -0.70711, 0, 0.70711];
 const PATH_DIST_PX_PER_M = 2;
 window.TERRAIN_AO_N = TERRAIN_AO_N;
@@ -64,6 +65,8 @@ class LakesideTerrain {
 
         // Скальная «подкраска» склона вокруг грота (vec4: x, z, радиус, сила): гора темнеет и сереет к цвету камней модели
         const _cv = (locTerrain.caves && locTerrain.caves[0]) || null;
+        const _rt = locTerrain.rockTint || null;   // тёмный камень горного пояса вокруг точки (ущелье-проход): { x, z, tintRadius, tintStrength }
+        this.rockTintUniform = { value: _rt ? new THREE.Vector4(_rt.x, _rt.z, _rt.tintRadius || 24.0, _rt.tintStrength !== undefined ? _rt.tintStrength : 0.85) : new THREE.Vector4(0, 0, 1, 0) };
         this.caveRockUniform = { value: _cv ? new THREE.Vector4(_cv.x, _cv.z, _cv.tintRadius || 26.0, _cv.tintStrength !== undefined ? _cv.tintStrength : 0.85) : new THREE.Vector4(0, 0, 1, 0) };
 
         // Маска плотности леса для groundSet 'baseForest' (R-канал, 0 = поляна, 1 = лес). Заполняется setForestMask().
@@ -250,7 +253,7 @@ class LakesideTerrain {
             const bl = (f.blend !== undefined) ? f.blend : 5.0;
             const d = Math.hypot(x - f.x, z - f.z);
             if (d >= f.radius + bl) continue;
-            if (this._flatH[i] === undefined) this._flatH[i] = this._getRawHeightBase(f.x, f.z);
+            if (this._flatH[i] === undefined) this._flatH[i] = (f.hFrom ? this._getRawHeightBase(f.hFrom[0], f.hFrom[1]) : this._getRawHeightBase(f.x, f.z)) + (f.dh || 0);   // hFrom: высота берётся в другой точке (ущелье в горном поясе: дно = уровень луга перед входом)
             const t = d <= f.radius ? 1.0 : 1.0 - (d - f.radius) / bl;
             const w = t * t * (3.0 - 2.0 * t);
             out += (this._flatH[i] - out) * w;
@@ -592,7 +595,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v24_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v26_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
@@ -611,6 +614,7 @@ class LakesideTerrain {
             shader.uniforms.uAO = { value: this.contactAO || [] };
             shader.uniforms.uForestMap = this.forestUniform;
             shader.uniforms.uCaveRock = this.caveRockUniform;
+            shader.uniforms.uRockTint = this.rockTintUniform;
             shader.uniforms.uForestRect = this.forestRectUniform;
 
             const dirtSegs = [];
@@ -679,6 +683,7 @@ class LakesideTerrain {
                 uniform vec4 uPathRect;
                 uniform sampler2D uForestMap;
                 uniform vec4 uCaveRock;
+                uniform vec4 uRockTint;
                 uniform vec4 uForestRect;
                 uniform sampler2D uTrailDiff;
                 uniform sampler2D uStoneTrailDiff;
@@ -936,7 +941,9 @@ class LakesideTerrain {
 
                     vec2 caveDiff = vWorldPosition.xz - uCaveRock.xy;
                     bool nearCave = (uCaveRock.w > 0.001 && dot(caveDiff, caveDiff) < uCaveRock.z * uCaveRock.z);
-                    if (totalRock > 0.0005 || nearCave) {
+                    vec2 tintDiff = vWorldPosition.xz - uRockTint.xy;
+                    bool nearTint = (uRockTint.w > 0.001 && dot(tintDiff, tintDiff) < uRockTint.z * uRockTint.z);
+                    if (totalRock > 0.0005 || nearCave || nearTint) {
                         vec3 rockTex = mix(texture2D(uRockDiff, uvRockMacro).rgb, texture2D(uRockDiff, uvRockMicro).rgb * 1.15, 0.50);
                         // Выразительный скальный микрорельеф на пиках
                         float peakAltitude = smoothstep(3.8, 8.5, vWorldPosition.y);
@@ -960,6 +967,16 @@ class LakesideTerrain {
                             float inside = (1.0 - smoothstep(2.6, 3.6, abs(caveDiff.y))) * smoothstep(-3.6, -2.4, caveDiff.x) * (1.0 - smoothstep(4.4, 5.6, caveDiff.x));
                             inside *= 1.0 - smoothstep(1.9, 2.7, vWorldPosition.y);   // только низкий пол пещеры, не склон над ней
                             terrainColor *= mix(1.0, 0.10, inside);
+                        }
+                        // Ущелье-проход: склон горного пояса вокруг него — тёмный серо-зелёный камень под цвет модели скал
+                        if (nearTint) {
+                            float td = sqrt(dot(tintDiff, tintDiff));
+                            float tk = (1.0 - smoothstep(uRockTint.z * 0.35, uRockTint.z, td)) * uRockTint.w;
+                            float th = smoothstep(1.2, 2.6, vWorldPosition.y);
+                            float tn = avNoise(vWorldPosition.xz * 0.35) * 0.5 + avNoise(vWorldPosition.xz * 1.1) * 0.5;
+                            vec3 tRock = rockTex * vec3(0.50, 0.51, 0.47) * (0.85 + 0.30 * tn);
+                            tRock = mix(tRock, tRock * vec3(0.80, 1.00, 0.70), smoothstep(0.55, 0.85, vWorldNormal.y) * 0.5);
+                            terrainColor = mix(terrainColor, tRock, tk * max(th, totalRock));
                         }
                     } else {
                         terrainColor = pow(terrainColor, vec3(1.05));

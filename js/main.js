@@ -1477,7 +1477,7 @@ class AveloraGame {
             ringGeo.rotateX(-Math.PI / 2);
             // на открытой местности кольцо повторяет рельеф (иначе на неровной земле видна только «подкова»);
             // у порталов с явным Y (грот, подземелье) пол ровный — оставляем плоским
-            const conform = (ex.y === undefined) && this.terrain && this.terrain.getHeightAt;
+            const conform = (ex.y === undefined) && !ex.track && this.terrain && this.terrain.getHeightAt;   // track: маркер следует за высотой настила (приподнятый диск портала)
             if (conform) {
                 const rp = ringGeo.attributes.position;
                 for (let i = 0; i < rp.count; i++) rp.setY(i, this.terrain.getHeightAt(ex.x + rp.getX(i), ex.z + rp.getZ(i)) + 0.08 - y);
@@ -1519,6 +1519,37 @@ class AveloraGame {
             const pillar = new THREE.Mesh(pillarGeo, pillarMat);
             group.add(pillar);
 
+            // Дымка в створе ущелья (ex.fog = {w, h, dz, color}): ОДНА мягкая плоскость, края и верх/низ плавно сходят на нет (без видимых слоёв и швов о скалу)
+            if (ex.fog) {
+                const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128;
+                const cx = cv.getContext('2d');
+                const img = cx.createImageData(128, 128);
+                const sm = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+                for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
+                    const u = Math.abs(x / 127 - 0.5) * 2, v = y / 127;       // v: 0 верх, 1 низ
+                    const a = (1 - sm(0.2, 1.0, u)) * sm(0.0, 0.12, 1 - v) * sm(0.0, 0.4, v);
+                    const k = (y * 128 + x) * 4;
+                    img.data[k] = img.data[k + 1] = img.data[k + 2] = 255; img.data[k + 3] = Math.round(255 * a);
+                }
+                cx.putImageData(img, 0, 0);
+                const fogTex = new THREE.CanvasTexture(cv);
+                const fc = new THREE.Color(ex.fog.color !== undefined ? ex.fog.color : 0xb9c6cf);
+                const fw = ex.fog.w || 3.4, fh = ex.fog.h || 7, fdz = ex.fog.dz || 1.2;
+                group.userData.fogPlanes = [];
+                // слои идут от начала дымки (ex.fog.from — расстояние назад от выхода) к концу ущелья, плотность растёт к выходу
+                const n = ex.fog.n || 9, back = ex.fog.from || 6.5;
+                for (let k = 0; k < n; k++) {
+                    const t = k / (n - 1), base = 0.05 + 0.5 * t * t;
+                    const m = new THREE.MeshBasicMaterial({ map: fogTex, color: fc, transparent: true, opacity: base, depthWrite: false, side: THREE.DoubleSide, fog: false });
+                    const pl = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), m);
+                    pl.position.set(0, fh * 0.5 - 0.8, fdz - back * (1 - t));
+                    pl.renderOrder = 5;
+                    pl.userData.base = base;
+                    group.add(pl);
+                    group.userData.fogPlanes.push(pl);
+                }
+            }
+
             this.locationRoot.add(group);
 
             let labelEl = null;
@@ -1547,6 +1578,8 @@ class AveloraGame {
             // Pulse (game time => frozen on pause)
             ex.pillarMat.uniforms.uTime.value = this.gameTime;
             ex.ring.material.opacity = 0.45 + Math.sin(this.gameTime * 2.4) * 0.15;
+            if (ex.group.userData.fogPlanes) ex.group.userData.fogPlanes.forEach((pl, k) => { pl.material.opacity = pl.userData.base * (0.9 + 0.1 * Math.sin(this.gameTime * 0.7 + k * 1.7)); });
+            if (ex.data.track && this.terrain && this.terrain.getHeightAt) { ex.y = this.terrain.getHeightAt(ex.data.x, ex.data.z) + 0.06; ex.group.position.y = ex.y; }
 
             const dx = p.x - ex.data.x;
             const dz = p.z - ex.data.z;

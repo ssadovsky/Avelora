@@ -479,6 +479,8 @@
             const g = this.game, here = g.location && g.location.id;
             if (def.oneWay) {
                 if (!window.LOCATIONS[def.destination]) return null;
+                // уже стоим у точки назначения — перебрасывать некуда (иначе пересборка локации впустую)
+                if (here === def.destination && def.pos && g.character && Math.hypot(g.character.position.x - def.pos.x, g.character.position.z - def.pos.z) < 4) return null;
                 return { dest: def.destination, spawn: def.spawn || null, pos: def.pos || null };
             }
             if (here === def.destination) {

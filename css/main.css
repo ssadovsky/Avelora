@@ -5006,12 +5006,25 @@ html { scrollbar-width: thin; scrollbar-color: rgba(214, 170, 60, 0.5) transpare
     display: none;
     cursor: default;
 }
-#build-panel.open { display: block; }
-#build-close {
-    font-family: inherit; font-size: 1.2rem; background: none; border: none;
-    color: #b9a47a; cursor: pointer; padding: 0 4px;
+#build-panel.open { display: flex; flex-direction: column; overflow: hidden; }
+#build-panel .inventory-header { flex: 0 0 auto; }
+#build-scroll {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding-right: 4px;
+    touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+    scrollbar-width: thin; scrollbar-color: rgba(195, 160, 95, 0.45) transparent;
 }
-#build-close:hover { color: #f1e2c8; }
+#build-scroll::-webkit-scrollbar { width: 4px; }
+#build-scroll::-webkit-scrollbar-track { background: transparent; }
+#build-scroll::-webkit-scrollbar-thumb { background: rgba(195, 160, 95, 0.4); border-radius: 2px; }
+#build-scroll::-webkit-scrollbar-thumb:hover { background: rgba(239, 207, 122, 0.65); }
+#build-close {
+    font-family: inherit; font-size: 1.2rem; line-height: 1; width: 26px; height: 26px;
+    color: #b9a47a; background: transparent; border: 1px solid rgba(195, 160, 95, 0.3);
+    border-radius: 3px; cursor: pointer;
+}
+#build-close:hover { color: #efcf7a; border-color: #efcf7a; }
+.build-go:disabled { opacity: 0.4; cursor: not-allowed; background: rgba(120, 120, 120, 0.15); border-color: rgba(150, 140, 120, 0.35); }
+.build-go:disabled:hover { background: rgba(120, 120, 120, 0.15); border-color: rgba(150, 140, 120, 0.35); color: #f1e2c8; }
 .build-section { margin: 10px 0 6px; font-size: 0.72rem; letter-spacing: 0.08rem; text-transform: uppercase; color: #b9a47a; }
 .build-card {
     display: flex; gap: 10px; padding: 8px;

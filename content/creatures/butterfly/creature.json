@@ -1,0 +1,29 @@
+{
+  "id": "butterfly",
+  "name": "Порхающая бабочка",
+  "level": 1,
+  "hp": 4,
+  "damage": [
+    1,
+    1
+  ],
+  "attackRange": 0.6,
+  "attackCooldown": 2.0,
+  "walkSpeed": 1.1,
+  "runSpeed": 2.4,
+  "behavior": "retaliate",
+  "aggroRadius": 0,
+  "leashRadius": 14,
+  "wanderRadius": 8,
+  "respawnMinutes": 3,
+  "hitRadius": 0.45,
+  "scale": 1.0,
+  "flyHeight": 1.5,
+  "gold": [
+    0,
+    0
+  ],
+  "xp": 2,
+  "drops": [],
+  "hpBarHeight": 1.2
+}
