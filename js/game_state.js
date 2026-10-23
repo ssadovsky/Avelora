@@ -301,8 +301,8 @@
             this.hotbar = sanitizeHotbar(data.hotbar, this.classId, this.learnedSkills);
             this.pickupsTaken = sanitizeTaken(data.pickupsTaken);
             const eq = (data.equipped && typeof data.equipped === 'object') ? data.equipped : {};
-            this.equipped = { right: null, head: null, cloak: null, body: null, hands: null, ring: null, ring2: null, feet: null };
-            ['head', 'cloak', 'body', 'hands', 'ring', 'ring2', 'feet'].forEach(slot => {
+            this.equipped = { right: null, head: null, neck: null, cloak: null, body: null, hands: null, ring: null, ring2: null, feet: null };
+            ['head', 'neck', 'cloak', 'body', 'hands', 'ring', 'ring2', 'feet'].forEach(slot => {
                 const reqSlot = (slot === 'ring2') ? 'ring' : slot; if (window.AveloraItems.isEquippable(eq[slot]) && window.AveloraItems.equipSlot(eq[slot]) === reqSlot) this.equipped[slot] = eq[slot];
             });
             // An item in the hand (state.equipped) does NOT occupy a bag cell. Saves from before

@@ -1,0 +1,26 @@
+{
+  "id": "ring_labyrinth",
+  "name": "Перстень Забытого Лабиринта",
+  "description": "Древний перстень из черненой бронзы с огненным рубином. Защищает владельца и наполняет заклинания силой.",
+  "category": "armor",
+  "quality": "rare",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "ring"
+  },
+  "armor": 8,
+  "stats": {
+    "int": 8,
+    "sta": 5
+  },
+  "requires": {
+    "level": 5
+  },
+  "value": 85
+}

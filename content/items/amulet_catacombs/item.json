@@ -1,0 +1,26 @@
+{
+  "id": "amulet_catacombs",
+  "name": "Амулет Пылающих Катакомб",
+  "description": "Реликвия владыки лабиринта. Тлеющее сердце амулета озаряет разум мага и создает прочную защитную ауру.",
+  "category": "armor",
+  "quality": "epic",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.9,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "neck"
+  },
+  "armor": 8,
+  "stats": {
+    "int": 12,
+    "sta": 6
+  },
+  "requires": {
+    "level": 6
+  },
+  "value": 110
+}

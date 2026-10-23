@@ -1,0 +1,26 @@
+{
+  "id": "amulet_sapphire_eye",
+  "name": "Сапфировое Око Глубин",
+  "description": "Древний талисман с чистейшим сапфиром. Наполняет владельца мощным потоком магической силы и броней.",
+  "category": "armor",
+  "quality": "epic",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.9,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "neck"
+  },
+  "armor": 6,
+  "stats": {
+    "int": 14,
+    "sta": 4
+  },
+  "requires": {
+    "level": 6
+  },
+  "value": 125
+}

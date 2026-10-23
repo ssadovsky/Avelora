@@ -1,36 +1,32 @@
 {
   "id": "minotaur",
-  "name": "Железнокожий минотавр",
-  "hp": 30,
+  "name": "Минотавр",
+  "level": 6,
+  "hp": 480,
   "damage": [
-    3,
-    5
+    18,
+    28
   ],
-  "attackRange": 2.0,
-  "attackCooldown": 2.2,
-  "walkSpeed": 0.9,
-  "runSpeed": 4.2,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
+  "attackRange": 2.2,
+  "attackCooldown": 2.0,
+  "walkSpeed": 1.2,
+  "runSpeed": 4.5,
+  "behavior": "aggressive",
+  "aggroRadius": 11,
   "leashRadius": 36,
   "wanderRadius": 6,
-  "respawnMinutes": 600,
+  "respawnMinutes": 60,
   "hitRadius": 1.5,
-  "scale": 1.4,
+  "scale": 1.45,
+  "gold": [
+    25,
+    50
+  ],
+  "xp": 350,
   "drops": [
     {
       "item": "meat",
       "count": 5
     }
-  ],
-  "xp": 15,
-  "level": 3,
-  "idlePause": [
-    4,
-    10
-  ],
-  "gold": [
-    4,
-    8
   ]
 }

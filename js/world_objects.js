@@ -694,6 +694,7 @@
                 const itemRad = size ? Math.max(size.x, size.z) * 0.5 * scale : 0.3;
                 footprint = Math.max(footprint, Math.hypot(l.x, l.z) + itemRad + 0.25);
             });
+
             this.root.add(group);
             pile.group = group;
 

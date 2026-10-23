@@ -1098,12 +1098,41 @@ class MedievalCharacter {
         }
         const px = this.position.x, pz = this.position.z;
         const nx = px + vx * delta, nz = pz + vz * delta;
-        if (!isBlocked || isBlocked(px, pz) || !isBlocked(nx, nz)) {   // standing in a blocked cell: let him walk out
+        if (!isBlocked) {
             this.position.x = nx; this.position.z = nz;
-        } else if (!isBlocked(nx, pz)) {
-            this.position.x = nx;
-        } else if (!isBlocked(px, nz)) {
-            this.position.z = nz;
+        } else {
+            const blockedN = isBlocked(nx, nz);
+            const blockedP = isBlocked(px, pz);
+            if (!blockedN) {
+                this.position.x = nx; this.position.z = nz;
+            } else if (!isBlocked(nx, pz)) {
+                this.position.x = nx;
+            } else if (!isBlocked(px, nz)) {
+                this.position.z = nz;
+            } else if (blockedP) {
+                this.position.x = nx; this.position.z = nz;
+            }
+        }
+        this.resolveObstacleCollisions(0.15);
+    }
+
+    /** Continuous cylinder-cylinder obstacle resolution (smooth slide along rocks, trees, pillars). */
+    resolveObstacleCollisions(playerRadius = 0.15) {
+        const pf = (this.game && this.game.pathfinder) || (window.game && window.game.pathfinder);
+        if (!pf || !pf.obstacles || pf.obstacles.length === 0) return;
+        const px = this.position.x, pz = this.position.z;
+        const obs = pf.obstacles;
+        for (let i = 0; i < obs.length; i++) {
+            const ob = obs[i];
+            const dx = px - ob.x, dz = pz - ob.z;
+            const distSq = dx * dx + dz * dz;
+            const minDist = ob.r + playerRadius;
+            if (distSq < minDist * minDist && distSq > 1e-6) {
+                const dist = Math.sqrt(distSq);
+                const push = minDist - dist;
+                this.position.x += (dx / dist) * push;
+                this.position.z += (dz / dist) * push;
+            }
         }
     }
 
@@ -1197,6 +1226,7 @@ class MedievalCharacter {
                 const moveDist = Math.min(dist, this.moveSpeed * delta);
                 this.position.x += (dx / dist) * moveDist;
                 this.position.z += (dz / dist) * moveDist;
+                this.resolveObstacleCollisions(0.15);
             }
         }
 

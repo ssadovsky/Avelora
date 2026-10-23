@@ -637,6 +637,7 @@
 
             // Жаровни по углам арены (с живым светом)
             this._blockers = [];
+            this.braziers = [];
             const stoneGeo = new THREE.CylinderGeometry(0.42, 0.55, 1.0, 10);
             const bowlGeo = new THREE.CylinderGeometry(0.62, 0.36, 0.34, 12);
             this.geometries.push(stoneGeo, bowlGeo);
@@ -645,19 +646,84 @@
                 g.position.set(bx, 0, z0 + bz);
                 const ped = new THREE.Mesh(stoneGeo, this.trimMat); ped.position.y = 0.5; g.add(ped);
                 const bowl = new THREE.Mesh(bowlGeo, this.ironMat); bowl.position.y = 1.12; g.add(bowl);
+                let fireInstance = null;
                 if (window.AveloraFire) {
                     const fire = new window.AveloraFire(g, { y: 1.3, size: 0.9 });
                     fire.group.position.set(0, 1.3, 0);
                     fire._wx = bx; fire._wz = z0 + bz;
                     this.fires.push(fire);
+                    fireInstance = fire;
                 }
                 const L = new THREE.PointLight(0xff8a2a, 2.8, 28.0, 1.6);
                 L.position.set(0, 2.0, 0); g.add(L);
                 this.lights.push({ light: L, baseIntensity: 2.8, seed: 7 + i * 13.7 });
+                this.braziers.push({ group: g, fire: fireInstance, light: L, baseIntensity: 2.8 });
                 this.group.add(g);
                 this._blockers.push([bx, z0 + bz, 0.85]);
             });
 
+            // Массивные каменные колонны арены (укрытия от ударных волн и огненных вихрей босса)
+            this.columns = [];
+            const colShaftGeo = new THREE.CylinderGeometry(0.95, 1.15, H - 2.0, 16);
+            const colBaseGeo = new THREE.BoxGeometry(2.4, 1.2, 2.4);
+            const colCapGeo = new THREE.BoxGeometry(2.4, 0.8, 2.4);
+            this.geometries.push(colShaftGeo, colBaseGeo, colCapGeo);
+
+            [[-6.0, 9.0], [6.0, 9.0], [-6.0, 21.0], [6.0, 21.0]].forEach(([cx, cz]) => {
+                const wx = cx, wz = z0 + cz;
+                const colGroup = new THREE.Group();
+                colGroup.position.set(wx, 0, wz);
+
+                const baseMesh = new THREE.Mesh(colBaseGeo, this.trimMat);
+                baseMesh.position.y = 0.6;
+                baseMesh.castShadow = true; baseMesh.receiveShadow = true;
+                colGroup.add(baseMesh);
+
+                const shaftMesh = new THREE.Mesh(colShaftGeo, this.wallMat);
+                shaftMesh.position.y = 1.2 + (H - 2.0) * 0.5;
+                shaftMesh.castShadow = true; shaftMesh.receiveShadow = true;
+                colGroup.add(shaftMesh);
+
+                const capMesh = new THREE.Mesh(colCapGeo, this.trimMat);
+                capMesh.position.y = H - 0.4;
+                capMesh.castShadow = true; capMesh.receiveShadow = true;
+                colGroup.add(capMesh);
+
+                this.group.add(colGroup);
+                this._blockers.push([wx, wz, 1.2]);
+                if (this.pathfinder && this.pathfinder.addObstacle) {
+                    this.pathfinder.addObstacle(wx, wz, 1.25);
+                }
+                this.columns.push({ x: wx, z: wz, r: 1.2 });
+            });
+            window.AVELORA_DUNGEON_COLUMNS = this.columns;
+        }
+
+        flareBraziers(duration = 3.2) {
+            if (!this.braziers || !this.braziers.length) return;
+            const startTime = Date.now();
+            const tick = () => {
+                if (this.disposed) return;
+                const elapsed = (Date.now() - startTime) / 1000;
+                if (elapsed >= duration) {
+                    this.braziers.forEach(b => {
+                        if (b.light) { b.light.intensity = b.baseIntensity; b.light.color.setHex(0xff8a2a); }
+                        if (b.fire) b.fire.size = 0.9;
+                    });
+                    return;
+                }
+                const progress = elapsed / duration;
+                const pulse = Math.sin(progress * Math.PI);
+                this.braziers.forEach(b => {
+                    if (b.light) {
+                        b.light.intensity = b.baseIntensity + pulse * 6.5;
+                        b.light.color.setHex(pulse > 0.4 ? 0xff2200 : 0xff6600);
+                    }
+                    if (b.fire) b.fire.size = 0.9 + pulse * 1.5;
+                });
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
         }
 
         _buildPortcullis(x, z) {

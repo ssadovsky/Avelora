@@ -61,6 +61,7 @@ window.AVELORA_ASSET_INDEX = {
   "items/dagger": ["m/items__dagger.js", "dc2ebadbaa"],
   "items/iron_ore": ["m/items__iron_ore.js", "49f2f8e70c"],
   "items/log": ["m/items__log.js", "c06b974f40"],
+  "items/minotaur_axe": ["m/items__minotaur_axe.js", "03bd99c7ef"],
   "items/pickaxe": ["m/items__pickaxe.js", "12c7ab72bc"],
   "items/staff": ["m/items__staff.js", "8152c89179"],
   "items/stone": ["m/items__stone.js", "175548bf51"],

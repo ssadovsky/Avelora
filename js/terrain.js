@@ -328,6 +328,31 @@ class LakesideTerrain {
                 const curve = shoreLine - (this.noise.noise2D(nx * 2.5, 0.5) * 6.5 + this.noise.noise2D(nx * 6.0, 1.2) * 2.5);
                 distFromShore = curve - z;
             }
+        } else if (wType === 'coast_lake') {
+            // COAST on west + INLAND LAKE in center
+            const shoreLine = (this.waterConfig.shoreLine !== undefined) ? this.waterConfig.shoreLine : -75.0;
+            waterDepth = (this.waterConfig.depth !== undefined) ? this.waterConfig.depth : -2.2;
+            beachWidth = (this.waterConfig.beachWidth !== undefined) ? this.waterConfig.beachWidth : 16.0;
+
+            const curve = shoreLine + this.noise.noise2D(nz * 2.5, 0.5) * 7.5 + this.noise.noise2D(nz * 6.0, 1.2) * 3.0;
+            const distCoast = x - curve;
+
+            const lakeX = (this.waterConfig.lakeX !== undefined) ? this.waterConfig.lakeX : 15.0;
+            const lakeZ = (this.waterConfig.lakeZ !== undefined) ? this.waterConfig.lakeZ : -5.0;
+            const baseRadius = this.waterConfig.radius || 20.0;
+            const dx = x - lakeX;
+            const dz = z - lakeZ;
+            const distCenter = Math.sqrt(dx * dx + dz * dz);
+            const angle = Math.atan2(dz, dx);
+            const wobble = Math.min(1.0, baseRadius / 24.0);
+            const sm = !!this.waterConfig.shoreSmooth;
+            const lakeRadius = baseRadius + (this.noise.noise2D(Math.cos(angle) * 1.3, Math.sin(angle) * 1.3) * 6.0
+                                          + (sm ? this.noise.noise2D(Math.cos(angle * 2) * 1.1, Math.sin(angle * 2) * 1.1) * 3.0
+                                                : this.noise.noise2D(Math.cos(angle * 3) * 2.2, Math.sin(angle * 3) * 2.2) * 2.5)) * wobble;
+            const distLake = distCenter - lakeRadius;
+
+            distFromShore = Math.min(distCoast, distLake);
+            bedSlope = Math.min(20.0, baseRadius * 0.85);
         } else if (wType === 'island') {
             // ISLAND: land in center, sea all around
             const distFromCenter = Math.sqrt(x * x + z * z);
@@ -397,7 +422,8 @@ class LakesideTerrain {
         if (this.locTerrain.mountains !== false) {
             const rimWidth = (this.locTerrain.mountainRim && this.locTerrain.mountainRim.width) || 16.0;
 
-            const distFromEdgeX = this.halfX - Math.abs(x);
+            const noWest = !!(this.locTerrain.mountainRim && this.locTerrain.mountainRim.noWest);
+            const distFromEdgeX = noWest ? (this.halfX - x) : (this.halfX - Math.abs(x));
             const distFromEdgeZ = this.halfZ - Math.abs(z);
             const distFromEdge = Math.min(distFromEdgeX, distFromEdgeZ);
 

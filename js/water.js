@@ -113,6 +113,11 @@ class LakesideWater {
                 sizeX = seaSpan; sizeZ = mapSize * 1.2;
                 posX = 0; posZ = shoreLine + sizeZ / 2 - 2;
             }
+        } else if (wType === 'coast_lake') {
+            sizeX = (locTerrain.sizeX || 300) + 140;
+            sizeZ = (locTerrain.sizeZ || 200) + 140;
+            posX = -20;
+            posZ = 0;
         } else if (wType === 'island') {
             sizeX = mapSize * 1.8;
             sizeZ = mapSize * 1.8;
@@ -151,6 +156,8 @@ class LakesideWater {
             } else {
                 this.foamMesh.position.set(0, 0.02, shoreLine);
             }
+        } else if (wType === 'coast_lake') {
+            return;
         } else if (wType === 'island') {
             // Island shoreline ring (для озера и реки кольцо пены отключено — давало видимый круг на воде)
             const foamRadius = (waterConfig.radius || 24.0);

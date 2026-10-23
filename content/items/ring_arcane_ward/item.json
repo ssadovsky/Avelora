@@ -1,0 +1,26 @@
+{
+  "id": "ring_arcane_ward",
+  "name": "Кольцо Рунической Защиты",
+  "description": "Кольцо из очищенного мифрила с гравировкой защитных знаков. Повышает стойкость к урону и обостряет интеллект.",
+  "category": "armor",
+  "quality": "rare",
+  "stackMax": 1,
+  "ground": {
+    "variants": 1,
+    "scale": 0.8,
+    "pile": "single"
+  },
+  "use": {
+    "type": "equip",
+    "slot": "ring"
+  },
+  "armor": 10,
+  "stats": {
+    "int": 10,
+    "sta": 4
+  },
+  "requires": {
+    "level": 5
+  },
+  "value": 95
+}

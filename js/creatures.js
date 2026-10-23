@@ -780,6 +780,12 @@
             if (rec.staggerT > 0) rec.staggerT = Math.max(0, rec.staggerT - dt);
             if (rec.kbT > 0) { this.stepKnockback(rec, dt); return; }   // being pushed back: no AI until it ends
 
+            // Minotaur boss: special shockwave cast logic
+            if (rec.minotaurCasting) {
+                this.updateMinotaurShockwave(rec, dt, now, c, playerAlive);
+                return;
+            }
+
             // Attack in progress: runs to completion (the hit lands at hitAt)
             if (rec.attackT >= 0) {
                 rec.attackT += dt;
@@ -814,6 +820,17 @@
                 rec.state = 'chase';
                 rec.lastPath = -99;
             }
+
+            // Minotaur boss: shockwave skill trigger
+            if (rec.type === 'minotaur' && rec.aggro && playerAlive && rec.state !== 'return') {
+                if (rec.minotaurSkillTimer === undefined) {
+                    rec.minotaurSkillTimer = now + 4.5; // первый каст через 4.5 с боя
+                } else if (now >= rec.minotaurSkillTimer && distP < 26.0) {
+                    this.startMinotaurShockwave(rec, now, c);
+                    return;
+                }
+            }
+
             if (rec.staggerT > 0) return; // flinching from a hit
 
             switch (rec.state) {
@@ -924,6 +941,7 @@
             rec.rallied = false;
             rec.state = 'return';
             rec.attackT = -1;
+            if (rec.minotaurCasting) this.cleanupMinotaurShockwave(rec);
             rec.lastPath = -99;
             rec.hp = rec.maxHp; // leashing resets the fight
         }
@@ -1124,6 +1142,7 @@
             }
             if (this.hovered === rec) this.hovered = null;
             this.hideHpBar(rec);
+            if (rec.minotaurCasting) this.cleanupMinotaurShockwave(rec);
             if (this.state) this.state.setKilled(this.location.id, rec.id, Math.floor(Date.now() / 1000));
             const bd = this.location.dungeon;
             if (this.state && bd && bd.bossId === rec.id) this.state.setKilled(this.location.id, '__cleared', Math.floor(Date.now() / 1000));   // boss killed under the dungeon-reset rules
@@ -1139,6 +1158,20 @@
         dropLoot(rec) {
             const wo = this.game.worldObjects, st = this.state, ui = this.game.ui;
             if (!st) return;
+
+            // Босс Минотавр: гарантированный дроп 1 случайной бижутерии (кольцо или амулет)
+            if (rec.type === 'minotaur') {
+                const jewelryPool = ['amulet_catacombs', 'amulet_sapphire_eye', 'ring_labyrinth', 'ring_arcane_ward'];
+                const chosen = jewelryPool[Math.floor(Math.random() * jewelryPool.length)];
+                const got = st.inventory.add(chosen, 1);
+                const def = window.AveloraItems.get(chosen);
+                if (got > 0 && ui) {
+                    ui.bagFloat(`+1 ${def ? def.name : chosen}`, 0.25);
+                    ui.pulseInventory();
+                } else if (wo) {
+                    wo.addDrop(chosen, 1, rec.x + 0.6, rec.z + 0.6);
+                }
+            }
 
             // Gold drop
             const gRange = rec.scaledGold || rec.def.gold;
@@ -1441,6 +1474,198 @@
         screenPos(rec) {
             _v.set(rec.x, rec.y + (rec.def.hpBarHeight || rec.height) * 0.5, rec.z).project(this.game.camera);
             return [(_v.x + 1) / 2 * window.innerWidth, (1 - _v.y) / 2 * window.innerHeight];
+        }
+
+        // -----------------------------------------------------------
+        // Minotaur Boss Mechanics (ancientCatacombs)
+        // -----------------------------------------------------------
+        startMinotaurShockwave(rec, now, c) {
+            rec.minotaurCasting = true;
+            rec.minotaurCastT = 0;
+            rec.minotaurCastPhase = 'roar';
+            rec.speed = 0;
+            rec.attackT = -1;
+            if (this.hasClip(rec, 'Greeting')) {
+                this.play(rec, 'Greeting', 0.15, true);
+            }
+
+            // Вспышка жаровен в зале босса
+            const env = this.game.environment;
+            if (env && env.dungeon && typeof env.dungeon.flareBraziers === 'function') {
+                env.dungeon.flareBraziers(4.0);
+            }
+
+            // Предупреждение для игрока
+            const ui = this.game.ui;
+            if (ui && ui.floatText) {
+                ui.floatText('Минотавр сотрясает катакомбы! В укрытие за колонну!', 'warn', 0.1);
+            }
+
+            // Создаем визуальный телеграф на полу под минотавром
+            if (this.root) {
+                const rGeo = new THREE.RingGeometry(0.5, 6.0, 32);
+                rGeo.rotateX(-Math.PI / 2);
+                const rMat = new THREE.MeshBasicMaterial({
+                    color: 0xff4400,
+                    transparent: true,
+                    opacity: 0.35,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+                const telegraph = new THREE.Mesh(rGeo, rMat);
+                telegraph.position.set(rec.x, rec.y + 0.05, rec.z);
+                this.root.add(telegraph);
+                rec.minotaurTelegraph = telegraph;
+            }
+        }
+
+        updateMinotaurShockwave(rec, dt, now, c, playerAlive) {
+            rec.minotaurCastT += dt;
+            rec.speed = 0;
+
+            if (c && c.position) {
+                this.turnTowards(rec, c.position.x, c.position.z, dt * 0.8);
+            }
+
+            if (rec.minotaurTelegraph) {
+                rec.minotaurTelegraph.position.set(rec.x, rec.y + 0.05, rec.z);
+                const pulse = 0.3 + 0.25 * Math.sin(rec.minotaurCastT * 8.0);
+                rec.minotaurTelegraph.material.opacity = pulse;
+                const scale = 1.0 + Math.min(1.5, rec.minotaurCastT * 0.6);
+                rec.minotaurTelegraph.scale.set(scale, 1, scale);
+            }
+
+            // Фаза 1: Рев и ярость (Greeting)
+            if (rec.minotaurCastPhase === 'roar' && rec.minotaurCastT >= 2.0) {
+                rec.minotaurCastPhase = 'slam';
+                if (this.hasClip(rec, 'Attack')) {
+                    this.play(rec, 'Attack', 0.08, true);
+                }
+            }
+
+            // Фаза 2: Сокрушительный удар в пол катакомб (Attack)
+            if (rec.minotaurCastPhase === 'slam' && rec.minotaurCastT >= 2.5) {
+                rec.minotaurCastPhase = 'aftermath';
+                this.executeMinotaurShockwaveImpact(rec, c, playerAlive);
+            }
+
+            // Завершение каста
+            if (rec.minotaurCastT >= 3.6) {
+                this.cleanupMinotaurShockwave(rec);
+                rec.minotaurCasting = false;
+                rec.minotaurSkillTimer = now + 16.0 + Math.random() * 4.0;
+                this.play(rec, 'Idle', 0.15);
+            }
+        }
+
+        executeMinotaurShockwaveImpact(rec, c, playerAlive) {
+            if (rec.minotaurTelegraph) {
+                if (this.root) this.root.remove(rec.minotaurTelegraph);
+                if (rec.minotaurTelegraph.geometry) rec.minotaurTelegraph.geometry.dispose();
+                if (rec.minotaurTelegraph.material) rec.minotaurTelegraph.material.dispose();
+                rec.minotaurTelegraph = null;
+            }
+
+            // Огненная ударная волна по полу зала
+            if (this.root) {
+                const waveGeo = new THREE.RingGeometry(0.5, 2.2, 36);
+                waveGeo.rotateX(-Math.PI / 2);
+                const waveMat = new THREE.MeshBasicMaterial({
+                    color: 0xff3300,
+                    transparent: true,
+                    opacity: 0.85,
+                    side: THREE.DoubleSide,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+                const waveMesh = new THREE.Mesh(waveGeo, waveMat);
+                waveMesh.position.set(rec.x, rec.y + 0.08, rec.z);
+                this.root.add(waveMesh);
+
+                const startTime = performance.now();
+                const waveDuration = 700;
+                const maxRadius = 24.0;
+
+                const animateWave = () => {
+                    const elapsed = performance.now() - startTime;
+                    const progress = elapsed / waveDuration;
+                    if (progress >= 1.0 || this.disposed || !waveMesh.parent) {
+                        if (waveMesh.parent) waveMesh.parent.remove(waveMesh);
+                        waveGeo.dispose();
+                        waveMat.dispose();
+                        return;
+                    }
+                    const curScale = 1.0 + progress * (maxRadius / 2.2);
+                    waveMesh.scale.set(curScale, 1, curScale);
+                    waveMat.opacity = 0.85 * (1.0 - progress);
+                    requestAnimationFrame(animateWave);
+                };
+                requestAnimationFrame(animateWave);
+            }
+
+            if (!playerAlive || !c || !c.position) return;
+            const px = c.position.x, pz = c.position.z;
+            const dist = Math.hypot(px - rec.x, pz - rec.z);
+            const ui = this.game.ui;
+
+            if (dist <= 22.0) {
+                const covered = this.isBehindDungeonColumn(rec.x, rec.z, px, pz);
+                if (covered) {
+                    if (ui && ui.floatAt) {
+                        ui.floatAt('Укрытие за колонной! 0 урона', 'gain', px, c.position.y + 1.8, pz);
+                    }
+                    if (ui && ui.floatText) {
+                        ui.floatText('Колонна защитила от огненной волны!', 'gain', 0.2);
+                    }
+                } else {
+                    const dmg = Math.round(36 + Math.random() * 12);
+                    if (this.game.combat) {
+                        this.game.combat.damagePlayer(dmg, rec);
+                    }
+                    if (ui && ui.floatAt) {
+                        ui.floatAt(`Огненная волна! -${dmg}`, 'dmg-magic', px, c.position.y + 2.0, pz);
+                    }
+                    const cam = this.game.camera;
+                    if (cam && typeof cam.shake === 'function') {
+                        cam.shake(0.35, 14);
+                    }
+                }
+            }
+        }
+
+        cleanupMinotaurShockwave(rec) {
+            rec.minotaurCasting = false;
+            rec.minotaurCastT = 0;
+            if (rec.minotaurTelegraph) {
+                if (this.root) this.root.remove(rec.minotaurTelegraph);
+                if (rec.minotaurTelegraph.geometry) rec.minotaurTelegraph.geometry.dispose();
+                if (rec.minotaurTelegraph.material) rec.minotaurTelegraph.material.dispose();
+                rec.minotaurTelegraph = null;
+            }
+        }
+
+        isBehindDungeonColumn(bx, bz, px, pz) {
+            const cols = window.AVELORA_DUNGEON_COLUMNS ||
+                (this.game.environment && this.game.environment.dungeon && this.game.environment.dungeon.columns);
+            if (!cols || cols.length === 0) return false;
+
+            const vx = px - bx, vz = pz - bz;
+            const vLenSq = vx * vx + vz * vz;
+            if (vLenSq < 0.01) return false;
+
+            const colRadius = 1.45;
+
+            for (let i = 0; i < cols.length; i++) {
+                const col = cols[i];
+                const wx = col.x - bx, wz = col.z - bz;
+                const t = (wx * vx + wz * vz) / vLenSq;
+                if (t > 0.08 && t < 0.95) {
+                    const projX = bx + t * vx, projZ = bz + t * vz;
+                    const d = Math.hypot(col.x - projX, col.z - projZ);
+                    if (d <= colRadius) return true;
+                }
+            }
+            return false;
         }
 
         dispose() {

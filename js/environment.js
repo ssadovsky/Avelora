@@ -628,7 +628,7 @@ class LakesideEnvironment {
         boulderPlacements.forEach(p => {
             if (!p.noObstacle) {
                 const s = p.s || 1.8;
-                this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, s * 0.78));
+                this.pathfinder.addObstacle(p.x, p.z, Math.max(0.6, s * 0.86));
             }
         });
 

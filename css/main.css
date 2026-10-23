@@ -1718,7 +1718,7 @@
         .doll-grid {
             display: grid; gap: 8px; justify-content: center;
             grid-template-columns: repeat(3, 56px); grid-auto-rows: 56px;
-            grid-template-areas: ". head ." "hands body cloak" "ring weapon ring2" ". feet .";
+            grid-template-areas: ". head neck" "hands body cloak" "ring weapon ring2" ". feet .";
         }
         .doll-slot {
             position: relative; display: flex; align-items: center; justify-content: center;
@@ -4851,11 +4851,10 @@
             display: block;
             border: 1px solid rgba(195,160,95,0.3);
             border-radius: 4px;
-            max-width: min(420px, 85vw);
-            max-height: min(420px, 75vh);
-            width: min(420px, 85vw);
-            height: min(420px, 75vh);
-            image-rendering: pixelated;
+            max-width: min(510px, 88vw);
+            max-height: min(360px, 72vh);
+            width: auto;
+            height: auto;
         }
         #map-legend {
             display: flex;

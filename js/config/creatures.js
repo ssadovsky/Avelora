@@ -54,7 +54,7 @@ window.AVELORA_CREATURES_CONFIG = {
     },
 
     // Боссы с особыми уникальными характеристиками (берут HP и урон из своего creature.json):
-    customBosses: ['yasha', 'thunderclaw'],
+    customBosses: ['yasha', 'thunderclaw', 'minotaur'],
 
     // Золото за обычного монстра: [мин, макс] * уровень * множитель ранга
     baseGold: [1, 2],

@@ -17,8 +17,9 @@
 (function () {
     'use strict';
 
-    const MAP_SIZE = 420;           // размер canvas (px)
-    const PADDING  = 28;            // отступ от края карты (м → px)
+    const PADDING      = 22;            // отступ от края canvas до карты (px)
+    const MAX_INNER_W  = 450;           // макс. внутренняя ширина карты (px)
+    const MAX_INNER_H  = 300;           // макс. внутренняя высота карты (px)
     const WATER_COLOR   = '#1a3d5c';
     const WATER_FILL    = 'rgba(26,74,108,0.72)';
     const TERRAIN_FILL  = 'rgba(28,42,22,0.88)';
@@ -50,8 +51,8 @@
             }
 
             this._ctx = this._canvas.getContext('2d');
-            this._canvas.width  = MAP_SIZE;
-            this._canvas.height = MAP_SIZE;
+            this._canvas.width  = 494;
+            this._canvas.height = 344;
 
             // Кнопка закрытия (×)
             if (this._closeBtn) {
@@ -183,24 +184,38 @@
             const loc = g.location;
             if (!ctx || !loc) return;
 
-            const S = MAP_SIZE;
-            ctx.clearRect(0, 0, S, S);
-
-            if (this._coordsEl && this.game.character) {
-                const p = this.game.character.position;
-                this._coordsEl.textContent = `X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
-            }
-
             const t = loc.terrain || {};
             const sizeX = t.sizeX || (Array.isArray(t.size) ? t.size[0] : t.size) || 120;
             const sizeZ = t.sizeZ || (Array.isArray(t.size) ? t.size[1] : t.size) || 120;
             const halfX = sizeX / 2;
             const halfZ = sizeZ / 2;
 
+            // Вычисляем масштаб так, чтобы 1 метр по X равнялся ровно 1 метру по Z (сохранение пропорций 3:2 или 1:1)
+            const scale = Math.min(MAX_INNER_W / sizeX, MAX_INNER_H / sizeZ);
+            const mapW  = Math.round(sizeX * scale);
+            const mapH  = Math.round(sizeZ * scale);
+            const canvasW = mapW + PADDING * 2;
+            const canvasH = mapH + PADDING * 2;
+
+            if (this._canvas.width !== canvasW || this._canvas.height !== canvasH) {
+                this._canvas.width  = canvasW;
+                this._canvas.height = canvasH;
+            }
+
+            const offX = PADDING;
+            const offZ = PADDING;
+
+            ctx.clearRect(0, 0, canvasW, canvasH);
+
+            if (this._coordsEl && this.game.character) {
+                const p = this.game.character.position;
+                this._coordsEl.textContent = `X: ${p.x.toFixed(1)} | Z: ${p.z.toFixed(1)}`;
+            }
+
             // --- Преобразование мировых координат → canvas px ---
-            let toX = (wx) => PADDING + (wx + halfX) / sizeX * (S - PADDING * 2);
-            let toZ = (wz) => PADDING + (wz + halfZ) / sizeZ * (S - PADDING * 2);
-            let toR = (wr) => wr / Math.max(sizeX, sizeZ) * (S - PADDING * 2); // radius in px
+            let toX = (wx) => offX + (wx + halfX) * scale;
+            let toZ = (wz) => offZ + (wz + halfZ) * scale;
+            let toR = (wr) => wr * scale; // radius in px
 
             // Подземелье: карта строится по реальной сетке проходимости локации (без привязки к конкретному данжу)
             let dungeonLayout = null;
@@ -209,33 +224,46 @@
             }
             if (dungeonLayout) {
                 const b = dungeonLayout.bounds, bw = b.maxX - b.minX, bh = b.maxZ - b.minZ;
-                const sc = (S - PADDING * 2) / Math.max(bw, bh);
-                const offX = (S - bw * sc) / 2, offZ = (S - bh * sc) / 2;
-                toX = (wx) => offX + (wx - b.minX) * sc;
-                toZ = (wz) => offZ + (wz - b.minZ) * sc;
+                const sc = Math.min(mapW / bw, mapH / bh);
+                const dOffX = offX + (mapW - bw * sc) / 2;
+                const dOffZ = offZ + (mapH - bh * sc) / 2;
+                toX = (wx) => dOffX + (wx - b.minX) * sc;
+                toZ = (wz) => dOffZ + (wz - b.minZ) * sc;
                 toR = (wr) => wr * sc;
                 dungeonLayout.draw = () => {
                     ctx.save();
                     ctx.imageSmoothingEnabled = true;
                     try { ctx.filter = 'blur(1.1px)'; } catch (e) { /* без сглаживания */ }
-                    ctx.drawImage(dungeonLayout.canvas, offX, offZ, bw * sc, bh * sc);
+                    ctx.drawImage(dungeonLayout.canvas, dOffX, dOffZ, bw * sc, bh * sc);
                     ctx.restore();
                 };
             }
 
             // === Фон ===
             ctx.fillStyle = TERRAIN_FILL;
-            ctx.fillRect(0, 0, S, S);
+            ctx.fillRect(offX, offZ, mapW, mapH);
 
-            // Слабая сетка (для подземелья вместо неё — планировка)
-            ctx.strokeStyle = GRID_COLOR;
-            ctx.lineWidth = 1;
-            const step = (S - PADDING * 2) / 4;
-            if (dungeonLayout) dungeonLayout.draw();
-            for (let i = 0; !dungeonLayout && i <= 4; i++) {
-                const v = PADDING + step * i;
-                ctx.beginPath(); ctx.moveTo(v, PADDING); ctx.lineTo(v, S - PADDING); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(PADDING, v); ctx.lineTo(S - PADDING, v); ctx.stroke();
+            // Квадратная сетка (для подземелья вместо неё — планировка)
+            if (dungeonLayout) {
+                dungeonLayout.draw();
+            } else {
+                ctx.save();
+                ctx.strokeStyle = GRID_COLOR;
+                ctx.lineWidth = 1;
+                const stepM = Math.max(sizeX, sizeZ) > 150 ? 50 : 25;
+                for (let wx = -Math.floor(halfX / stepM) * stepM; wx <= halfX; wx += stepM) {
+                    const x = toX(wx);
+                    if (x >= offX && x <= offX + mapW) {
+                        ctx.beginPath(); ctx.moveTo(x, offZ); ctx.lineTo(x, offZ + mapH); ctx.stroke();
+                    }
+                }
+                for (let wz = -Math.floor(halfZ / stepM) * stepM; wz <= halfZ; wz += stepM) {
+                    const z = toZ(wz);
+                    if (z >= offZ && z <= offZ + mapH) {
+                        ctx.beginPath(); ctx.moveTo(offX, z); ctx.lineTo(offX + mapW, z); ctx.stroke();
+                    }
+                }
+                ctx.restore();
             }
 
             // === Водоём ===
@@ -255,11 +283,11 @@
                 } else if (wb.type === 'coast') {
                     // Берег вдоль одного края — рисуем полосу
                     const side = wb.side || 'west';
-                    const w = toR(half * 0.35);
-                    if (side === 'west')  { ctx.fillRect(PADDING, PADDING, w, S - PADDING * 2); }
-                    if (side === 'east')  { ctx.fillRect(S - PADDING - w, PADDING, w, S - PADDING * 2); }
-                    if (side === 'north') { ctx.fillRect(PADDING, PADDING, S - PADDING * 2, w); }
-                    if (side === 'south') { ctx.fillRect(PADDING, S - PADDING - w, S - PADDING * 2, w); }
+                    const w = toR(sizeX * 0.15);
+                    if (side === 'west')  { ctx.fillRect(offX, offZ, w, mapH); }
+                    if (side === 'east')  { ctx.fillRect(offX + mapW - w, offZ, w, mapH); }
+                    if (side === 'north') { ctx.fillRect(offX, offZ, mapW, w); }
+                    if (side === 'south') { ctx.fillRect(offX, offZ + mapH - w, mapW, w); }
                 } else if (wb.type === 'river' && Array.isArray(wb.points)) {
                     // Речка: ломаная по контрольным точкам, толщиной в ширину русла
                     ctx.lineCap = 'round';
@@ -272,11 +300,11 @@
                 } else if (wb.type === 'island') {
                     // Весь фон — вода, круг суши по центру
                     ctx.fillStyle = WATER_FILL;
-                    ctx.fillRect(PADDING, PADDING, S - PADDING * 2, S - PADDING * 2);
+                    ctx.fillRect(offX, offZ, mapW, mapH);
                     const r = toR((wb.islandRadius || 22));
                     ctx.fillStyle = TERRAIN_FILL;
                     ctx.beginPath();
-                    ctx.arc(S / 2, S / 2, r, 0, Math.PI * 2);
+                    ctx.arc(offX + mapW / 2, offZ + mapH / 2, r, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 ctx.restore();
@@ -355,8 +383,6 @@
             const ch = g.character;
             if (ch) {
                 const px = toX(ch.position.x), pz = toZ(ch.position.z);
-                // Направление: rotation = atan2(dx,dz)+PI → вектор вперёд (-sin r, -cos r)
-                // На canvas: ось Z мира → ось Y canvas; ось X мира → ось X canvas
                 const rot = ch.currentRotation;
                 const fx = -Math.sin(rot), fz = -Math.cos(rot);
 
@@ -370,7 +396,6 @@
                 ctx.shadowColor = 'rgba(0,0,0,0.8)';
                 ctx.shadowBlur = 4;
 
-                // Вершина вперёд, два угла назад
                 const tipX  = px + fx * AR;
                 const tipZ  = pz + fz * AR;
                 const b1X   = px - fx * AR * 0.4 + (-fz) * AW;
@@ -391,25 +416,25 @@
             // === Рамка ===
             ctx.save();
             ctx.strokeStyle = BORDER_COLOR;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(PADDING - 8, PADDING - 8, S - (PADDING - 8) * 2, S - (PADDING - 8) * 2);
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(offX - 4, offZ - 4, mapW + 8, mapH + 8);
             ctx.restore();
 
             // === Стрелки сторон света (N/S/W/E) и координаты игрока ===
             ctx.save();
             ctx.font = 'bold 11px sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
             ctx.textAlign = 'center';
-            ctx.fillText('С', S / 2, 14);
-            ctx.fillText('Ю', S / 2, S - 4);
-            ctx.fillText('З', 10, S / 2 + 4);
-            ctx.fillText('В', S - 10, S / 2 + 4);
+            ctx.fillText('С', offX + mapW / 2, 14);
+            ctx.fillText('Ю', offX + mapW / 2, canvasH - 5);
+            ctx.fillText('З', 10, offZ + mapH / 2 + 4);
+            ctx.fillText('В', canvasW - 10, offZ + mapH / 2 + 4);
 
             if (ch) {
                 ctx.font = 'bold 10px monospace';
                 ctx.fillStyle = 'rgba(239, 207, 122, 0.9)';
                 ctx.textAlign = 'left';
-                ctx.fillText(`X: ${ch.position.x.toFixed(1)}  Z: ${ch.position.z.toFixed(1)}`, PADDING, S - 10);
+                ctx.fillText(`X: ${ch.position.x.toFixed(1)}  Z: ${ch.position.z.toFixed(1)}`, offX, canvasH - 6);
             }
             ctx.restore();
         }
