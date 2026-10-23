@@ -80,8 +80,9 @@ window.LOCATIONS = {
             // Горный перевал (ущелье) на запад в Золотую саванну
             mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
             // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
-            rockTint: { x: 0.0, z: 91.0, tintRadius: 26.0, tintStrength: 0.9 },
-            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 83.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 86.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 90.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 93.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
+            rimDip: [{ x: 0.0, k0: 0.55, w: 30.0 }],
+            rockTint: { x: 0.0, z: 94.0, tintRadius: 26.0, tintStrength: 0.9 },
+            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 2.4, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.4, blend: 1.2, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
             // Арочный вырез в восточном горном барьере для грота (севернее водопада)
             caves: [
                 { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
@@ -129,7 +130,7 @@ window.LOCATIONS = {
         atmosphere: { sky: 0xc6dbe3, skyTop: 0x4a8fc9, fogDensity: 0.0055 },
         cameraAngle: 0.0,           // на старте камера смотрит на север (по тропе к Лираэль)
         // Зоны без папоротников (поляна барсуков): эллипсы {x, z, rx, rz}
-        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }, { x: 24.5, z: -16.5, rx: 6.5, rz: 8.5 }, { x: 64.3, z: -12.3, rx: 6.5, rz: 6.5 }, { x: 0.0, z: 86.0, rx: 10.0, rz: 10.0 }],   // 2-й: беседка и подход к ней
+        noFerns: [{ x: 72.0, z: 62.0, rx: 32.0, rz: 28.0 }, { x: 24.5, z: -16.5, rx: 6.5, rz: 8.5 }, { x: 64.3, z: -12.3, rx: 6.5, rz: 6.5 }, { x: 0.0, z: 89.0, rx: 10.0, rz: 10.0 }],   // 2-й: беседка и подход к ней
 
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
@@ -168,7 +169,7 @@ window.LOCATIONS = {
             // Проход в Золотую саванну через горный каньон на западе
             { id: 'toLake', x: -128.0, z: 8.0, radius: 3.5, to: 'savanna', spawn: 'fromForest', label: 'Золотая саванна' },
             // Каменный проход в горах на юге, за лесом: в Долину Забытых Эпох (в конце ущелья — дымка)
-            { id: 'toPrimeval', x: 0.0, z: 94.5, radius: 1.4, to: 'primevalValley', spawn: 'fromForest', label: 'Долина Забытых Эпох', color: 0xcfe8ff, height: 5.0, track: true, fog: { w: 3.4, h: 7.0, dz: 1.3, from: 7.8, n: 10, color: 0xb4c2cc } },
+            { id: 'toPrimeval', x: 0.0, z: 95.0, radius: 1.4, to: 'primevalValley', spawn: 'fromForest', label: 'Долина Забытых Эпох', color: 0xcfe8ff, height: 5.0, track: true, noRing: true, fog: { w: 3.4, h: 7.0, dz: 0.5, from: 6.5, n: 1, density: 0.2, color: 0xb4c2cc } },
             // Тайный рунический портал в глубине пещеры (переход в подземелье)
             {
                 id: 'toDungeon',
@@ -209,7 +210,7 @@ window.LOCATIONS = {
             { x: 64.3, z: -12.3, radius: 6.8 },  // кузня Торвальда
             { x: 25.5, z: -20.1, radius: 4.5 },  // беседка между четырьмя дубами
             // Каменный проход в горах на юге и подход к нему сквозь лес
-            { x: 0.0, z: 90.0, radius: 10.0 }, { x: 0.0, z: 78.0, radius: 8.0 }, { x: 0.0, z: 68.0, radius: 5.5 }
+            { x: 0.0, z: 93.0, radius: 10.0 }, { x: 0.0, z: 78.0, radius: 8.0 }, { x: 0.0, z: 68.0, radius: 5.5 }
         ],
 
         groups: [
@@ -431,7 +432,7 @@ window.LOCATIONS = {
             { id: 'forestEdge.smithy', prop: 'smithy', x: 64.3, z: -12.3, r: 1.45 },
             { id: 'forestEdge.gazebo', prop: 'gazebo', x: 25.5, z: -20.1, r: -0.41 },
             // Каменный проход в Долину Забытых Эпох: ущелье встроено в южный горный пояс (вход с севера)
-            { id: 'forestEdge.stone_pass', prop: 'stone_pass', x: 0.0, z: 90.0, r: Math.PI, dy: 0.26 },
+            { id: 'forestEdge.stone_pass', prop: 'stone_pass', x: 0.0, z: 93.0, r: Math.PI, dy: 0.26 },
             // фиалки и пучки травы на пчелиной поляне
             { id: 'forestEdge.violets_1', prop: 'violet_flowerbed', x: 79, z: 19, r: 0.4, s: 0.5 },
             { id: 'forestEdge.violets_2', prop: 'violet_flowerbed', x: 84, z: 20.5, r: 1.9, s: 0.6 },
@@ -996,8 +997,9 @@ window.LOCATIONS = {
             landFloor: 0.85,
             mountainRim: { width: 16.0, height: 6.0 },
             mountainPasses: [],
-            rockTint: { x: 0.0, z: 91.0, tintRadius: 26.0, tintStrength: 0.9 },
-            flatSpots: [{ x: 0.0, z: 83.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 86.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 90.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 93.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: -0.11 }],
+            rimDip: [{ x: 0.0, k0: 0.55, w: 30.0 }],
+            rockTint: { x: 0.0, z: 94.0, tintRadius: 26.0, tintStrength: 0.9 },
+            flatSpots: [{ x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 2.4, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.4, blend: 1.2, hFrom: [0.0, 79.0], dh: -0.11 }],
             waterBody: { type: 'lake', x: -30.0, z: -5.0, radius: 17.0, depth: -1.2, beachWidth: 14.0, shoreSmooth: true },
             hills: { amplitude: 2.0, inclineX: 0.1, inclineZ: -0.1 },
             stoneTexture: 'pebbleTrailDiff',
@@ -1009,7 +1011,7 @@ window.LOCATIONS = {
 
         atmosphere: { sky: 0xd9e6c6, skyTop: 0x5a9ccf, fogDensity: 0.0065 },
         cameraAngle: 0.0,
-        noFerns: [{ x: 0.0, z: 86.0, rx: 10.0, rz: 10.0 }],
+        noFerns: [{ x: 0.0, z: 89.0, rx: 10.0, rz: 10.0 }],
 
         spawns: {
             default:    { x: 0.0, z: 78.5, r: 0.0 },
@@ -1017,11 +1019,11 @@ window.LOCATIONS = {
         },
 
         exits: [
-            { id: 'toForest', x: 0.0, z: 94.5, radius: 1.4, to: 'forestEdge', spawn: 'fromPrimeval', label: 'Лесная опушка', color: 0xcfe8ff, height: 5.0, track: true, fog: { w: 3.4, h: 7.0, dz: 1.3, from: 7.8, n: 10, color: 0xb4c2cc } }
+            { id: 'toForest', x: 0.0, z: 95.0, radius: 1.4, to: 'forestEdge', spawn: 'fromPrimeval', label: 'Лесная опушка', color: 0xcfe8ff, height: 5.0, track: true, noRing: true, fog: { w: 3.4, h: 7.0, dz: 0.5, from: 6.5, n: 1, density: 0.2, color: 0xb4c2cc } }
         ],
 
         clearings: [
-            { x: 0.0, z: 90.0, radius: 10.0 }, { x: 0.0, z: 78.0, radius: 8.0 }, { x: 0.0, z: 68.0, radius: 5.5 }, { x: 0.0, z: 58.0, radius: 5.0 }, { x: -3.0, z: 48.0, radius: 5.0 },
+            { x: 0.0, z: 93.0, radius: 10.0 }, { x: 0.0, z: 78.0, radius: 8.0 }, { x: 0.0, z: 68.0, radius: 5.5 }, { x: 0.0, z: 58.0, radius: 5.0 }, { x: -3.0, z: 48.0, radius: 5.0 },
             { x: -45.0, z: -55.0, radius: 12.0 },   // логово Громового Когтя
             { x: 60.0, z: -6.0, radius: 10.0 },     // Яша
             { x: 72.0, z: -52.0, radius: 12.0 },    // бурый дракон
@@ -1061,7 +1063,7 @@ window.LOCATIONS = {
         pickups: [],
 
         props: [
-            { id: 'primevalValley.stone_pass', prop: 'stone_pass', x: 0.0, z: 90.0, r: Math.PI, dy: 0.26 },
+            { id: 'primevalValley.stone_pass', prop: 'stone_pass', x: 0.0, z: 93.0, r: Math.PI, dy: 0.26 },
             { id: 'primevalValley.bones_1', prop: 'bone_pile', x: -30.0, z: -64.0, r: 0.7 },
             { id: 'primevalValley.bones_2', prop: 'bone_pile', x: 84.0, z: -62.0, r: 2.1 },
             { id: 'primevalValley.bones_3', prop: 'bone_pile', x: -90.0, z: -40.0, r: 4.0 },

@@ -75,7 +75,7 @@ window.AVELORA_ASSET_INDEX = {
   "props/grass_tuft": ["m/props__grass_tuft.js", "d743ad1bf1"],
   "props/rune_portal": ["m/props__rune_portal.js", "e51a1d387f"],
   "props/smithy": ["m/props__smithy.js", "0155832e1f"],
-  "props/stone_pass": ["m/props__stone_pass.js", "5800d26285"],
+  "props/stone_pass": ["m/props__stone_pass.js", "137f7dd980"],
   "props/stump": ["m/props__stump.js", "72156d4f43"],
   "props/violet_flowerbed": ["m/props__violet_flowerbed.js", "5c4bf6b7bd"],
   "props/woodshed": ["m/props__woodshed.js", "832b165dde"],

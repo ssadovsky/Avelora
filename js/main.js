@@ -1488,7 +1488,7 @@ class AveloraGame {
                 depthWrite: false, blending: THREE.AdditiveBlending
             });
             const ring = new THREE.Mesh(ringGeo, ringMat);
-            group.add(ring);
+            if (!ex.noRing) group.add(ring);   // noRing: без белого кольца на полу (портал в тумане)
 
             // Soft vertical light column (fades upward)
             // столб уходит на 1.2 м под землю (на склоне нижний край не висит в воздухе); шейдер зажимает высоту
@@ -1539,7 +1539,7 @@ class AveloraGame {
                 // слои идут от начала дымки (ex.fog.from — расстояние назад от выхода) к концу ущелья, плотность растёт к выходу
                 const n = ex.fog.n || 9, back = ex.fog.from || 6.5;
                 for (let k = 0; k < n; k++) {
-                    const t = k / (n - 1), base = 0.05 + 0.5 * t * t;
+                    const t = n > 1 ? k / (n - 1) : 1, base = n > 1 ? 0.10 + 0.42 * t : 0.7;
                     const m = new THREE.MeshBasicMaterial({ map: fogTex, color: fc, transparent: true, opacity: base, depthWrite: false, side: THREE.DoubleSide, fog: false });
                     const pl = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), m);
                     pl.position.set(0, fh * 0.5 - 0.8, fdz - back * (1 - t));
@@ -1572,6 +1572,26 @@ class AveloraGame {
         if (!this.character) return;
         if (this.combat && this.combat.isDead) return; // a corpse doesn't travel
         const p = this.character.position;
+
+        // Дымка в проходе (exit.fog): настоящий объёмный туман — плотность сцены плавно растёт, пока герой идёт к выходу (без слоёв-плоскостей)
+        const fe = this.exits.find(e => e.data.fog && !e.disabled);
+        const sf = this.scene.fog;
+        if (fe && sf) {
+            if (this._fogRefObj !== sf) { this._fogRefObj = sf; this._fogRef = { d: sf.density, c: sf.color.clone() }; this._fogMod = false; }
+            const fg = fe.data.fog, zEnd = fe.data.z + (fg.dz || 0), zStart = zEnd - (fg.from || 6);
+            let t = Math.min(1, Math.max(0, (p.z - zStart) / (zEnd - zStart)));
+            t = Math.pow(t, 0.7);
+            const ax = Math.min(1, Math.max(0, (Math.abs(p.x - fe.data.x) - 3) / 3));
+            t *= 1 - ax * ax * (3 - 2 * ax);
+            if (t <= 0.001) {
+                if (this._fogMod) { sf.density = this._fogRef.d; sf.color.copy(this._fogRef.c); this._fogMod = false; }
+                else { this._fogRef.d = sf.density; this._fogRef.c.copy(sf.color); }
+            } else {
+                this._fogMod = true;
+                sf.density = this._fogRef.d + t * (fg.density || 0.1);
+                sf.color.copy(this._fogRef.c).lerp(this._fogTint || (this._fogTint = new THREE.Color(fg.color !== undefined ? fg.color : 0xb4c2cc)), t * 0.85);
+            }
+        }
 
         for (const ex of this.exits) {
             if (ex.disabled) continue;

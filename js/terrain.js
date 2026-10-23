@@ -400,6 +400,15 @@ class LakesideTerrain {
 
                 let mHeight = smoothFactor * baseHeight + smoothFactor * (crags + microCrags);
 
+                // Мягкий «провал» гор вдоль линии края (rimDip): минимум у оси ущелья (k0), плавно до полной высоты на расстоянии w по бокам
+                const rd = this.locTerrain.rimDip || [];
+                for (let di = 0; di < rd.length; di++) {
+                    const D = rd[di];
+                    const q = Math.min(1.0, Math.abs(x - D.x) / D.w);
+                    const s = q * q * q * (q * (q * 6.0 - 15.0) + 10.0);
+                    mHeight *= D.k0 + (1.0 - D.k0) * s;
+                }
+
                 // Mountain passes (western canyon cut to Lake Land)
                 const passes = this.locTerrain.mountainPasses || [];
                 for (let i = 0; i < passes.length; i++) {
@@ -595,7 +604,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v26_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v33_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
