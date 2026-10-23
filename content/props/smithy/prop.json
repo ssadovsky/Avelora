@@ -1,0 +1,12 @@
+{
+  "id": "smithy",
+  "name": "Кузня",
+  "obstacle": 0,
+  "obstacleShapes": [
+    { "type": "box", "cx": 0, "cz": -1.6, "hx": 2.4, "hz": 0.5, "r": 0.35, "step": 0.5, "exact": true },
+    { "type": "box", "cx": -2.3, "cz": -0.1, "hx": 0.55, "hz": 0.9, "r": 0.4, "step": 0.5, "exact": true },
+    { "type": "box", "cx": 2.35, "cz": 0.6, "hx": 0.15, "hz": 1.2, "r": 0.4, "step": 0.5, "exact": true },
+    { "type": "box", "cx": -0.4, "cz": 1.55, "hx": 0.05, "hz": 0.05, "r": 0.45, "step": 0.5, "exact": true }
+  ],
+  "cameraBlock": true
+}

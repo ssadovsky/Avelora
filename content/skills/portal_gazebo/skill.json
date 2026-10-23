@@ -1,0 +1,23 @@
+{
+  "id": "portal_gazebo",
+  "name": "Портал: беседка",
+  "description": "Изумрудный портал переносит вас на Лесную опушку — в центр беседки. Движение или удар прерывают заклинание.",
+  "type": "teleport",
+  "category": "travel",
+  "destination": "forestEdge",
+  "oneWay": true,
+  "pos": {
+    "x": 25.5,
+    "z": -20.1,
+    "r": 2.73
+  },
+  "cooldown": 30,
+  "castTime": 3,
+  "vfx": {
+    "color": "#5df08a",
+    "core": "#e2ffe9",
+    "radius": 1.7
+  },
+  "requiresLevel": 1,
+  "price": 40
+}

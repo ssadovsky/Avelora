@@ -51,10 +51,35 @@
             name: 'Пильня',
             desc: 'Открытый навес с козлами и двуручной пилой. Рядом с ней из брёвен делают доски: откройте сумку → «Создание». Для постройки доски не нужны.',
             cost: [{ item: 'log', count: 8 }, { item: 'branch', count: 4 }, { item: 'stone', count: 4 }],
-            craftRadius: CRAFT_RADIUS,
-            sep: 3.6,
-            fp: { hx: SX, hz: SZ, front: 0, eaveX: SAW_EAVE_X, ridgeY: SAW_RIDGE },
+            mesh: 'woodshed',
+            craftRadius: 5.0,
+            sep: 5.2,
+            fp: { hx: 2.5, hz: 2.5, front: 0, eaveX: 2.6, ridgeY: 3.2 },
+            rects: [
+                { x0: -2.2, x1: 2.2, z0: -2.0, z1: -0.4 },        // задняя стена, козлы с брёвнами
+                { x0: 1.1, x1: 2.3, z0: -0.4, z1: 1.9 },           // штабель брёвен справа
+                { x0: -1.7, x1: -0.55, z0: 0.1, z1: 1.2 }          // колода с топором
+            ],
             icon: '<path d="M6 16 24 7l18 9"/><path d="M10 15v26M38 15v26"/><path d="M8 33h32"/><path d="M13 33l4 8M35 33l-4 8"/><path d="M6 28h36" stroke-width="3.5"/><path d="M25 14v18M23 14h4" stroke-width="1.6"/>'
+        },
+        forge: {
+            id: 'forge',
+            kind: 'station',
+            station: 'forge',
+            name: 'Кузня',
+            desc: 'Открытая кузня под навесом: каменный горн с трубой, наковальня, бадья для закалки, верстак. Рядом с ней можно ковать (рецепты со станцией «кузня»).',
+            cost: [{ item: 'stone', count: 14 }, { item: 'log', count: 4 }, { item: 'plank', count: 6 }],
+            mesh: 'smithy',
+            rects: [
+                { x0: -2.7, x1: 2.7, z0: -2.25, z1: -0.55 },       // задняя стена и горн
+                { x0: -3.25, x1: -1.35, z0: -1.4, z1: 1.2 },       // поленница слева
+                { x0: 1.8, x1: 2.9, z0: -1.0, z1: 2.2 },           // опора и бадья справа
+                { x0: -0.85, x1: 0.05, z0: 1.1, z1: 2.0 }          // наковальня
+            ],
+            craftRadius: 5.2,
+            sep: 5.0,
+            fp: { hx: 3.0, hz: 2.45, front: 0.6, eaveX: 3.1, ridgeY: 4.2 },
+            icon: '<path d="M6 18 24 8l18 10"/><path d="M9 18v22M39 18v22"/><path d="M15 40V26h18v14"/><path d="M19 26v-8h10v8"/><path d="M21 33h6" stroke-width="3"/><path d="M12 40h24"/>'
         },
         storage: {
             id: 'storage',
@@ -137,6 +162,32 @@
     const CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
     const _v = new THREE.Vector3();
     const _nv = new THREE.Vector3();
+
+    function makeStoneTexture() {
+        const S = 256;
+        const c = document.createElement('canvas');
+        c.width = S; c.height = S;
+        const g = c.getContext('2d');
+        const rnd = mulberry32(5513);
+        g.fillStyle = '#5b5a58'; g.fillRect(0, 0, S, S);
+        const rows = 4, rh = S / rows;
+        for (let r = 0; r < rows; r++) {
+            let x = -(rnd() * 40);
+            while (x < S) {
+                const w = 50 + rnd() * 50, v = 150 + Math.floor(rnd() * 70);
+                g.fillStyle = `rgb(${v},${v - 2},${v - 8})`;
+                g.fillRect(x + 2, r * rh + 2, w - 4, rh - 4);
+                for (let k = 0; k < 40; k++) { const q = (rnd() - 0.5) * 36; g.fillStyle = `rgba(${q > 0 ? 255 : 0},${q > 0 ? 255 : 0},${q > 0 ? 255 : 0},0.05)`; g.fillRect(x + rnd() * w, r * rh + rnd() * rh, 3 + rnd() * 8, 2 + rnd() * 5); }
+                x += w;
+            }
+        }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        if (THREE.sRGBEncoding && !tex.colorSpace) tex.encoding = THREE.sRGBEncoding;
+        tex.anisotropy = 4;
+        return tex;
+    }
 
     function makeBuf() { return { pos: [], nor: [], uv: [], col: [] }; }
 
@@ -472,7 +523,8 @@
     // столбы заканчиваются внутри балок; плоскости на одной высоте не совпадают.
     // ------------------------------------------------------------------
     function buildSawmill(p, mats, rnd) {
-        const B = { frame: makeBuf(), floor: makeBuf(), wall: makeBuf(), roof: makeBuf(), furn: makeBuf() };
+        const FORGE = !!(p && p.forge);
+        const B = { frame: makeBuf(), floor: makeBuf(), wall: makeBuf(), roof: makeBuf(), furn: makeBuf(), stone: makeBuf(), glow: makeBuf() };
         const WOOD = [0.62, 0.49, 0.33], PALE = [0.80, 0.68, 0.48], DARK = [0.36, 0.27, 0.18], LOG = [0.42, 0.31, 0.20];
         const ROOF = [0.48, 0.38, 0.27], ROOFD = [0.24, 0.19, 0.14], STEEL = [0.62, 0.64, 0.67];
         const sh = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
@@ -524,6 +576,7 @@
             pushBox(B.roof, W + 0.04, 0.14, 0.16, child(S, 0, 0.1, len / 2 - 0.05, 0, 0, 0), sh(LOG, 0.9), rnd);   // доска по высокому краю
         }
 
+        if (!FORGE) {
         // --- козлы (2 шт.) и целое бревно на них ---
         const trestle = (x) => {
             box(B.furn, 0.16, 0.16, 0.95, x, 0.93, 0, sh(DARK, 1.1));
@@ -549,8 +602,73 @@
         [-0.45, 0.45].forEach(x => box(B.furn, 0.1, 0.18, 0.34, 1.2 + x * 1.1, 0.09, -0.92, sh(DARK, 1)));
         lg([-1.2, 0.0, 1.0], [-1.2, 0.5, 1.0], 1.15);                         // колода — торец бревна
 
+
+        } else {
+        // ---------------- кузня: каменная задняя стена, горн с колпаком и трубой, наковальня, мехи, бадья ----------------
+        const STONE = [0.80, 0.78, 0.74], STONED = [0.58, 0.57, 0.55], SOOT = [0.20, 0.19, 0.19], IRON = [0.34, 0.35, 0.39];
+        const sb = (sx, sy, sz, px, py, pz, col, ry, rx, rz) => pushBox(B.stone, sx, sy, sz, mat(px, py, pz, rx, ry, rz), col, rnd);
+        const gb = (sx, sy, sz, px, py, pz, col, ry) => pushBox(B.glow, sx, sy, sz, mat(px, py, pz, 0, ry || 0, 0), col, rnd);
+        const LEATHER = [0.40, 0.25, 0.15];
+        // задняя стена
+        sb(2 * SX - 0.5, 2.0, 0.32, 0, 1.0, -SZ + 0.2, sh(STONE, 0.95));
+        sb(2 * SX - 0.5, 0.14, 0.4, 0, 2.02, -SZ + 0.2, sh(STONED, 1));
+        // горн: основание, плита, бортик, угли
+        sb(1.8, 0.85, 0.9, 0, 0.425, -0.78, sh(STONE, 1));
+        sb(1.9, 0.1, 1.0, 0, 0.9, -0.78, sh(STONED, 1));
+        sb(1.0, 0.14, 0.12, 0, 1.0, -0.45, sh(STONE, 0.9));
+        [-1, 1].forEach(sx => sb(0.12, 0.14, 0.62, sx * 0.56, 1.0, -0.78, sh(STONE, 0.9)));
+        gb(0.96, 0.06, 0.56, 0, 0.96, -0.8, [1.0, 0.42, 0.08]);
+        for (let i = 0; i < 9; i++) {
+            const hot = rnd() < 0.55;
+            gb(0.1 + rnd() * 0.12, 0.07 + rnd() * 0.05, 0.1 + rnd() * 0.1, (rnd() - 0.5) * 0.8, 1.0 + rnd() * 0.04, -0.8 + (rnd() - 0.5) * 0.4, hot ? [1.0, 0.72, 0.22] : [0.85, 0.28, 0.05], rnd() * 3);
+        }
+        for (let i = 0; i < 5; i++) sb(0.12 + rnd() * 0.08, 0.06, 0.1 + rnd() * 0.06, (rnd() - 0.5) * 0.9, 0.99, -0.62 + rnd() * 0.12, sh(SOOT, 0.7 + rnd() * 0.4), rnd() * 3);
+        // колпак на опорах и труба сквозь крышу
+        [-1, 1].forEach(sx => sb(0.22, 0.6, 0.5, sx * 0.68, 1.25, -0.9, sh(STONE, 0.95)));
+        sb(1.6, 0.14, 0.9, 0, 1.6, -0.92, sh(STONED, 1));
+        sb(1.2, 0.5, 0.6, 0, 1.92, -1.05, sh(STONE, 0.95));
+        sb(0.8, 0.5, 0.5, 0, 2.4, -1.1, sh(STONE, 0.95));
+        sb(0.56, 1.3, 0.44, 0, 3.3, -1.12, sh(STONE, 0.9));
+        sb(0.7, 0.1, 0.56, 0, 4.0, -1.12, sh(STONED, 1));
+        // наковальня на колоде
+        pushCyl(B.furn, 0.3, 0.27, 0.5, 10, mat(0, 0, 0.2, 0, 0, 0), sh(LOG, 1.05), rnd);
+        sb(0.40, 0.08, 0.26, 0, 0.54, 0.2, sh(IRON, 1));
+        sb(0.20, 0.14, 0.18, 0, 0.65, 0.2, sh(IRON, 1.05));
+        sb(0.66, 0.11, 0.28, 0, 0.775, 0.2, sh(IRON, 1.15));
+        sb(0.2, 0.07, 0.17, 0.42, 0.78, 0.2, sh(IRON, 1.15));
+        sb(0.12, 0.05, 0.1, 0.55, 0.775, 0.2, sh(IRON, 1.15));
+        gb(0.30, 0.03, 0.05, -0.12, 0.84, 0.17, [1.0, 0.36, 0.08], 0.2);                  // раскалённая заготовка
+        box(B.furn, 0.42, 0.04, 0.04, 0.12, 0.85, 0.37, sh(WOOD, 0.9), 0, 0.5, 0);        // молот: рукоять
+        sb(0.13, 0.08, 0.08, 0.28, 0.86, 0.31, sh(IRON, 1.1), 0.5);                       // молот: боёк
+        // мехи слева от горна
+        box(B.furn, 0.56, 0.06, 0.8, -1.35, 0.5, -0.75, sh(WOOD, 1));
+        box(B.furn, 0.56, 0.06, 0.8, -1.35, 0.82, -0.7, sh(WOOD, 1.05), 0, 0, 0.0);
+        box(B.furn, 0.5, 0.32, 0.7, -1.35, 0.66, -0.73, sh(LEATHER, 1), 0, 0, 0);
+        sb(0.7, 0.07, 0.07, -1.0, 0.62, -0.75, sh(IRON, 1));
+        box(B.furn, 0.08, 0.5, 0.08, -1.35, 0.25, -0.5, sh(LOG, 1)); box(B.furn, 0.08, 0.5, 0.08, -1.35, 0.25, -1.0, sh(LOG, 1));
+        box(B.furn, 0.04, 0.5, 0.04, -1.35, 1.1, -0.2, sh(WOOD, 0.8), 0.5, 0, 0);       // рукоять мехов
+        // бадья для закалки справа-спереди
+        box(B.furn, 0.96, 0.4, 0.06, 1.32, 0.2, 0.24, sh(WOOD, 0.9)); box(B.furn, 0.96, 0.4, 0.06, 1.32, 0.2, 0.68, sh(WOOD, 0.9));
+        [-1, 1].forEach(s => box(B.furn, 0.06, 0.4, 0.5, 1.32 + s * 0.45, 0.2, 0.46, sh(WOOD, 0.85)));
+        box(B.furn, 0.9, 0.05, 0.5, 1.32, 0.04, 0.46, sh(DARK, 1));
+        sb(0.84, 0.02, 0.38, 1.32, 0.32, 0.46, [0.22, 0.38, 0.5]);
+        [-0.3, 0.3].forEach(dx => box(B.furn, 0.04, 0.05, 0.5, 1.32 + dx, 0.42, 0.46, sh(IRON, 1)));   // обручи
+        // верстак справа у стены: клещи, слитки
+        box(B.furn, 0.9, 0.07, 0.5, 1.4, 0.8, -1.0, sh(WOOD, 1));
+        [-1, 1].forEach(s => box(B.furn, 0.09, 0.8, 0.09, 1.4 + s * 0.38, 0.4, -1.0, sh(LOG, 1)));
+        for (let i = 0; i < 4; i++) sb(0.3, 0.06, 0.13, 1.2 + (i % 2) * 0.05, 0.87 + i * 0.065, -1.0, sh(IRON, 0.9 + i * 0.07), (i % 2) * 0.1);
+        sb(0.04, 0.5, 0.04, 1.62, 0.87, -0.9, sh(IRON, 1), 0, 0, 1.3);
+        // инструмент на стене слева
+        [-1.55, -1.3, -1.05].forEach((x, i) => { sb(0.05, 0.5 - i * 0.06, 0.03, x, 1.45, -1.28, sh(IRON, 1)); sb(0.12, 0.09, 0.05, x, 1.2 - i * 0.03, -1.28, sh(IRON, 1.1)); });
+        // уголь кучей и дрова
+        for (let i = 0; i < 14; i++) sb(0.1 + rnd() * 0.12, 0.08 + rnd() * 0.08, 0.1 + rnd() * 0.1, -1.55 + (rnd() - 0.5) * 0.6, 0.05 + rnd() * 0.12, 0.85 + (rnd() - 0.5) * 0.5, sh(SOOT, 0.6 + rnd() * 0.6), rnd() * 3);
+        lg([-1.8, 0.13, 0.35], [-0.95, 0.13, 0.33], 0.8);
+        lg([-1.8, 0.13, 0.05], [-0.95, 0.13, 0.04], 0.8);
+        lg([-1.75, 0.32, 0.2], [-1.0, 0.32, 0.19], 0.75);
+        }
+
         const group = new THREE.Group();
-        group.name = 'building:sawmill';
+        group.name = FORGE ? 'building:forge' : 'building:sawmill';
         const meshes = {
             frame: bufToMesh(B.frame, mats.solid, 'frame'),
             floor: bufToMesh(B.floor, mats.solid, 'floor'),
@@ -559,12 +677,20 @@
             roof: bufToMesh(B.roof, mats.roof, 'roof')
         };
         Object.keys(meshes).forEach(k => { if (meshes[k]) group.add(meshes[k]); });
+        if (B.stone.pos.length) { const m = bufToMesh(B.stone, mats.stone || mats.solid, 'stone'); group.add(m); }
+        if (B.glow.pos.length) { const m = bufToMesh(B.glow, mats.glow || mats.solid, 'glow'); m.castShadow = false; m.receiveShadow = false; group.add(m); }
         if (baker) baker.meshes().forEach(m => group.add(m));
         return { group, meshes, slopeLen: 0, roofW: 0, th: 0, rampLen: 0, rampAngle: 0 };
     }
 
     function buildModel(def, p, mats, rnd) {
-        return def.kind === 'station' ? buildSawmill(p, mats, rnd) : buildStorage(p, mats, rnd);
+        if (def.mesh) {   // готовая модель (content/props/<mesh>): подгружается асинхронно в пустую группу
+            const group = new THREE.Group();
+            group.name = 'building:' + def.id;
+            if (mats.attachMesh) mats.attachMesh(group, def);
+            return { group, meshes: {}, slopeLen: 0, roofW: 0, th: 0, rampLen: 0, rampAngle: 0 };
+        }
+        return def.kind === 'station' ? buildSawmill({ forge: def.id === 'forge' }, mats, rnd) : buildStorage(p, mats, rnd);
     }
 
     // ------------------------------------------------------------------
@@ -662,7 +788,7 @@
             this.mgr = mgr;
             this.closePanel();
             this.showBar(false);
-            if (this.els.btn) this.els.btn.style.display = mgr.cfg ? '' : 'none';
+            if (this.els.btn) this.els.btn.style.display = (mgr.cfg && (mgr.cfg.types || []).length) ? '' : 'none';
         },
 
         detach(mgr) {
@@ -793,7 +919,9 @@
             this.mats = {
                 solid: new THREE.MeshStandardMaterial({ map: this.tex, vertexColors: true, roughness: 0.92, metalness: 0 }),
                 wall: new THREE.MeshStandardMaterial({ map: this.tex, vertexColors: true, roughness: 0.92, metalness: 0, transparent: true }),
-                roof: new THREE.MeshStandardMaterial({ map: this.tex, vertexColors: true, roughness: 0.92, metalness: 0, transparent: true })
+                roof: new THREE.MeshStandardMaterial({ map: this.tex, vertexColors: true, roughness: 0.92, metalness: 0, transparent: true }),
+                stone: new THREE.MeshStandardMaterial({ map: makeStoneTexture(), vertexColors: true, roughness: 0.95, metalness: 0 }),
+                glow: new THREE.MeshBasicMaterial({ vertexColors: true })
             };
             this.logTpl = null;
             // настоящие брёвна: сначала разбираем модель, потом ставим сохранённые постройки
@@ -803,12 +931,14 @@
                 this.mats.logTpl = tpl;
                 const st = game.gameState;
                 if (st) st.buildingsOf(location.id).forEach(b => { try { this.spawn(b); } catch (err) { console.error('[Avelora] building spawn failed', b, err); } });
+                // постройки, стоящие в локации всегда (кузня у кузнеца): не в сохранении, не сносятся, не переносятся
+                (this.cfg.fixed || []).forEach((b, i) => { try { this.spawn({ uid: -(i + 1), type: b.type, x: b.x, z: b.z, r: b.r || 0, fixed: true }); } catch (err) { console.error('[Avelora] fixed building failed', b, err); } });
             });
         }
 
         canUse() {
             const g = this.game;
-            return !!(this.cfg && g.isReady && !g.isPaused && !g.isTransitioning && g.gameState && !(g.combat && g.combat.isDead));
+            return !!(this.cfg && (this.cfg.types || []).length && g.isReady && !g.isPaused && !g.isTransitioning && g.gameState && !(g.combat && g.combat.isDead));
         }
 
         warn(text) { if (this.game.ui) this.game.ui.floatText(text, 'warn'); }
@@ -826,7 +956,8 @@
                 let smn = Infinity, smx = -Infinity;
                 for (let i = 0; i <= 4; i++) {
                     for (let j = 0; j <= 4; j++) {
-                        const w = this.toWorld(x, z, r, -SX + i * SX / 2, -SZ + j * SZ / 2);
+                        const fx = def.fp ? def.fp.hx : SX, fz = def.fp ? def.fp.hz : SZ;
+                        const w = this.toWorld(x, z, r, -fx + i * fx / 2, -fz + j * fz / 2);
                         const h = T.getRawHeightAt(w.x, w.z);
                         if (h < smn) smn = h;
                         if (h > smx) smx = h;
@@ -1038,7 +1169,10 @@
         spawnStation(b, def) {
             const f = this.fit(b.x, b.z, b.r, def);
             const rnd = mulberry32(((b.uid * 2654435761) ^ Math.round(b.x * 100) ^ Math.round(b.z * 7919)) >>> 0);
-            const model = buildSawmill({}, this.mats, rnd);
+            const isForge = def.id === 'forge' && !def.mesh;
+            const model = def.mesh
+                ? buildModel(def, {}, Object.assign({}, this.mats, { attachMesh: (g, d) => this.attachMesh(g, d, null) }), rnd)
+                : buildSawmill({ forge: isForge }, this.mats, rnd);
             if (model.meshes.roof) model.meshes.roof.material = this.mats.roof.clone();
             const g = model.group;
             g.position.set(b.x, f.deckY, b.z);
@@ -1056,12 +1190,25 @@
             const low = new THREE.Group(); low.name = 'cam-low'; g.add(low);
             const shell = new THREE.Group(); shell.name = 'cam-shell'; g.add(shell);
             // мелкие предметы блокируют камеру только пока герой снаружи (под навесом камера не прыгает об них при вращении)
+            if (def.mesh) {
+                // камеру держит сама модель (addCameraBlocker в attachMesh)
+            } else if (isForge) {
+                addBox(shell, 3.4, 2.0, 0.4, 0, 1.0, -1.3);                   // каменная стена
+                addBox(shell, 1.9, 0.95, 1.0, 0, 0.47, -0.78);                // горн
+                addBox(shell, 0.9, 0.85, 0.5, 0.1, 0.42, 0.2);                // наковальня
+                addBox(shell, 1.0, 0.45, 0.55, 1.32, 0.22, 0.46);             // бадья
+                addBox(shell, 0.7, 0.9, 0.9, -1.35, 0.45, -0.73);             // мехи
+                addBox(shell, 1.0, 0.9, 0.6, 1.4, 0.45, -1.0);                // верстак
+            } else {
             addBox(shell, 3.8, 1.25, 0.8, 0, 0.62, 0);                        // козлы с бревном
             addBox(shell, 1.5, 0.9, 1.0, -1.0, 0.45, -0.95);                  // штабель брёвен
             addBox(shell, 1.3, 0.8, 0.45, 1.2, 0.4, -1.0);                    // стопка досок
             addBox(shell, 0.6, 0.7, 0.6, -1.2, 0.35, 1.0);                    // колода
-            const ang = -Math.atan2(0.6, 2 * (SZ - 0.17));                    // высокий край — вход (+Z)
-            addBox(shell, 2 * SX + 0.6, 0.16, (2 * SZ + 0.6) / Math.cos(ang), 0, 2.72, 0, ang, 0, 0);
+            }
+            if (!def.mesh) {
+                const ang = -Math.atan2(0.6, 2 * (SZ - 0.17));                // высокий край — вход (+Z)
+                addBox(shell, 2 * SX + 0.6, 0.16, (2 * SZ + 0.6) / Math.cos(ang), 0, 2.72, 0, ang, 0, 0);
+            }
 
             const inst = {
                 uid: b.uid, type: b.type, x: b.x, z: b.z, r: b.r, def, fit: f,
@@ -1069,11 +1216,33 @@
                 hit: null, deckBox: null, rampBox: null,
                 cells: [], shellOn: false, wallOp: 1, roofOp: 1, inside: false, rec: null, fp: def.fp
             };
+            if (isForge) {
+                const light = new THREE.PointLight(0xff8a3a, 1.6, 9, 2);
+                light.position.set(0, 1.35, -0.2);
+                g.add(light);
+                inst.light = light;
+            }
             this.blockCells(inst);
             this.game.addCameraBlocker(low);
             this.instances.push(inst);
             this.updateShell(inst, 0, true);
             return inst;
+        }
+
+        /** Вставляет в группу модель из content/props/<def.mesh> (override — материал призрака). */
+        attachMesh(group, def, override) {
+            const wo = this.game.worldObjects;
+            const pdef = ((window.GAME_CONTENT || {}).props || {})[def.mesh];
+            if (!wo || !pdef) return;
+            const run = () => wo.loadTemplates('props', def.mesh, pdef).then(vars => {
+                if (this.disposed || !vars || !vars.length) return;
+                const obj = vars[0].clone();
+                obj.position.set(0, -0.02, 0);
+                if (override) obj.traverse(o => { if (o.isMesh) { o.material = override; o.castShadow = false; o.receiveShadow = false; o.renderOrder = 5; } });
+                group.add(obj);
+                if (!override && this.game.addCameraBlocker) this.game.addCameraBlocker(obj);
+            });
+            if (window.AveloraAssets && pdef.modelKey) window.AveloraAssets.ensure(pdef.modelKey).then(run); else run();
         }
 
         /** Ближайшая построенная станция данного типа в радиусе работы от позиции (для рецептов со `station`). */
@@ -1094,7 +1263,15 @@
             const pf = this.pathfinder;
             const c = inst.platform.cos, s = inst.platform.sin;
             const station = inst.def.kind === 'station';
-            const rects = station ? [
+            const rects = inst.def.rects ? inst.def.rects.slice() : station && inst.def.id === 'forge' ? [
+                { x0: -2.05, x1: 2.05, z0: -1.65, z1: -1.12 },       // стена
+                { x0: -1.0, x1: 1.0, z0: -1.3, z1: -0.3 },           // горн
+                { x0: -1.75, x1: -1.0, z0: -1.2, z1: -0.3 },         // мехи
+                { x0: 0.95, x1: 1.9, z0: -1.4, z1: -0.65 },          // верстак
+                { x0: -0.45, x1: 0.7, z0: -0.1, z1: 0.5 },           // наковальня
+                { x0: 0.85, x1: 1.85, z0: 0.2, z1: 0.75 },           // бадья
+                { x0: -2.05, x1: -0.9, z0: 0.65, z1: 1.2 }           // уголь и дрова
+            ] : station ? [
                 { x0: -1.95, x1: 1.95, z0: -0.5, z1: 0.5 },          // козлы, брус, пила
                 { x0: -2.05, x1: -0.2, z0: -1.55, z1: -0.7 },        // штабель брёвен
                 { x0: 0.5, x1: 2.05, z0: -1.55, z1: -0.7 },          // стопка досок
@@ -1212,7 +1389,7 @@
             const x0 = ch ? ch.position.x - Math.sin(a) * 8 : 0, z0 = ch ? ch.position.z - Math.cos(a) * 8 : 0;
             const gm = new THREE.MeshBasicMaterial({ color: 0x66e07a, transparent: true, opacity: 0.5, depthWrite: false });
             const rnd = mulberry32(99);
-            const ghost = buildModel(def, { drop: 0.6, rampDrop: 0.3 }, { solid: gm, wall: gm, roof: gm, logTpl: this.logTpl, logMat: gm }, rnd);
+            const ghost = buildModel(def, { drop: 0.6, rampDrop: 0.3 }, { solid: gm, wall: gm, roof: gm, stone: gm, glow: gm, logTpl: this.logTpl, logMat: gm, attachMesh: (g, d) => this.attachMesh(g, d, gm) }, rnd);
             ghost.group.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.renderOrder = 5; } });
             this.root.add(ghost.group);
             this.placing = {
@@ -1497,6 +1674,10 @@
         update(delta) {
             if (!this.cfg) return;
             for (let i = 0; i < this.instances.length; i++) this.updateShell(this.instances[i], delta, false);
+            this._fT = (this._fT || 0) + delta;
+            const ft = this._fT, fl = 0.8 + 0.12 * Math.sin(ft * 9.1) + 0.08 * Math.sin(ft * 23.7 + 1.3);
+            if (this.mats && this.mats.glow) this.mats.glow.color.setScalar(fl);
+            for (let i = 0; i < this.instances.length; i++) { const L = this.instances[i].light; if (L) L.intensity = 1.6 * fl; }
             // станции (пильня): когда герой входит в радиус / выходит из него — обновить вкладку «Создание»
             this._stT = (this._stT || 0) - delta;
             if (this._stT <= 0) {

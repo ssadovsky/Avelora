@@ -468,7 +468,7 @@
         /** Name/description for the UI: a teleport used on its own destination reads "Возвращение в мир". */
         labelOf(def) {
             const here = this.game.location && this.game.location.id;
-            if (def && def.type === 'teleport' && here === def.destination) {
+            if (def && def.type === 'teleport' && !def.oneWay && here === def.destination) {
                 return { name: def.backName || def.name, description: def.backDescription || def.description };
             }
             return { name: def.name, description: def.description };
@@ -477,6 +477,10 @@
         /** Where a teleport skill leads from the current location: { dest, spawn } or null. */
         teleportRoute(def) {
             const g = this.game, here = g.location && g.location.id;
+            if (def.oneWay) {
+                if (!window.LOCATIONS[def.destination]) return null;
+                return { dest: def.destination, spawn: def.spawn || null, pos: def.pos || null };
+            }
             if (here === def.destination) {
                 const back = g.gameState && g.gameState.returnTo;
                 let dest = (back && back !== here && window.LOCATIONS[back]) ? back : (window.START_LOCATION || null);
@@ -532,7 +536,7 @@
             this.startCooldown(ch.def);
             if (g.character) g.character.stopChannel();
             // Going TO the destination: remember where from, so the same skill can bring us back.
-            if (g.gameState && ch.from && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from, { x: g.character.position.x, z: g.character.position.z, r: g.character.currentRotation });
+            if (g.gameState && ch.from && !ch.def.oneWay && ch.from !== ch.def.destination) g.gameState.setReturnTo(ch.from, { x: g.character.position.x, z: g.character.position.z, r: g.character.currentRotation });
             // Quest tracking for home_recall
             if (ch.def.id === 'home_recall' && g.gameState) {
                 if (ch.dest === 'homeCamp') {
@@ -544,7 +548,7 @@
                 }
             }
             this.pendingArrival = { def: ch.def };
-            g.changeLocation(ch.dest, ch.spawn, 'Золотые руны уносят вас…', ch.pos);
+            g.changeLocation(ch.dest, ch.spawn, ch.def.oneWay ? 'Портал уносит вас…' : 'Золотые руны уносят вас…', ch.pos);
         }
 
         playArrival() {

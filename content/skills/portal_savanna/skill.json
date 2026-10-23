@@ -1,0 +1,23 @@
+{
+  "id": "portal_savanna",
+  "name": "Портал: отшельник",
+  "description": "Янтарный портал переносит вас в саванну — к стоянке ящера-отшельника. Движение или удар прерывают заклинание.",
+  "type": "teleport",
+  "category": "travel",
+  "destination": "savanna",
+  "oneWay": true,
+  "pos": {
+    "x": -112.0,
+    "z": 19.0,
+    "r": 3.14
+  },
+  "cooldown": 30,
+  "castTime": 3,
+  "vfx": {
+    "color": "#ffa43a",
+    "core": "#fff0cf",
+    "radius": 1.7
+  },
+  "requiresLevel": 1,
+  "price": 40
+}
