@@ -46,12 +46,13 @@ const HOVER_PROXY_SIZE = {
 
 
 class LakesideEnvironment {
-    constructor(root, terrain, pathfinder, location) {
+    constructor(root, terrain, pathfinder, location, spawnPos) {
         this.root = root;
         this.scene = root; // backwards-compatible name
         this.terrain = terrain;
         this.pathfinder = pathfinder;
         this.location = location || window.CURRENT_LOCATION || {};
+        this.spawnPos = spawnPos || (this.location.spawns && this.location.spawns.default) || this.location.playerSpawn || { x: 0, z: 0 };
 
         this.loader = new THREE.GLTFLoader();
         this.texLoader = new THREE.TextureLoader();
@@ -60,6 +61,7 @@ class LakesideEnvironment {
         // id -> { id, kind, group, x, z, s, r, label, parts: [{ mesh, index, matrix }] }
         this.objects = new Map();
         this.pending = [];
+        this.bgTasks = [];
         // Bumped whenever an object is hidden/shown (skills.js re-reads its
         // projectile blocker cache; felled trees stop blocking Spark).
         this.version = 0;
@@ -84,8 +86,21 @@ class LakesideEnvironment {
 
         this.init();
 
-        // Resolves when every model/texture of this location is parsed and in the scene
+        // Resolves when near models/textures of this location are parsed and in the scene
         this.ready = Promise.all(this.pending).then(() => undefined);
+        // Resolves when distant background models (>105m from spawn) have also finished streaming in
+        this.allReady = this.ready.then(() => this._drainBgTasks());
+    }
+
+    async _drainBgTasks() {
+        const tasks = this.bgTasks.slice();
+        this.bgTasks.length = 0;
+        for (let i = 0; i < tasks.length; i += 2) {
+            if (this.disposed) return;
+            await new Promise(r => setTimeout(r, 16));
+            if (this.disposed) return;
+            await Promise.all(tasks.slice(i, i + 2).map(fn => fn()));
+        }
     }
 
     // ---------------------------------------------------------------
@@ -118,10 +133,11 @@ class LakesideEnvironment {
     // заново из base64 (дёшево). Экономит память на размер всех моделей локации.
     static clearModelBuffers() { Object.keys(GLB_BUFFER_CACHE).forEach(k => { delete GLB_BUFFER_CACHE[k]; }); }
 
-    loadModel(key, onLoaded) {
-        // модель подгружается своим файлом js/assets/m/<key>.js (asset_loader.js); промис входит в this.ready
-        const p = (window.AveloraAssets ? window.AveloraAssets.ensure(key) : Promise.resolve(true)).then(() => new Promise((resolve) => {
-            const buffer = this.disposed ? null : LakesideEnvironment.getModelBuffer(key);
+    _runLoadModel(key, onLoaded) {
+        if (this.disposed) return Promise.resolve();
+        return (window.AveloraAssets ? window.AveloraAssets.ensure(key) : Promise.resolve(true)).then(() => new Promise((resolve) => {
+            if (this.disposed) { resolve(); return; }
+            const buffer = LakesideEnvironment.getModelBuffer(key);
             if (!buffer) { resolve(); return; }
             this.loader.parse(buffer, '', (gltf) => {
                 if (this.disposed) { resolve(); return; }
@@ -132,7 +148,16 @@ class LakesideEnvironment {
                 resolve();
             });
         }));
-        this.pending.push(p);
+    }
+
+    loadModel(key, onLoaded, isBackground) {
+        if (window.AveloraAssets && window.AveloraAssets.markUsed) window.AveloraAssets.markUsed(key);
+        if (isBackground) {
+            this.bgTasks.push(() => this._runLoadModel(key, onLoaded));
+            return;
+        }
+        // модель подгружается своим файлом js/assets/m/<key>.js (asset_loader.js); промис входит в this.ready
+        this.pending.push(this._runLoadModel(key, onLoaded));
     }
 
     loadTexture(key) {
@@ -305,6 +330,8 @@ class LakesideEnvironment {
                 if (window.AveloraHitDebug) window.AveloraHitDebug.attachInstanced(proxyMesh, kind === 'trees' ? 'tree' : kind === 'ferns' ? 'fern' : 'ore', this.root);
             }
         });
+        this._cullT = 1;
+        this.version++;
     }
 
     /** Cached per-location (see this._hoverProxyGeoCache in the constructor). */
@@ -331,6 +358,10 @@ class LakesideEnvironment {
             this.objects.set(item.id, entry);
         }
         entry.parts.push({ mesh, index, matrix: matrix.clone() });
+        if (!entry.visible) {
+            mesh.setMatrixAt(index, new THREE.Matrix4().makeScale(0, 0, 0));
+            mesh.instanceMatrix.needsUpdate = true;
+        }
     }
 
     /** Hide/show a single object (e.g. a chopped tree) without touching its neighbours. */
@@ -444,11 +475,34 @@ class LakesideEnvironment {
             evergreen: 1.0
         };
 
+        const sx = (this.spawnPos && this.spawnPos.x) || 0;
+        const sz = (this.spawnPos && this.spawnPos.z) || 0;
+
         Object.keys(treeGroups).forEach(typeKey => {
             const list = treeGroups[typeKey];
             if (!list.length) return;
             const modelKey = typeModelMap[typeKey] || 'tree';
             const baseScale = defaultScales[typeKey] || 1.0;
+
+            let minD2 = Infinity;
+            list.forEach(p => {
+                // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
+                const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : (typeKey === 'tree' ? 0.22 : 0.35)));
+                // Навигационная сетка 0.75 м: радиус < ~0.4 м может не накрыть ни одной клетки, и дерево превращается в «камыш» (проходимо). Минимум 0.55.
+                this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, r * (p.s || 1.0)));
+                if (p.id && !this.objects.has(p.id)) {
+                    this.objects.set(p.id, {
+                        id: p.id, kind: 'trees', group: p.group || null,
+                        x: p.x, z: p.z, s: p.s, r: p.r,
+                        label: KIND_LABELS.trees || 'trees',
+                        visible: true, parts: []
+                    });
+                }
+                const dx = p.x - sx, dz = p.z - sz;
+                const d2 = dx * dx + dz * dz;
+                if (d2 < minD2) minD2 = d2;
+            });
+            const isFar = minD2 > 105 * 105;
 
             // Дальняя версия модели (<key>_far, листва крупнее и реже) — если она есть в сборке
             const al = window.AVELORA_ASSET_ALIASES || {};
@@ -515,16 +569,9 @@ class LakesideEnvironment {
                     d.rotation.y = (p.r !== undefined) ? p.r : 0;
                     d.scale.set(scale, scale, scale);
                 }, Object.assign({ farParts }, (window.AVELORA_WOPT && window.AVELORA_WOPT.trees === 'none') ? { reflect: false } : {}));
-
-                // Trunk obstacle centered strictly at (p.x, p.z) with comfortable walking clearance
-                list.forEach(p => {
-                    const r = p.obstacle || (typeKey === 'quiver' ? 0.75 : (typeKey.startsWith('fir') ? 0.6 : (typeKey === 'tree' ? 0.22 : 0.35)));
-                    // Навигационная сетка 0.75 м: радиус < ~0.4 м может не накрыть ни одной клетки, и дерево превращается в «камыш» (проходимо). Минимум 0.55.
-                    this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, r * (p.s || 1.0)));
-                });
             };
-            this.loadModel(modelKey, (g) => { nearGltf = g; tryBuild(); });
-            if (hasFar) this.loadModel(farKey, (g) => { farGltf = g; tryBuild(); });
+            this.loadModel(modelKey, (g) => { nearGltf = g; tryBuild(); }, isFar);
+            if (hasFar) this.loadModel(farKey, (g) => { farGltf = g; tryBuild(); }, isFar);
         });
     }
 
@@ -564,13 +611,26 @@ class LakesideEnvironment {
                 if (decor.length) this.buildInstanced('ores', part, decor, place, { noHover: true });
             });
 
-            // Декоративные замшелые камни (ores) не блокируют путь — персонаж свободно перешагивает через них
+                // Декоративные замшелые камни (p.decor) не блокируют путь; крупные рудные валуны — твёрдые
+                orePlacements.forEach(p => {
+                    if (!p.decor && !p.noObstacle) {
+                        this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, (p.s || 0.26) * 2.4));
+                    }
+                });
         });
     }
 
     loadBoulders() {
         const boulderPlacements = this.getDecorations('boulders');
         if (boulderPlacements.length === 0) return;
+
+        // Все скальные валуны (включая группы rocks на новых локациях с масштабом 0.7..2.2) блокируют проход сразу
+        boulderPlacements.forEach(p => {
+            if (!p.noObstacle) {
+                const s = p.s || 1.8;
+                this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, s * 0.78));
+            }
+        });
 
         this.loadModel('boulder', (gltf) => {
             const boulderMesh = gltf.scene.children[0];
@@ -584,13 +644,6 @@ class LakesideEnvironment {
                     d.rotation.set(0.08 * Math.sin(idx), (p.r !== undefined) ? p.r : 0, 0.08 * Math.cos(idx));
                     d.scale.set(scale, scale * 0.9, scale);
                 });
-
-            // Препятствием являются только огромные скальные валуны (масштаб >= 2.0)
-            boulderPlacements.forEach(p => {
-                if ((p.s || 1.8) >= 2.0 && !p.noObstacle) {
-                    this.pathfinder.addObstacle(p.x, p.z, (p.s || 1.8) * 0.9);
-                }
-            });
         });
     }
 

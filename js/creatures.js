@@ -123,11 +123,17 @@
                     this.state.clearKilled(location.id, '__cleared');
                 }
             }
+            const spPos = (game && game.pendingSpawn) || (location.spawns && location.spawns.default) || location.playerSpawn || { x: 0, z: 0 };
+            const sx = spPos.x || 0, sz = spPos.z || 0;
+            const farRecs = [];
             (location.creatures || []).forEach(sp => {
                 const def = this.def(sp.type);
                 if (!def || !sp.id) {
                     console.warn(`[Avelora] location "${location.id}": bad creature spawn`, sp);
                     return;
+                }
+                if (def.modelKey && window.AveloraAssets && window.AveloraAssets.markUsed) {
+                    window.AveloraAssets.markUsed(def.modelKey);
                 }
                 const rec = this.makeRecord(sp, def);
                 this.list.push(rec);
@@ -149,9 +155,24 @@
                     }
                     if (killedAt !== null && this.state) this.state.clearKilled(location.id, sp.id);
                 }
-                jobs.push(this.spawn(rec, false));
+                const dx = (sp.x || 0) - sx, dz = (sp.z || 0) - sz;
+                if (!location.isDungeon && (dx * dx + dz * dz > 100 * 100)) {
+                    farRecs.push(rec);
+                } else {
+                    jobs.push(this.spawn(rec, false));
+                }
             });
             this.ready = Promise.all(jobs).then(() => undefined);
+            this.allReady = this.ready.then(() => this._spawnFarBatch(farRecs));
+        }
+
+        async _spawnFarBatch(farRecs) {
+            for (let i = 0; i < farRecs.length; i += 2) {
+                if (this.disposed) return;
+                await new Promise(r => setTimeout(r, 16));
+                if (this.disposed) return;
+                await Promise.all(farRecs.slice(i, i + 2).map(rec => this.spawn(rec, false)));
+            }
         }
 
         get state() { return this.game.gameState; }
@@ -695,10 +716,11 @@
 
                 const isVis = rec.group.visible;
                 if (rec.mixer) {
-                    const animRate = rec.stunT > 0 ? 0.05 : (rec.slowT > 0 ? rec.slowF : 1);
+                    const noDeathFreeze = rec.state === 'dead' && !this.hasClip(rec, 'Death') && rec.deadT > 0.22;
+                    const animRate = noDeathFreeze ? 0 : (rec.stunT > 0 ? 0.05 : (rec.slowT > 0 ? rec.slowF : 1));
                     rec._animDt = (rec._animDt || 0) + delta * animRate;
                     const d2 = rec._d2 || 0;
-                    const mustStep = rec._poseDirty || (rec.state === 'dead' && rec.deadT < 2.0);
+                    const mustStep = rec._poseDirty || (rec.state === 'dead' && rec.deadT < 2.0 && !noDeathFreeze);
                     const stride = !isVis ? 0 : (d2 < 1600 ? 1 : (d2 < 7225 ? 2 : 4));
                     rec._animTick = ((rec._animTick || i) + 1) | 0;
                     if (mustStep || (stride > 0 && (stride === 1 || (rec._animTick % stride) === 0))) {
@@ -1090,7 +1112,16 @@
             rec.stunOn = false;
             const i = this.proxies.indexOf(rec.proxy);
             if (i >= 0) this.proxies.splice(i, 1);
-            this.play(rec, 'Death', 0.1, true);
+            if (this.hasClip(rec, 'Death')) {
+                this.play(rec, 'Death', 0.1, true);
+            } else if (rec.mixer) {
+                // Если у модели нет анимации Death (носорог, динозавры и др.) — плавно возвращаем ноги из бега в спокойную позу
+                if (this.hasClip(rec, 'Idle')) {
+                    this.play(rec, 'Idle', 0.18, true);
+                } else {
+                    rec.mixer.stopAllAction();
+                }
+            }
             if (this.hovered === rec) this.hovered = null;
             this.hideHpBar(rec);
             if (this.state) this.state.setKilled(this.location.id, rec.id, Math.floor(Date.now() / 1000));

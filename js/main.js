@@ -1105,9 +1105,9 @@ class AveloraGame {
             opts.position = null; // спавним в безопасной точке снаружи
         }
 
-        // Сохранение указывало на несуществующую локацию: координаты чужие, ставим в стартовую точку
+        // Сохранение указывало на несуществующую локацию: координаты чужие, ставим в стартовой точке
         if (opts.locationId && !window.LOCATIONS[opts.locationId]) { opts.position = null; opts.relocated = true; }
-        const built = this.buildLocationSafe(startId, opts.spawnId || null);
+        const built = this.buildLocationSafe(startId, opts.spawnId || null, opts.position || null);
         if (built.fallback) { opts.position = null; opts.relocated = true; }
         const defaultSpawn = built.spawn;
         let spawn = opts.position || defaultSpawn;
@@ -1141,10 +1141,15 @@ class AveloraGame {
             this.worldObjects ? this.worldObjects.ready : null,
             this.creatures ? this.creatures.ready : null,
             this.harvest ? this.harvest.ready : null,
-            window.AveloraAssets ? window.AveloraAssets.idle() : null,   // модели локации подгружены своими файлами
+            window.AveloraAssets ? window.AveloraAssets.idle() : null,   // ближние модели локации подгружены
             minLoadTime
         ]);
-        if (window.AveloraAssets) window.AveloraAssets.evictUnused();   // модели прошлой локации — из памяти
+        Promise.all([
+            this.environment ? (this.environment.allReady || this.environment.ready) : null,
+            this.worldObjects ? (this.worldObjects.allReady || this.worldObjects.ready) : null,
+            this.creatures ? (this.creatures.allReady || this.creatures.ready) : null
+        ]).then(() => window.AveloraAssets ? window.AveloraAssets.idle() : null)
+          .then(() => { if (window.AveloraAssets) window.AveloraAssets.evictUnused(); });
         if (this.hero) this.hero.bind(this.gameState, characterConfig);
         if (this.combat) this.combat.bindCharacter(characterConfig); // full HP, no fight
         if (this.ui) {
@@ -1224,24 +1229,25 @@ class AveloraGame {
      * герой (со всей сумкой, навыками и опытом — они в game_state) переносится на стартовую точку стартовой локации.
      * Возвращает { spawn, fallback }.
      */
-    buildLocationSafe(id, spawnId) {
+    buildLocationSafe(id, spawnId, hintPos) {
         try {
-            return { spawn: this.buildLocation(id, spawnId), fallback: false };
+            return { spawn: this.buildLocation(id, spawnId, hintPos), fallback: false };
         } catch (e) {
             console.error(`[Avelora] location "${id}" failed to build, moving the hero to the start location`, e);
             try { this.teardownLocation(); } catch (e2) { console.warn('[Avelora] teardown after failed build', e2); }
             const sid = (window.START_LOCATION && window.LOCATIONS[window.START_LOCATION]) ? window.START_LOCATION : id;
-            return { spawn: this.buildLocation(sid, null), fallback: true };
+            return { spawn: this.buildLocation(sid, null, null), fallback: true };
         }
     }
 
     /** Builds terrain, navigation, water, objects and exits of a location. Returns spawn point. */
-    buildLocation(id, spawnId) {
+    buildLocation(id, spawnId, hintPos) {
         const loc = window.LOCATIONS[id];
         if (!loc) throw new Error(`Unknown location "${id}"`);
         if (!loc.id) loc.id = id;
         window.CURRENT_LOCATION = loc;
         this.location = loc;
+        this.pendingSpawn = hintPos || this.resolveSpawn(loc, spawnId);
         // asset_loader.js: с этого момента считаем, какие модели нужны локации (остальные выгрузятся после загрузки)
         if (window.AveloraAssets) window.AveloraAssets.beginLocation();
 
@@ -1299,7 +1305,7 @@ class AveloraGame {
         this.dungeon = (loc.dungeon && window.AveloraDungeon)
             ? new AveloraDungeon(this.locationRoot, loc.dungeon, this.terrain, this.pathfinder)
             : null;
-        this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc);
+        this.environment = new LakesideEnvironment(this.locationRoot, this.terrain, this.pathfinder, loc, this.pendingSpawn);
         this.worldObjects = window.AveloraWorldObjects ? new AveloraWorldObjects(this, loc) : null;
         this.building = window.AveloraBuilding ? new AveloraBuilding(this, loc) : null;   // building.js: player buildings (home camp)
         this.creatures = window.AveloraCreatures ? new AveloraCreatures(this, loc) : null;
@@ -1428,7 +1434,7 @@ class AveloraGame {
         await nextFrame();
 
         this.teardownLocation();
-        const builtLoc = this.buildLocationSafe(targetId, spawnId);
+        const builtLoc = this.buildLocationSafe(targetId, spawnId, position || null);
         targetId = this.location.id || targetId;
         let spawn = builtLoc.spawn;
         if (position && !builtLoc.fallback) spawn = { x: position.x, z: position.z, r: position.r || 0 };
@@ -1446,7 +1452,12 @@ class AveloraGame {
         await Promise.all([this.environment.ready, this.worldObjects ? this.worldObjects.ready : null,
             this.creatures ? this.creatures.ready : null, this.harvest ? this.harvest.ready : null,
             window.AveloraAssets ? window.AveloraAssets.idle() : null]);
-        if (window.AveloraAssets) window.AveloraAssets.evictUnused();   // модели прошлой локации — из памяти
+        Promise.all([
+            this.environment ? (this.environment.allReady || this.environment.ready) : null,
+            this.worldObjects ? (this.worldObjects.allReady || this.worldObjects.ready) : null,
+            this.creatures ? (this.creatures.allReady || this.creatures.ready) : null
+        ]).then(() => window.AveloraAssets ? window.AveloraAssets.idle() : null)
+          .then(() => { if (window.AveloraAssets) window.AveloraAssets.evictUnused(); });
         await nextFrame();
 
         this.clock.getDelta(); // don't count loading time as game time

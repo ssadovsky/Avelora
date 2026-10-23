@@ -180,9 +180,17 @@
             this.npcMixers = [];
             this.version = 0;         // bumped whenever props change (skills.js blocker cache)
 
+            const spPos = (game && game.pendingSpawn) || (location.spawns && location.spawns.default) || location.playerSpawn || { x: 0, z: 0 };
+            const sx = spPos.x || 0, sz = spPos.z || 0;
             const jobs = [];
+            this.bgTasks = [];
             this.buildBridges();
-            (location.props || []).forEach(p => jobs.push(this.buildProp(p)));
+            (location.props || []).forEach(p => {
+                const dx = (p.x || 0) - sx, dz = (p.z || 0) - sz;
+                const isFar = !location.isDungeon && (dx * dx + dz * dz > 105 * 105);
+                const job = this.buildProp(p, isFar);
+                if (job) jobs.push(job);
+            });
             // `only: '<characterId>'` pickups exist for that character alone (the mage's staff)
             const who = this.state && this.state.characterId;
             (location.pickups || []).filter(p => !p.only || p.only === who).forEach(p => jobs.push(this.addPickup(p)));
@@ -190,6 +198,18 @@
             if (this.state) this.state.expireGround(location.id);
             if (this.state) this.state.groundOf(location.id).forEach(g => jobs.push(this.addGroundPile(g)));
             this.ready = Promise.all(jobs).then(() => undefined);
+            this.allReady = this.ready.then(() => this._drainBgTasks());
+        }
+
+        async _drainBgTasks() {
+            const tasks = this.bgTasks.slice();
+            this.bgTasks.length = 0;
+            for (let i = 0; i < tasks.length; i += 2) {
+                if (this.disposed) return;
+                await new Promise(r => setTimeout(r, 16));
+                if (this.disposed) return;
+                await Promise.all(tasks.slice(i, i + 2).map(fn => fn()));
+            }
         }
 
         get state() { return this.game.gameState; }
@@ -288,12 +308,17 @@
         // -----------------------------------------------------------
         // Props
         // -----------------------------------------------------------
-        buildProp(p) {
+        buildProp(p, isFar) {
             const defs = (window.GAME_CONTENT && window.GAME_CONTENT.props) || {};
             const def = defs[p.prop];
             if (!def) {
                 console.warn(`[Avelora] location "${this.location.id}": unknown prop "${p.prop}"`);
                 return Promise.resolve();
+            }
+            if (window.AveloraAssets && window.AveloraAssets.markUsed) {
+                if (def.modelKey) window.AveloraAssets.markUsed(def.modelKey);
+                const npcDef = def.npc && window.GAME_CONTENT && window.GAME_CONTENT.npcs ? window.GAME_CONTENT.npcs[def.npc] : null;
+                if (npcDef && npcDef.modelKey) window.AveloraAssets.markUsed(npcDef.modelKey);
             }
             const s = p.s || 1.0;
             const obstacle = (def.obstacle || 0) * s;
@@ -334,7 +359,7 @@
                     }
                 });
             }
-            return this.loadTemplates('props', p.prop, def).then(variants => {
+            const loadAndPlace = () => this.loadTemplates('props', p.prop, def).then(variants => {
                 if (this.disposed) return null;
                 const v = variants[(p.variant || 0) % variants.length];
                 const obj = v.clone();
@@ -397,6 +422,11 @@
                 }
                 return rec;
             });
+            if (isFar) {
+                this.bgTasks.push(loadAndPlace);
+                return null;
+            }
+            return loadAndPlace();
         }
 
         /**

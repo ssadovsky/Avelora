@@ -65,6 +65,13 @@
         /** Есть ли такая модель в сборке (загружена или может быть загружена). */
         known(key) { return !!key && (!!A.models[key] || !!index()[canon(key)]); },
 
+        /** Помечает модель как нужную текущей локации (даже если она подгрузится чуть позже в фоне). */
+        markUsed(key) {
+            if (!key) return;
+            const k = canon(key);
+            used.add(key); used.add(k);
+        },
+
         /** Promise<boolean>: модель key в GAME_ASSETS.models (false — такой модели нет / ошибка загрузки). */
         ensure(key) {
             if (!key) return Promise.resolve(false);
