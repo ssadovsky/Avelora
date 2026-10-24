@@ -607,27 +607,33 @@ class MedievalCharacter {
         this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
         this._right.set(Math.cos(r), 0, -Math.sin(r));
 
-        // Thighs: pitch forward and abduct outward around wolf flanks
+        // Thighs: pitch forward and abduct snuggly around wolf flanks
         if (b.lUpLeg) {
             this.rotateBoneWorld(b.lUpLeg, this._right, 42 * DEG);
-            this.rotateBoneWorld(b.lUpLeg, this._fwd, 38 * DEG);
+            this.rotateBoneWorld(b.lUpLeg, this._fwd, 28 * DEG);
         }
         if (b.rUpLeg) {
             this.rotateBoneWorld(b.rUpLeg, this._right, 42 * DEG);
-            this.rotateBoneWorld(b.rUpLeg, this._fwd, -38 * DEG);
+            this.rotateBoneWorld(b.rUpLeg, this._fwd, -28 * DEG);
         }
-        // Knees: flex backward along animal sides with inward heel alignment
+        // Knees: flex backward along animal sides
         if (b.lLeg) {
-            this.rotateBoneWorld(b.lLeg, this._right, -65 * DEG);
-            this.rotateBoneWorld(b.lLeg, this._fwd, -30 * DEG);
+            this.rotateBoneWorld(b.lLeg, this._right, -62 * DEG);
+            this.rotateBoneWorld(b.lLeg, this._fwd, -12 * DEG);
         }
         if (b.rLeg) {
-            this.rotateBoneWorld(b.rLeg, this._right, -65 * DEG);
-            this.rotateBoneWorld(b.rLeg, this._fwd, 30 * DEG);
+            this.rotateBoneWorld(b.rLeg, this._right, -62 * DEG);
+            this.rotateBoneWorld(b.rLeg, this._fwd, 12 * DEG);
         }
-        // Feet: leveled
-        if (b.lFoot) this.rotateBoneWorld(b.lFoot, this._right, 24 * DEG);
-        if (b.rFoot) this.rotateBoneWorld(b.rFoot, this._right, 24 * DEG);
+        // Feet: leveled pitch, toes pointing forward along wolf flanks
+        if (b.lFoot) {
+            this.rotateBoneWorld(b.lFoot, this._right, 24 * DEG);
+            this.rotateBoneWorld(b.lFoot, this._up, 26 * DEG);
+        }
+        if (b.rFoot) {
+            this.rotateBoneWorld(b.rFoot, this._right, 24 * DEG);
+            this.rotateBoneWorld(b.rFoot, this._up, -26 * DEG);
+        }
 
         // Spine: slight forward rider lean
         if (b.spine) this.rotateBoneWorld(b.spine, this._right, 6 * DEG);
