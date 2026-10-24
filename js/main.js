@@ -1532,7 +1532,7 @@ class AveloraGame {
             group.add(pillar);
 
             // Дымка в створе ущелья (ex.fog = {w, h, dz, color}): ОДНА мягкая плоскость, края и верх/низ плавно сходят на нет (без видимых слоёв и швов о скалу)
-            if (ex.fog) {
+            if (ex.fog && ex.fog.planes) {   // плоскость дымки светилась (unlit) — отключена, остаётся только объёмный туман
                 const cv = document.createElement('canvas'); cv.width = 128; cv.height = 128;
                 const cx = cv.getContext('2d');
                 const img = cx.createImageData(128, 128);
@@ -1545,13 +1545,13 @@ class AveloraGame {
                 }
                 cx.putImageData(img, 0, 0);
                 const fogTex = new THREE.CanvasTexture(cv);
-                const fc = new THREE.Color(ex.fog.color !== undefined ? ex.fog.color : 0xb9c6cf);
+                const fc = new THREE.Color(ex.fog.color !== undefined ? ex.fog.color : 0xb9c6cf).multiplyScalar(0.55);   // приглушено: плоскость unlit, светилась слишком ярко
                 const fw = ex.fog.w || 3.4, fh = ex.fog.h || 7, fdz = ex.fog.dz || 1.2;
                 group.userData.fogPlanes = [];
                 // слои идут от начала дымки (ex.fog.from — расстояние назад от выхода) к концу ущелья, плотность растёт к выходу
                 const n = ex.fog.n || 9, back = ex.fog.from || 6.5;
                 for (let k = 0; k < n; k++) {
-                    const t = n > 1 ? k / (n - 1) : 1, base = n > 1 ? 0.10 + 0.42 * t : 0.7;
+                    const t = n > 1 ? k / (n - 1) : 1, base = n > 1 ? 0.10 + 0.42 * t : 0.42;
                     const m = new THREE.MeshBasicMaterial({ map: fogTex, color: fc, transparent: true, opacity: base, depthWrite: false, side: THREE.DoubleSide, fog: false });
                     const pl = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), m);
                     pl.position.set(0, fh * 0.5 - 0.8, fdz - back * (1 - t));
@@ -1580,13 +1580,57 @@ class AveloraGame {
         });
     }
 
+    /** Отладка F6: сетка 1 м вокруг героя по мировым координатам (линии каждые 5 м ярче, у пересечений подписи x,z). */
+    toggleGridDebug() {
+        this._gridOn = !this._gridOn;
+        if (!this._gridOn && this._gridGroup) { this.scene.remove(this._gridGroup); this._gridGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); this._gridGroup = null; this._gridKey = null; }
+        return this._gridOn;
+    }
+
+    updateGridDebug() {
+        if (!this._gridOn || !this.character || !this.terrain) return;
+        const R = 20, cxm = Math.round(this.character.position.x), czm = Math.round(this.character.position.z);
+        const key = cxm + '|' + czm;
+        if (key === this._gridKey && this._gridTerr === this.terrain && this._gridGroup && this._gridGroup.parent === this.scene) return;
+        this._gridKey = key; this._gridTerr = this.terrain;
+        if (this._gridGroup) { this.scene.remove(this._gridGroup); this._gridGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+        const g = new THREE.Group(); g.renderOrder = 20;
+        const hx = this.terrain.halfX !== undefined ? this.terrain.halfX : 1e9, hz = this.terrain.halfZ !== undefined ? this.terrain.halfZ : 1e9;
+        const minor = [], major = [], STEP = 0.5, LIFT = 0.12;
+        const h = (x, z) => this.terrain.getHeightAt(x, z) + LIFT;
+        for (let a = -R; a <= R; a++) {
+            const wx = cxm + a, wz = czm + a;
+            const isMajX = ((wx % 5) + 5) % 5 === 0, isMajZ = ((wz % 5) + 5) % 5 === 0;
+            for (let t = -R; t < R; t += STEP) {
+                // линия x = wx (вдоль z)
+                if (Math.abs(wx) <= hx + 1) { const z1 = czm + t, z2 = czm + t + STEP; (isMajX ? major : minor).push(wx, h(wx, z1), z1, wx, h(wx, z2), z2); }
+                // линия z = wz (вдоль x)
+                if (Math.abs(wz) <= hz + 1) { const x1 = cxm + t, x2 = cxm + t + STEP; (isMajZ ? major : minor).push(x1, h(x1, wz), wz, x2, h(x2, wz), wz); }
+            }
+        }
+        const mk = (arr, color, op) => { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3)); const m = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false, fog: false })); m.renderOrder = 20; m.frustumCulled = false; return m; };
+        g.add(mk(minor, 0x66ccff, 0.55)); g.add(mk(major, 0xffee44, 0.95));
+        this._gridLbl = this._gridLbl || {};
+        for (let a = -R; a <= R; a++) for (let b = -R; b <= R; b++) {
+            const wx = cxm + a, wz = czm + b;
+            if (((wx % 5) + 5) % 5 !== 0 || ((wz % 5) + 5) % 5 !== 0) continue;
+            if (Math.abs(a) > 15 || Math.abs(b) > 15) continue;
+            const txt = wx + ',' + wz;
+            let tex = this._gridLbl[txt];
+            if (!tex) { const cv = document.createElement('canvas'); cv.width = 128; cv.height = 40; const c2 = cv.getContext('2d'); c2.font = 'bold 26px sans-serif'; c2.textAlign = 'center'; c2.fillStyle = 'rgba(0,0,0,0.55)'; c2.fillRect(0, 0, 128, 40); c2.fillStyle = '#fff3a0'; c2.fillText(txt, 64, 29); tex = this._gridLbl[txt] = new THREE.CanvasTexture(cv); }
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, fog: false }));
+            sp.scale.set(1.6, 0.5, 1); sp.position.set(wx, h(wx, wz) + 0.5, wz); sp.renderOrder = 21; g.add(sp);
+        }
+        this.scene.add(g); this._gridGroup = g;
+    }
+
     updateExits(delta) {
         if (!this.character) return;
         if (this.combat && this.combat.isDead) return; // a corpse doesn't travel
         const p = this.character.position;
 
         // Дымка в проходе (exit.fog): настоящий объёмный туман — плотность сцены плавно растёт, пока герой идёт к выходу (без слоёв-плоскостей)
-        const fe = this.exits.find(e => e.data.fog && !e.disabled);
+        const fe = this.exits.find(e => e.data.fog && e.data.fog.scene && !e.disabled);   // добавка плотности тумана у выхода отключена (давала белое свечение); включается fog.scene:true
         const sf = this.scene.fog;
         if (fe && sf) {
             if (this._fogRefObj !== sf) { this._fogRefObj = sf; this._fogRef = { d: sf.density, c: sf.color.clone() }; this._fogMod = false; }
@@ -1605,7 +1649,7 @@ class AveloraGame {
             } else {
                 this._fogMod = true;
                 sf.density = this._fogRef.d + t * (fg.density || 0.1);
-                sf.color.copy(this._fogRef.c).lerp(this._fogTint || (this._fogTint = new THREE.Color(fg.color !== undefined ? fg.color : 0xb4c2cc)), t * 0.85);
+                sf.color.copy(this._fogRef.c);   // цвет тумана не осветляем — без свечения, только плотность
             }
         }
 
@@ -1890,6 +1934,10 @@ class AveloraGame {
                     const on = window.AveloraHitDebug.toggle(this);
                     if (this.ui && this.ui.floatText) this.ui.floatText(on ? 'Хитбоксы: показаны (F4)' : 'Хитбоксы: скрыты', 'info');
                 }
+            } else if (e.code === 'F6') { // debug: метровая сетка вокруг героя (подписи по краям кратным 5 м)
+                e.preventDefault();
+                const on = this.toggleGridDebug();
+                if (this.ui && this.ui.floatText) this.ui.floatText(on ? 'Сетка 1 м: показана (F6)' : 'Сетка 1 м: скрыта', 'info');
             } else if (e.code === 'KeyM') {
                 if (!this.isReady || !this.map) return;
                 e.preventDefault();
@@ -3568,6 +3616,7 @@ class AveloraGame {
         // Location exits (may start a location change)
         this.updateDungeonPortals();
         this.updateExits(delta);
+        this.updateGridDebug();
 
         // Update camera and HUD
         this.updateCameraPosition(false, delta);
