@@ -78,11 +78,12 @@ window.LOCATIONS = {
             // Естественный горный барьер по периметру (высота 6м, пики до 9м)
             mountainRim: { width: 16.0, height: 6.0 },
             // Горный перевал (ущелье) на запад в Золотую саванну
-            mountainPasses: [],   // выреза нет: портал стоит на ровной земле перед горным поясом (пояс с x=-134)
+            mountainPasses: [],
+            westCover: { z: 8.0, cutX: -148.5, cx: -144.5, R: 9.5 },   // горки у среза западного ущелья (terrain.js)
             // Ровная площадка под порталом (радиус 4.5 м, дальше 5 м плавно возвращается к рельефу)
-            rimDip: [{ x: 0.0, k0: 0.85, w: 30.0, cragK: 0.0 }],
+            rimDip: [{ x: 0.0, k0: 0.85, w: 30.0, cragK: 0.0 }, { side: 'west', axis: 'z', z: 8.0, k0: 0.85, w: 30.0, cragK: 0.0 }],
             rockTint: { x: 0.0, z: 94.0, tintRadius: 26.0, tintStrength: 0.9 },
-            flatSpots: [{ x: -128.0, z: 8.0, radius: 4.5, blend: 5.0 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 4.5, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.6, blend: 6.5, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
+            flatSpots: [{ x: -130.0, z: 8.0, radius: 2.2, blend: 2.5, hFrom: [-120.0, 8.0] }, { x: -136.0, z: 8.0, radius: 2.2, blend: 3.0, hFrom: [-120.0, 8.0], dh: 0.0 }, { x: -140.0, z: 8.0, radius: 2.2, blend: 3.5, hFrom: [-120.0, 8.0], dh: 0.22 }, { x: -143.5, z: 8.0, radius: 2.2, blend: 4.0, hFrom: [-120.0, 8.0], dh: 0.60 }, { x: -146.5, z: 8.0, radius: 2.0, blend: 4.5, hFrom: [-120.0, 8.0], dh: 0.60 }, { x: 70.0, z: -15.0, radius: 4.6, blend: 5.0 }, { x: 25.5, z: -20.1, radius: 3.4, blend: 4.0 }, { x: 64.3, z: -12.3, radius: 3.8, blend: 4.0 }, { x: 0.0, z: 86.0, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.07 }, { x: 0.0, z: 89.5, radius: 2.2, blend: 3.0, hFrom: [0.0, 79.0], dh: 0.1 }, { x: 0.0, z: 93.0, radius: 2.2, blend: 4.5, hFrom: [0.0, 79.0], dh: 0.0 }, { x: 0.0, z: 95.3, radius: 1.6, blend: 6.5, hFrom: [0.0, 79.0], dh: -0.11 }],   // 2-й: под домиком, 3-й: под беседкой, 4-й: под кузней
             // Арочный вырез в восточном горном барьере для грота (севернее водопада)
             caves: [
                 { x: 139.5, z: -18.0, minX: 134.0, maxX: 143.5, radiusZ: 3.5, backLen: 1.0, tintRadius: 26.0, tintStrength: 0.85 }
@@ -135,7 +136,7 @@ window.LOCATIONS = {
         spawns: {
             default:   { x: 127.0,  z: 77.5, r: 0.0 },   // новая игра: юго-восток долины, лицом на север к тропе (r: поворот модели = atan2+π, север = 0)
             camp:      { x: 6.0,    z: 12.0 },
-            fromSavanna:  { x: -104.0, z: 8.0, r: 4.71 },  // выход из портала: в 14 м от рунного вепря (aggro 9), лицом на восток в долину
+            fromSavanna:  { x: -128.0, z: 8.0, r: 4.71 },  // выход из портала: в 14 м от рунного вепря (aggro 9), лицом на восток в долину
             waterfall: { x: 104.0,  z: 6.0, r: 4.71 },  // с видом на восточный каскадный водопад
             fromPrimeval: { x: 0.0, z: 78.5, r: 0.0 },    // выход из горного прохода на юге (лицом на север)
             fromDungeon: { x: 135.0, z: -18.0, r: 1.57 } // площадка перед входом в пещеру (лицом на запад к долине)
@@ -167,7 +168,7 @@ window.LOCATIONS = {
 
         exits: [
             // Проход в Золотую саванну через горный каньон на западе
-            { id: 'toLake', x: -128.0, z: 8.0, radius: 3.5, to: 'savanna', spawn: 'fromForest', label: 'Золотая саванна' },
+            { id: 'toLake', x: -145.5, z: 8.0, radius: 2.0, to: 'savanna', spawn: 'fromForest', label: 'Золотая саванна', color: 0xffd285, height: 5.0, track: true, noRing: true, r: -Math.PI / 2, fog: { w: 3.4, h: 7.0, dz: 0.5, from: 6.5, n: 1, density: 0.25, color: 0xdec08a } },
             // Каменный проход в горах на юге, за лесом: в Долину Забытых Эпох (в конце ущелья — дымка)
             { id: 'toPrimeval', x: 0.0, z: 95.0, radius: 1.4, to: 'primevalValley', spawn: 'fromForest', label: 'Долина Забытых Эпох', color: 0xcfe8ff, height: 5.0, track: true, noRing: true, fog: { w: 3.4, h: 7.0, dz: 0.5, from: 6.5, n: 1, density: 0.2, color: 0xb4c2cc } },
             // Тайный рунический портал в глубине пещеры (переход в подземелье)
@@ -187,6 +188,7 @@ window.LOCATIONS = {
 
             // Тропы и поляны (свободные от плотных деревьев)
         clearings: [
+            { x: -144.0, z: 8.0, radius: 10.0 },
             { x: -136.0, z: 8.0, radius: 8.0 },
             { x: -122.0, z: 8.0, radius: 8.0 },
             { x: -108.0, z: 8.0, radius: 7.0 },
@@ -433,6 +435,7 @@ window.LOCATIONS = {
             { id: 'forestEdge.gazebo', prop: 'gazebo', x: 25.5, z: -20.1, r: -0.41 },
             // Каменный проход в Долину Забытых Эпох: ущелье встроено в южный горный пояс (вход с севера)
             { id: 'forestEdge.stone_pass', prop: 'stone_pass', x: 0.0, z: 93.0, r: Math.PI, dy: 0.26 },
+            { id: 'forestEdge.twinstone_pass', prop: 'twinstone_pass', x: -144.5, z: 8.0, r: Math.PI / 2, yFrom: [-120.0, 8.0], dy: 0.10 },
             // фиалки и пучки травы на пчелиной поляне
             { id: 'forestEdge.violets_1', prop: 'violet_flowerbed', x: 79, z: 19, r: 0.4, s: 0.5 },
             { id: 'forestEdge.violets_2', prop: 'violet_flowerbed', x: 84, z: 20.5, r: 1.9, s: 0.6 },
@@ -497,15 +500,7 @@ window.LOCATIONS = {
                 { x: 134.0, z: 25.0, modelIndex: 4, s: 0.26, r: 2.8 },
                 { x: 135.2, z: 14.0, modelIndex: 5, s: 0.25, r: 1.6 }
             ],
-            boulders: [
-                // Каменные врата каньона на западном перевале
-                { x: -124.0, z: 1.5, s: 2.2, r: 0.6 },
-                { x: -124.0, z: 14.5, s: 2.2, r: 2.1 },
-                { x: -132.0, z: 1.5, s: 2.0, r: 1.4 },
-                { x: -132.0, z: 14.5, s: 2.0, r: 0.9 },
-                { x: -140.0, z: 2.0, s: 1.8, r: 0.3 },
-                { x: -140.0, z: 14.0, s: 1.8, r: 2.8 }
-            ],
+            boulders: [],
             shrubs: [
                 // 4 отдельных кустика из shrub_01 (первые 2 и последние 2 по одному на опушке перед лесом)
                 { x: 108.0, z: -15.0, s: 1.0, r: 0.4, shrubType: 'shrub_a' }, // первый 1 (густой)
@@ -720,6 +715,8 @@ window.LOCATIONS = {
             landFloor: 0.9,
             mountainRim: { width: 16.0, height: 6.0 },   // по периметру: рыжие скальные уступы
             mountainPasses: [],
+            westCover: { z: 10.0, cutX: -148.5, cx: -144.5, R: 9.5 },   // горки у среза западного ущелья (terrain.js)
+            rimDip: [{ side: 'west', axis: 'z', z: 10.0, k0: 0.85, w: 30.0, cragK: 0.0 }],
 
             // Озеро — те же параметры, что у озера стартовой локации (пологий плавный берег)
             waterBody: {
@@ -734,7 +731,7 @@ window.LOCATIONS = {
 
             // Ровные площадки: портал, стоянка отшельника, Круг стихий, лагерь ящеров
             flatSpots: [
-                { x: -131.0, z: 10.0, radius: 4.5, blend: 5.0 },
+                { x: -130.0, z: 10.0, radius: 2.2, blend: 2.5, hFrom: [-120.0, 10.0] }, { x: -136.0, z: 10.0, radius: 2.2, blend: 3.0, hFrom: [-120.0, 10.0], dh: 0.0 }, { x: -140.0, z: 10.0, radius: 2.2, blend: 3.5, hFrom: [-120.0, 10.0], dh: 0.22 }, { x: -143.5, z: 10.0, radius: 2.2, blend: 4.0, hFrom: [-120.0, 10.0], dh: 0.60 }, { x: -146.5, z: 10.0, radius: 2.0, blend: 4.5, hFrom: [-120.0, 10.0], dh: 0.60 },
                 { x: -115.0, z: 20.0, radius: 7.0, blend: 7.0 },
                 { x: 74.0,   z: -42.0, radius: 15.0, blend: 9.0 },
                 { x: 106.0,  z: 46.0, radius: 25.0, blend: 9.0 }
@@ -746,7 +743,7 @@ window.LOCATIONS = {
                 {
                     type: 'dirt', width: 2.6,
                     points: [
-                        [-131.0, 10.0], [-118.0, 8.0], [-102.0, 9.0], [-86.0, 15.0], [-68.0, 18.0], [-56.0, 30.0], [-32.0, 38.0],
+                        [-132.0, 10.0], [-118.0, 8.0], [-102.0, 9.0], [-86.0, 15.0], [-68.0, 18.0], [-56.0, 30.0], [-32.0, 38.0],
                         [-6.0, 34.0], [22.0, 22.0], [44.0, 8.0], [58.0, -14.0], [66.0, -30.0], [72.0, -40.0]
                     ]
                 },
@@ -770,12 +767,12 @@ window.LOCATIONS = {
         foliage: { dryGrass: 0.85, openGap: 0.05 },
 
         spawns: {
-            default:    { x: -120.0, z: 10.0, r: 4.71 },
-            fromForest: { x: -124.0, z: 10.0, r: 4.71 }     // выход из портала, лицом на восток
+            default:    { x: -128.0, z: 10.0, r: 4.71 },
+            fromForest: { x: -128.0, z: 10.0, r: 4.71 }     // выход из портала, лицом на восток
         },
 
         exits: [
-            { id: 'toForest', x: -131.0, z: 10.0, radius: 3.5, to: 'forestEdge', spawn: 'fromSavanna', label: 'Лесная опушка' }
+            { id: 'toForest', x: -145.5, z: 10.0, radius: 2.0, to: 'forestEdge', spawn: 'fromSavanna', label: 'Лесная опушка', color: 0xcfe8ff, height: 5.0, track: true, noRing: true, r: -Math.PI / 2, fog: { w: 3.4, h: 7.0, dz: 0.5, from: 6.5, n: 1, density: 0.25, color: 0x9bc2a4 } }
         ],
 
         clearings: [
@@ -909,8 +906,7 @@ window.LOCATIONS = {
             { id: 'savanna.hermit_stump_1', prop: 'stump', x: -118.5, z: 18.0, r: 0.4 },
             { id: 'savanna.hermit_stump_2', prop: 'stump', x: -111.0, z: 18.0, r: 1.2 },
             { id: 'savanna.hermit_log', prop: 'fallen_log', x: -117.0, z: 15.0, r: 0.6, noObstacle: true, s: 2.4 },
-            { id: 'savanna.waystone', prop: 'waystone', x: -126.0, z: 5.5, r: 0.3 },
-            { id: 'savanna.waystone_2', prop: 'waystone', x: -126.0, z: 14.5, r: -0.3 },
+            { id: 'savanna.twinstone_pass', prop: 'twinstone_pass', x: -144.5, z: 10.0, r: Math.PI / 2, yFrom: [-120.0, 10.0], dy: 0.10 },
             { id: 'savanna.altar_fire', prop: 'elemental_altar_fire', x: 74.0, z: -48.0, r: 0.0 },
             { id: 'savanna.altar_stone', prop: 'elemental_altar_stone', x: 80.0, z: -42.0, r: 1.57 },
             { id: 'savanna.altar_water', prop: 'elemental_altar_water', x: 74.0, z: -36.0, r: 3.14 },

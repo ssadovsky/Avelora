@@ -1483,6 +1483,7 @@ class AveloraGame {
 
             const group = new THREE.Group();
             group.position.set(ex.x, y, ex.z);
+            if (ex.r !== undefined) group.rotation.y = ex.r;
 
             const ringGeo = new THREE.RingGeometry(radius * 0.82, radius, 64, 1);
             ringGeo.rotateX(-Math.PI / 2);
@@ -1589,10 +1590,14 @@ class AveloraGame {
         const sf = this.scene.fog;
         if (fe && sf) {
             if (this._fogRefObj !== sf) { this._fogRefObj = sf; this._fogRef = { d: sf.density, c: sf.color.clone() }; this._fogMod = false; }
-            const fg = fe.data.fog, zEnd = fe.data.z + (fg.dz || 0), zStart = zEnd - (fg.from || 6);
-            let t = Math.min(1, Math.max(0, (p.z - zStart) / (zEnd - zStart)));
+            const fg = fe.data.fog, fr = fe.data.r || 0;
+            // ось движения к выходу: r=0 — вдоль +z, r=-PI/2 — вдоль -x (западное ущелье); s — путь героя вдоль оси, l — смещение вбок
+            const dxp = p.x - fe.data.x, dzp = p.z - fe.data.z;
+            const sAx = dxp * Math.sin(fr) + dzp * Math.cos(fr), lAx = dxp * Math.cos(fr) - dzp * Math.sin(fr);
+            const zEnd = (fg.dz || 0), zStart = zEnd - (fg.from || 6);
+            let t = Math.min(1, Math.max(0, (sAx - zStart) / (zEnd - zStart)));
             t = Math.pow(t, 0.7);
-            const ax = Math.min(1, Math.max(0, (Math.abs(p.x - fe.data.x) - 3) / 3));
+            const ax = Math.min(1, Math.max(0, (Math.abs(lAx) - 3) / 3));
             t *= 1 - ax * ax * (3 - 2 * ax);
             if (t <= 0.001) {
                 if (this._fogMod) { sf.density = this._fogRef.d; sf.color.copy(this._fogRef.c); this._fogMod = false; }
@@ -3059,7 +3064,7 @@ class AveloraGame {
                 this.camera.position.lerp(this._camLerpTmp.set(cx, cy, cz), 0.12);
                 if (dng || outdoor) {
                     const cp = { x: this.camera.position.x, y: this.camera.position.y, z: this.camera.position.z };
-                    if (dng) dng.constrainCamera(cp, headPt); else this.constrainCameraOutdoor(cp, headPt);
+                    if (dng) dng.constrainCamera(cp, headPt); else this.constrainCameraOutdoor(cp, headPt, false);
                     this.camera.position.set(cp.x, cp.y, cp.z);
                 }
             }
@@ -3090,12 +3095,45 @@ class AveloraGame {
     }
 
     /**
+     * Камера в открытых локациях. Если луч к камере упирается в крупную твёрдую модель (скала, дом) и камеру
+     * пришлось сильно подтянуть к герою, пробуем объехать препятствие: поворачиваем место камеры вокруг героя
+     * (до ~80°) и берём ближайший к исходному направлению вариант, где обзор заметно свободнее. Взгляд
+     * по-прежнему на героя, угол камеры игрока (cameraAngle) не меняется. slide=false — только подрезка по лучу.
+     */
+    constrainCameraOutdoor(cam, head, slide = true) {
+        const t = this.terrain;
+        if (!t) return cam;
+        const r0 = this._constrainCameraRay({ x: cam.x, y: cam.y, z: cam.z }, head);
+        let best = r0;
+        if (slide && r0._byModel && r0._k < 0.85) {
+            // то же правило, что в подземельях (dungeon.constrainCamera): повороты вокруг героя + подъём камеры,
+            // штраф за отклонение, память прошлого варианта против дёрганья, не ближе 0.9 м к герою
+            const vx = cam.x - head.x, vy = cam.y - head.y, vz = cam.z - head.z, R = Math.hypot(vx, vy, vz) || 1;
+            const yaw0 = Math.atan2(vx, vz), pit0 = Math.asin(Math.max(-1, Math.min(1, vy / R)));
+            const dyaws = [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1], dpits = [0, 0.14, 0.28, 0.42, 0.56];
+            let bestScore = -1e9, bestIdx = -1, k = 0;
+            for (let yi = 0; yi < dyaws.length; yi++) for (let pi = 0; pi < dpits.length; pi++, k++) {
+                const yaw = yaw0 + dyaws[yi], pit = Math.min(1.25, pit0 + dpits[pi]), cp = Math.cos(pit);
+                const r = this._constrainCameraRay({ x: head.x + Math.sin(yaw) * cp * R, y: head.y + Math.sin(pit) * R, z: head.z + Math.cos(yaw) * cp * R }, head);
+                const reach = (r._k === undefined ? 1 : r._k) * R;
+                const score = reach - 3.0 * Math.abs(dyaws[yi]) - 2.2 * dpits[pi] + (k === this._lastOutCamCand ? 0.5 : 0);
+                if (score > bestScore) { bestScore = score; best = r; bestIdx = k; }
+            }
+            this._lastOutCamCand = bestIdx;
+            const L = Math.hypot(best.x - head.x, best.y - head.y, best.z - head.z);
+            if (L > 0.01 && L < 0.9) { const f = 0.9 / L; best.x = head.x + (best.x - head.x) * f; best.y = head.y + (best.y - head.y) * f; best.z = head.z + (best.z - head.z) * f; }
+        } else this._lastOutCamCand = -1;
+        cam.x = best.x; cam.y = best.y; cam.z = best.z;
+        return cam;
+    }
+
+    /**
      * Камера в открытых локациях: не вылетает за край мира, не уходит под рельеф (горный барьер по периметру,
      * склоны у водопада) и не залезает в крупные скальные модели (вход в грот). Деревья, кусты и прочие мелкие объекты
      * НЕ учитываются — камера по ним скользит, как раньше. Камера притягивается к герою вдоль своего луча,
      * направление взгляда и зум не меняются.
      */
-    constrainCameraOutdoor(cam, head) {
+    _constrainCameraRay(cam, head) {
         const t = this.terrain;
         if (!t) return cam;
         const dx = cam.x - head.x, dy = cam.y - head.y, dz = cam.z - head.z;
@@ -3130,13 +3168,34 @@ class AveloraGame {
 
         const blockers = this._cameraBlockerModels();
         const dir = { x: dx / dist, y: dy / dist, z: dz / dist };
-        for (let i = 0; i < blockers.length; i++) {
-            const d = this._modelRayLimit(blockers[i], head, dir, dist * k);
-            if (d !== null) k = Math.min(k, Math.max((d - 0.4) / dist, Math.min(0.6, d * 0.5) / dist));
+        // «Толстый» луч: ближняя плоскость камеры 0.5 м и поле зрения широкое, поэтому одного луча мало —
+        // камера у стены попадала внутрь камня или давала прозрачные срезы. Проверяем центр и 4 точки вокруг
+        // позиции камеры (±0.45 по горизонтали, ±0.28 по вертикали), запас до поверхности 0.8 м.
+        if (blockers.length) {
+            const hl = Math.hypot(dir.x, dir.z) || 1;
+            const rx = dir.z / hl, rz = -dir.x / hl;                 // «вправо» от луча (горизонталь)
+            const offs = [[0, 0, 0], [rx * 0.45, 0, rz * 0.45], [-rx * 0.45, 0, -rz * 0.45], [0, 0.28, 0], [0, -0.28, 0]];
+            const M = 0.8, p = { x: 0, y: 0, z: 0 }, dd = { x: 0, y: 0, z: 0 };
+            for (let i = 0; i < blockers.length; i++) {
+                for (let o = 0; o < offs.length; o++) {
+                    p.x = dx * k + offs[o][0]; p.y = dy * k + offs[o][1]; p.z = dz * k + offs[o][2];
+                    const L = Math.hypot(p.x, p.y, p.z);
+                    if (L < 0.05) continue;
+                    dd.x = p.x / L; dd.y = p.y / L; dd.z = p.z / L;
+                    const d = this._modelRayLimit(blockers[i], head, dd, L);
+                    if (d !== null) {
+                        const lim = Math.max(0, d - M) / L * k;      // доля исходного (уже ограниченного) отрезка
+                        const kn = Math.min(k, Math.max(lim, Math.min(0.55, d * 0.5) / dist));
+                        if (kn < k - 1e-4) cam._byModel = true;
+                        k = kn;
+                    }
+                }
+            }
         }
         cam.x = head.x + dx * k; cam.y = head.y + dy * k; cam.z = head.z + dz * k;
         const g = t.getHeightAt(cam.x, cam.z) + 0.6;
         if (cam.y < g) cam.y = g;
+        cam._k = k;
         return cam;
     }
 

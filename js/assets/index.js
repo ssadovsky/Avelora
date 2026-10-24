@@ -78,6 +78,7 @@ window.AVELORA_ASSET_INDEX = {
   "props/smithy": ["m/props__smithy.js", "0155832e1f"],
   "props/stone_pass": ["m/props__stone_pass.js", "137f7dd980"],
   "props/stump": ["m/props__stump.js", "72156d4f43"],
+  "props/twinstone_pass": ["m/props__twinstone_pass.js", "130dc91278"],
   "props/violet_flowerbed": ["m/props__violet_flowerbed.js", "5c4bf6b7bd"],
   "props/woodshed": ["m/props__woodshed.js", "832b165dde"],
   "quiver_tree": ["m/quiver_tree.js", "51f67149ae"],

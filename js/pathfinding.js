@@ -143,9 +143,6 @@ class DiabloPathfinder {
         const edgeMargin = 4.0;
         if (Math.abs(wx) > this.halfWorldX - edgeMargin || Math.abs(wz) > this.halfWorldZ - edgeMargin) return true;
 
-        // In western pass: portal is at X = -138.0. Player cannot walk past the portal into the back cliff wall
-        if (wx < -138.8 && Math.abs(wz - 8.0) < 14.0) return true;
-
         const height = preHeight !== undefined ? preHeight : this.terrain.getHeightAt(wx, wz);
 
         // Water level is at Y = 0.0; shallow wading allowed down to -0.42m (walk through shore and reeds)
@@ -248,7 +245,7 @@ class DiabloPathfinder {
             const rowOff = gz * nx;
             for (let gx = 0; gx < nx; gx++) {
                 const wx = -this.halfWorldX + (gx + 0.5) * this.cellWidth;
-                if (zEdge || Math.abs(wx) > maxX || (wx < -138.8 && Math.abs(wz - 8.0) < 14.0)) {
+                if (zEdge || Math.abs(wx) > maxX) {
                     heights[rowOff + gx] = -999;
                 } else {
                     heights[rowOff + gx] = this.terrain.getHeightAt(wx, wz);

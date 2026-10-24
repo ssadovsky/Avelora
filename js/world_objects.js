@@ -359,11 +359,21 @@
                     }
                 });
             }
+            if (def.walkSurface && this.terrain.addSurface && !p.noObstacle) {   // низкие камни у основания скалы ходимы (герой поднимается по их поверхности)
+                const w = def.walkSurface, bin = atob(w.data), u8 = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+                const py = (p.yFrom ? this.terrain._getRawHeightBase(p.yFrom[0], p.yFrom[1]) : this.terrain.getHeightAt(p.x, p.z)) - 0.02 + (p.dy || 0);
+                this.terrain.addSurface({
+                    id: 'prop:' + (p.id || p.prop), x: p.x, z: p.z, cos: Math.cos(p.r || 0), sin: Math.sin(p.r || 0), s: s,
+                    y: py + (w.y0 || 0) * s, c: w.c, x0: w.x0, z0: w.z0, nx: w.nx, nz: w.nz, d: new Int16Array(u8.buffer),
+                    reach2: Math.pow(Math.hypot(Math.max(Math.abs(w.x0), Math.abs(w.x0 + w.nx * w.c)), Math.max(Math.abs(w.z0), Math.abs(w.z0 + w.nz * w.c))) * s + 1, 2)
+                });
+            }
             const loadAndPlace = () => this.loadTemplates('props', p.prop, def).then(variants => {
                 if (this.disposed) return null;
                 const v = variants[(p.variant || 0) % variants.length];
                 const obj = v.clone();
-                obj.position.set(p.x, this.terrain.getHeightAt(p.x, p.z) - 0.02 + (p.dy || 0), p.z);
+                obj.position.set(p.x, (p.yFrom ? this.terrain._getRawHeightBase(p.yFrom[0], p.yFrom[1]) : this.terrain.getHeightAt(p.x, p.z)) - 0.02 + (p.dy || 0), p.z);   // yFrom: высота берётся в другой точке (уровень луга)
                 obj.rotation.y = p.r || 0;
                 obj.scale.setScalar(s);
                 obj.name = `prop:${p.id || p.prop}`;

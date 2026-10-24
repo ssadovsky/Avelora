@@ -185,7 +185,61 @@ class LakesideTerrain {
                 }
             }
         }
+        const sf = this.surfaces;
+        if (sf && sf.length) {   // ходимая поверхность низких камней у подножия скал (prop.json "walkSurface"): герой поднимается по ним как на пень
+            for (let i = 0; i < sf.length; i++) {
+                const q = sf[i];
+                const dx = x - q.x, dz = z - q.z;
+                if (dx * dx + dz * dz > q.reach2) continue;
+                const v = this._surfAt(q, (dx * q.cos - dz * q.sin) / q.s, (dx * q.sin + dz * q.cos) / q.s);
+                if (v > -1e8) { const y = q.y + v * q.s; if (y > h) return y; }
+            }
+        }
         return h;
+    }
+
+    /** Билинейная выборка сетки walkSurface (по валидным углам), локальные координаты пропа; -1e9 — нет поверхности. */
+    _surfAt(q, lx, lz) {
+        const fx = (lx - q.x0) / q.c - 0.5, fz = (lz - q.z0) / q.c - 0.5;
+        const i0 = Math.floor(fx), j0 = Math.floor(fz);
+        if (i0 < -1 || j0 < -1 || i0 >= q.nx || j0 >= q.nz) return -1e9;
+        const tx = fx - i0, tz = fz - j0;
+        let sum = 0, w = 0;
+        for (let dj = 0; dj < 2; dj++) {
+            const j = j0 + dj; if (j < 0 || j >= q.nz) continue;
+            for (let di = 0; di < 2; di++) {
+                const i = i0 + di; if (i < 0 || i >= q.nx) continue;
+                const v = q.d[j * q.nx + i]; if (v <= -32767) continue;
+                const ww = (di ? tx : 1 - tx) * (dj ? tz : 1 - tz);
+                sum += v * ww; w += ww;
+            }
+        }
+        return w > 0.25 ? sum / w * 0.001 : -1e9;
+    }
+
+    /** Ходимая поверхность модели: {id, x, z, cos, sin, s, y, c, x0, z0, nx, nz, d:Int16Array(мм), reach2}. */
+    addSurface(q) {
+        // пологий въезд: высота над землёй растёт не круче G (считается по реальному рельефу этой локации; стены -32767 не участвуют, нет поверхности -32768 = земля)
+        const nx = q.nx, nz = q.nz, c = q.c, d = q.d, N = nx * nz, G = 0.8 * c * q.s, G2 = G * 1.414;
+        const D = new Float32Array(N), Q = new Float32Array(N);
+        for (let k = 0; k < N; k++) {
+            const v = d[k];
+            if (v === -32768) Q[k] = 0;
+            else if (v === -32767) Q[k] = 1e9;
+            else {
+                const i = k % nx, j = (k / nx) | 0, lx = (q.x0 + (i + 0.5) * c) * q.s, lz = (q.z0 + (j + 0.5) * c) * q.s;
+                const h = this.getHeightAt(q.x + lx * q.cos + lz * q.sin, q.z - lx * q.sin + lz * q.cos);
+                D[k] = Q[k] = Math.max(0, q.y + v * 0.001 * q.s - h);
+            }
+        }
+        const ch = (k, o, w) => { if (d[k] !== -32767 && Q[o] + w < Q[k]) Q[k] = Q[o] + w; };
+        for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i;
+            if (i > 0) ch(k, k - 1, G); if (j > 0) ch(k, k - nx, G); if (i > 0 && j > 0) ch(k, k - nx - 1, G2); if (i < nx - 1 && j > 0) ch(k, k - nx + 1, G2); }
+        for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i;
+            if (i < nx - 1) ch(k, k + 1, G); if (j < nz - 1) ch(k, k + nx, G); if (i < nx - 1 && j < nz - 1) ch(k, k + nx + 1, G2); if (i > 0 && j < nz - 1) ch(k, k + nx - 1, G2); }
+        for (let k = 0; k < N; k++) { if (d[k] <= -32767) continue; const cut = D[k] - Q[k]; if (cut > 0.005) d[k] = Math.max(-32000, Math.round(d[k] - cut / q.s * 1000)); }
+        if (!this.surfaces) this.surfaces = [];
+        this.surfaces.push(q);
     }
 
     /** Raised walkable deck (building.js): {id, x, z, cos, sin, hx, hz, y, rampLen, rampHx, endY, reach2}. */
@@ -277,6 +331,42 @@ class LakesideTerrain {
                 if (cap > out) out = cap;
             }
         }
+
+        // Западное ущелье (twinstone_pass): плавные горки по краям среза скалы до края локации, закрывают торцы обрезанной модели.
+        // Тот же профиль, что у южного прохода, в осях: глубина zz = -x - 50 (срез x = cutX → 96.5), боковое смещение dx = z - z0.
+        const wc = this.locTerrain.westCover;
+        if (wc && x < -133.0 && Math.abs(z - wc.z) < 10.0) {
+            if (this._westBaseY === undefined) this._westBaseY = this._getRawHeightBase(-125.0, wc.z) + 0.08;
+            const ss = (a, b, v) => { const u = Math.min(1.0, Math.max(0.0, (v - a) / (b - a))); return u * u * (3.0 - 2.0 * u); };
+            const dx = z - wc.z;
+            const zz = 96.5 + (-x) + wc.cutX;
+            const wz = (0.75 * ss(94.5, 96.6, zz) + 0.25 * ss(96.2, 99.4, zz)) * (1.0 + 0.14 * ss(98.0, 99.8, zz));
+            let ly = -99.0;
+            if (dx <= -1.0) {
+                ly = -0.35 + 5.95 * ss(-1.1, -2.3, dx) * (1.0 - ss(-6.8, -10.0, dx));
+            } else if (dx >= 1.0) {
+                ly = -0.35 + 5.95 * ss(1.1, 2.3, dx) * (1.0 - ss(6.8, 10.0, dx));
+            }
+            if (ly > -50.0) {
+                const cap = this._westBaseY - 0.35 + (ly + 0.35) * wz;
+                if (cap > out) out = cap;
+            }
+        }
+
+        // Подход к западному ущелью: земля плавно поднимается до пола модели (диск скалы), без ступеньки у входа.
+        // Пол модели относительно уровня луга H: H + 0.08 + f(lz), lz = x - cx (вглубь прохода f = 0.72, к кромке диска плавно до 0.1).
+        if (wc && wc.cx !== undefined && x < wc.cx + wc.R + 5.0 && x > wc.cx - 6.0) {
+            const dxa = x - wc.cx, dza = z - wc.z, da = Math.hypot(dxa, dza);
+            if (da < wc.R + 5.0) {
+                if (this._westH === undefined) this._westH = this._getRawHeightBase(-120.0, wc.z);
+                const ssa = (a, b, v) => { const u = Math.min(1.0, Math.max(0.0, (v - a) / (b - a))); return u * u * (3.0 - 2.0 * u); };
+                const f = 0.72 - 0.62 * ssa(1.0, 8.5, dxa);
+                const wa = 1.0 - ssa(wc.R - 0.2, wc.R + 4.0, da);
+                const tgt = this._westH + (0.05 + f - 0.07 * ssa(2.0, 5.0, dxa)) * wa;   // у переднего края диска пол неровный (±0.1 м): земля чуть ниже, чтобы трава не прорастала сквозь пол
+                if (tgt > out) out = tgt;
+            }
+        }
+
         return out;
     }
 
@@ -448,7 +538,8 @@ class LakesideTerrain {
                 const rd0 = this.locTerrain.rimDip || [];
                 for (let di = 0; di < rd0.length; di++) {
                     const D0 = rd0[di];
-                    const q0 = Math.min(1.0, Math.abs(x - D0.x) / D0.w);
+                    if (D0.side === 'west' && x > 0) continue;
+                    const q0 = Math.min(1.0, Math.abs((D0.axis === 'z' ? z - D0.z : x - D0.x)) / D0.w);
                     const s0 = q0 * q0 * (3.0 - 2.0 * q0);
                     cragK = Math.min(cragK, (D0.cragK !== undefined ? D0.cragK : 0.3) + (1.0 - (D0.cragK !== undefined ? D0.cragK : 0.3)) * s0);
                 }
@@ -461,7 +552,8 @@ class LakesideTerrain {
                 const rd = this.locTerrain.rimDip || [];
                 for (let di = 0; di < rd.length; di++) {
                     const D = rd[di];
-                    const q = Math.min(1.0, Math.abs(x - D.x) / D.w);
+                    if (D.side === 'west' && x > 0) continue;
+                    const q = Math.min(1.0, Math.abs((D.axis === 'z' ? z - D.z : x - D.x)) / D.w);
                     const s = q * q * q * (q * (q * 6.0 - 15.0) + 10.0);
                     mHeight *= D.k0 + (1.0 - D.k0) * s;
                 }
@@ -661,7 +753,7 @@ class LakesideTerrain {
 
         // КРИТИЧНО для Three.js: без customProgramCacheKey движок повторно использует
         // скомпилированный шейдер первой локации для всех последующих!
-        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v41_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
+        this.material.customProgramCacheKey = () => `lakeside_terrain_${this.biome}_${this.segments}_v44_${this.groundSet}_mix${mixGround ? groundMode : 0}`;
 
         const biomeId = (this.biome === 'goldshire') ? 1.0 : ((this.biome === 'volcanic') ? 2.0 : 0.0);
         const waterTypeId = (curWType === 'coast') ? 1.0 : ((curWType === 'river') ? 2.0 : 0.0);
