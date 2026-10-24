@@ -29,7 +29,7 @@ const GLB_BUFFER_CACHE = {};
 const KIND_LABELS = {
     trees: 'Дерево', boulders: 'Камень', shrubs: 'Куст', reeds: 'Камыш',
     ferns: 'Папоротник', dandelions: 'Одуванчик', grass: 'Трава',
-    ores: 'Замшелый валун'
+    ores: 'Валун'
 };
 // Кусты, камыш и декоративные камни являются фоновыми декорациями (без всплывающих подсказок и перехвата кликов)
 const HOVER_KINDS = new Set(['trees', 'boulders', 'ferns', 'ores']);
@@ -41,7 +41,7 @@ const PROXY_HOVER_KINDS = new Set(['trees', 'ferns', 'ores']);
 const HOVER_PROXY_SIZE = {
     trees: { radiusBottom: 0.7, radiusTop: 1.35, height: 3.4 },
     ferns: { radiusBottom: 0.45, radiusTop: 0.4, height: 0.55 },
-    ores:  { radiusBottom: 1.6, radiusTop: 1.3, height: 1.6 } // модель rock_moss ~2.4 x 1.5, на тропе масштаб ~0.27
+    ores:  { radiusBottom: 0.42, radiusTop: 0.36, height: 0.48 } // базовый компактный хитбокс, масштабируется на p.s
 };
 
 
@@ -60,6 +60,7 @@ class LakesideEnvironment {
 
         // id -> { id, kind, group, x, z, s, r, label, parts: [{ mesh, index, matrix }] }
         this.objects = new Map();
+        this.oreNodes = [];
         this.pending = [];
         this.bgTasks = [];
         // Bumped whenever an object is hidden/shown (skills.js re-reads its
@@ -338,7 +339,7 @@ class LakesideEnvironment {
     getHoverProxyGeometry(kind) {
         if (this._hoverProxyGeoCache[kind]) return this._hoverProxyGeoCache[kind];
         const H = window.AVELORA_HIT || {};
-        const cfg = (kind === 'trees' && H.tree) || (kind === 'ferns' && H.fern) || HOVER_PROXY_SIZE[kind] || { radiusBottom: 0.8, radiusTop: 0.8, height: 1.5 };
+        const cfg = (kind === 'trees' && H.tree) || (kind === 'ferns' && H.fern) || (kind === 'ores' && H.ore) || HOVER_PROXY_SIZE[kind] || { radiusBottom: 0.6, radiusTop: 0.6, height: 0.8 };
         const geo = new THREE.CylinderGeometry(cfg.radiusTop, cfg.radiusBottom, cfg.height, 8, 1);
         geo.translate(0, cfg.height / 2, 0); // base at local y=0, matching item placement (ground point)
         geo.computeBoundingSphere();
@@ -578,45 +579,57 @@ class LakesideEnvironment {
     loadOres() {
         const orePlacements = this.getDecorations('ores');
         if (orePlacements.length === 0) return;
+        this.oreNodes = orePlacements;
 
-        this.loadModel('rock_moss', (gltf) => {
-            const meshes = [];
-            gltf.scene.traverse(o => {
-                if (o.isMesh) meshes.push(o);
-            });
-            if (meshes.length === 0) return;
-            meshes.sort((a, b) => a.name.localeCompare(b.name));
+        // Group placements by modelKey (default 'ore_boulder_a')
+        const byModel = new Map();
+        orePlacements.forEach(p => {
+            const mKey = p.modelKey || 'ore_boulder_a';
+            if (!byModel.has(mKey)) byModel.set(mKey, []);
+            byModel.get(mKey).push(p);
+        });
 
-            // Group placements by rock model index (0..5)
-            const groups = new Map();
-            orePlacements.forEach((p, idx) => {
-                const mIdx = (p.modelIndex !== undefined ? p.modelIndex : idx) % meshes.length;
-                if (!groups.has(mIdx)) groups.set(mIdx, []);
-                groups.get(mIdx).push(p);
-            });
+        byModel.forEach((placements, modelKey) => {
+            this.loadModel(modelKey, (gltf) => {
+                const meshes = [];
+                gltf.scene.traverse(o => {
+                    if (o.isMesh) meshes.push(o);
+                });
+                if (meshes.length === 0) return;
+                meshes.sort((a, b) => a.name.localeCompare(b.name));
 
-            // Два вида камней: рудные (вдоль тропы, крупнее, добываются киркой) и декоративные (p.decor — мельче, без взаимодействия).
-            groups.forEach((all, mIdx) => {
-                const sourceMesh = meshes[mIdx] || meshes[0];
-                const place = (p, idx, d) => {
-                    const groundY = this.terrain.getHeightAt(p.x, p.z);
-                    const scale = p.s || 1.0;
-                    d.position.set(p.x, groundY, p.z);
-                    d.rotation.set(0, p.r !== undefined ? p.r : 0, 0);
-                    d.scale.set(scale, scale, scale);
-                };
-                const part = [{ geometry: sourceMesh.geometry, material: sourceMesh.material }];
-                const mineable = all.filter(p => !p.decor), decor = all.filter(p => p.decor);
-                if (mineable.length) this.buildInstanced('ores', part, mineable, place);
-                if (decor.length) this.buildInstanced('ores', part, decor, place, { noHover: true });
-            });
+                // Group placements by rock model index
+                const groups = new Map();
+                placements.forEach((p, idx) => {
+                    const mIdx = (p.modelIndex !== undefined ? p.modelIndex : idx) % meshes.length;
+                    if (!groups.has(mIdx)) groups.set(mIdx, []);
+                    groups.get(mIdx).push(p);
+                });
 
-                // Декоративные замшелые камни (p.decor) не блокируют путь; крупные рудные валуны — твёрдые
-                orePlacements.forEach(p => {
-                    if (!p.decor && !p.noObstacle) {
-                        this.pathfinder.addObstacle(p.x, p.z, Math.max(0.55, (p.s || 0.26) * 2.4));
+                groups.forEach((all, mIdx) => {
+                    const sourceMesh = meshes[mIdx] || meshes[0];
+                    const place = (p, idx, d) => {
+                        const groundY = this.terrain.getHeightAt(p.x, p.z);
+                        const scale = p.s || 1.5;
+                        const dy = p.dy !== undefined ? p.dy : 0.08;
+                        d.position.set(p.x, groundY - dy * scale, p.z);
+                        d.rotation.set(0, p.r !== undefined ? p.r : 0, 0);
+                        d.scale.set(scale, scale, scale);
+                    };
+                    const part = [{ geometry: sourceMesh.geometry, material: sourceMesh.material }];
+                    const mineable = all.filter(p => !p.decor), decor = all.filter(p => p.decor);
+                    if (mineable.length) this.buildInstanced('ores', part, mineable, place);
+                    if (decor.length) this.buildInstanced('ores', part, decor, place, { noHover: true });
+                });
+
+                // Валуны не блокируют проход в pathfinder (персонаж поднимается на них как на пень)
+                placements.forEach(p => {
+                    if (p.obstacle) {
+                        const obsR = 0.75 * (p.s || 1.5);
+                        this.pathfinder.addObstacle(p.x, p.z, obsR);
                     }
                 });
+            });
         });
     }
 
@@ -1224,6 +1237,7 @@ class LakesideEnvironment {
     dispose() {
         this.disposed = true;
         this.objects.clear();
+        this.oreNodes = null;
         this.hoverMeshes.length = 0;
         this.cullMeshes.length = 0;
         this.shadowMeshes.length = 0;

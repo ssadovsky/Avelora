@@ -404,16 +404,18 @@
             return { shrubs };
         },
 
-        // Россыпь замшелых камней (масштаб строго 0.10 .. 0.20)
+        // Россыпь рудных валунов (ores) для добычи камня и руды
         oreCluster(ctx, g, rng) {
             const count = g.count !== undefined ? g.count : 5;
-            return {
-                // decor: true — декоративные камни, без добычи и подсказки (рудные валуны заданы явно вдоль тропы)
-                ores: scatter(ctx, g, {
-                    kind: 'ores', count, spacing: g.spacing || 1.8,
-                    scale: [g.scaleMin || 0.10, g.scaleMax || 0.20], surface: 'land'
-                }, rng).map(o => { o.decor = true; return o; })
-            };
+            const ores = scatter(ctx, g, {
+                kind: 'ores', count, spacing: g.spacing || 2.4,
+                scale: [g.scaleMin || 1.35, g.scaleMax || 1.65], surface: 'land'
+            }, rng);
+            ores.forEach(o => {
+                o.modelKey = rng() < 0.5 ? 'ore_boulder_a' : 'ore_boulder_b';
+                o.dy = 0.08;
+            });
+            return { ores };
         },
 
         // Россыпь сухих веток в лесу (декорация)

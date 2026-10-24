@@ -527,12 +527,7 @@
                     return;
                 }
                 this.env.setObjectVisible(id, false);
-                if (entry.kind === 'ores') {
-                    if (this.game.pathfinder) {
-                        const obsR = Math.max(0.65, (entry.s || 0.25) * 2.2);
-                        this.game.pathfinder.removeObstacle(entry.x, entry.z, obsR);
-                    }
-                } else {
+                if (entry.kind !== 'ores') {
                     this.addStump(entry, node);
                 }
             });
@@ -555,12 +550,6 @@
                 st.clearFelled(this.location.id, id);
                 if (this.game.worldObjects) this.game.worldObjects.removeProp('stump:' + id);
                 this.env.setObjectVisible(id, true);
-                if (entry.kind === 'ores') {
-                    if (this.game.pathfinder) {
-                        const obsR = Math.max(0.65, (entry.s || 0.25) * 2.2);
-                        this.game.pathfinder.addObstacle(entry.x, entry.z, obsR);
-                    }
-                }
                 this.regrowing.set(id, { t: 0, entry });
                 this.applyScale(entry, 0.02);
                 window.dispatchEvent(new CustomEvent('game:treeRegrown', { detail: { id } }));

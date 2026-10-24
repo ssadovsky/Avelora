@@ -6079,7 +6079,7 @@ window.GAME_CONTENT = {
   },
   "rock_node": {
    "id": "rock_node",
-   "name": "Замшелый валун",
+   "name": "Валун",
    "kind": "ores",
    "tool": "mine",
    "hits": 3,

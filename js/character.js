@@ -1287,6 +1287,36 @@ class MedievalCharacter {
                 }
             }
         }
+        // Процедурный подъем на рудные валуны (ores): куполообразная форма камня
+        const env = window.game && window.game.environment;
+        if (env && env.oreNodes) {
+            const ores = env.oreNodes;
+            for (let i = 0; i < ores.length; i++) {
+                const o = ores[i];
+                const dx = this.position.x - o.x, dz = this.position.z - o.z;
+                if (Math.abs(dx) > 1.4 || Math.abs(dz) > 1.4) continue;
+
+                if (env.objects) {
+                    const entry = env.objects.get(o.id);
+                    if (entry && entry.visible === false) continue;
+                }
+
+                const scale = o.s || 1.5;
+                const rOre = 0.46 * scale;
+                const hOreMax = 0.36 * scale;
+                const dist = Math.hypot(dx, dz);
+
+                if (dist <= rOre) {
+                    const norm = dist / rOre;
+                    const h = hOreMax * Math.sqrt(Math.max(0, 1.0 - norm * norm));
+                    stepUpTarget = Math.max(stepUpTarget, h);
+                } else if (dist < rOre + 0.15) {
+                    const factor = 1.0 - (dist - rOre) / 0.15;
+                    stepUpTarget = Math.max(stepUpTarget, (hOreMax * 0.18) * factor);
+                }
+            }
+        }
+
         this._stepUpY = THREE.MathUtils.lerp(this._stepUpY || 0, stepUpTarget, Math.min(1.0, delta * 20));
         this.position.y = groundHeight + this._stepUpY;
 

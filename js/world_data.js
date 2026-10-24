@@ -289,6 +289,7 @@ window.LOCATIONS = {
             { id: 'ne_ores_1', type: 'oreCluster', x: 112.0, z: -22.0, radius: 12.0, count: 6, seed: 314 },
             { id: 'ne_ores_2', type: 'oreCluster', x: 82.0, z: -30.0, radius: 10.0, count: 5, seed: 315 },
             { id: 'ne_ores_north', type: 'oreCluster', x: 110.0, z: -65.0, radius: 14.0, count: 7, seed: 316 },
+            { id: 'west_ores', type: 'oreCluster', x: -85.0, z: -35.0, radius: 12.0, count: 6, seed: 320 },
 
             // 11. Декоративные сухие ветки и сучья на лесной подстилке
             { id: 'ne_forest_branches_1', type: 'branches', x: 98.0, z: -28.0, radius: 18.0, count: 16, seed: 317 },
@@ -491,14 +492,16 @@ window.LOCATIONS = {
                 // Яблоня возле озера (вечнозелёное дерево перенесено в северо-западный ельник)
                 { id: 'tree_showcase_apple',     x: -48.0, z: -6.0, s: 1.0, r: 0.7, treeType: 'apple' }
             ],
-            // 6 замшелых валунов для добычи камня и железа вдоль тропы под восточными горами к водопаду
+            // Рудные валуны для добычи камня и железа вдоль тропы под восточными горами к водопаду
             ores: [
-                { x: 134.5, z: 70.0, modelIndex: 0, s: 0.28, r: 0.4 },
-                { x: 135.0, z: 58.0, modelIndex: 1, s: 0.25, r: 1.2 },
-                { x: 133.8, z: 47.0, modelIndex: 2, s: 0.29, r: 2.1 },
-                { x: 135.5, z: 36.0, modelIndex: 3, s: 0.24, r: 0.8 },
-                { x: 134.0, z: 25.0, modelIndex: 4, s: 0.26, r: 2.8 },
-                { x: 135.2, z: 14.0, modelIndex: 5, s: 0.25, r: 1.6 }
+                { modelKey: 'ore_boulder_a', x: 134.5, z: 70.0, s: 1.50, r: 1.14, dy: 0.08 },
+                { modelKey: 'ore_boulder_b', x: 135.0, z: 58.0, s: 1.45, r: 2.73, dy: 0.08 },
+                { modelKey: 'ore_boulder_a', x: 133.8, z: 47.0, s: 1.55, r: 4.89, dy: 0.08 },
+                { modelKey: 'ore_boulder_b', x: 135.5, z: 36.0, s: 1.50, r: 0.35, dy: 0.08 },
+                { modelKey: 'ore_boulder_a', x: 134.0, z: 25.0, s: 1.48, r: 3.52, dy: 0.08 },
+                { modelKey: 'ore_boulder_b', x: 134.5, z: 16.5, s: 1.50, r: 5.61, dy: 0.08 },
+                { modelKey: 'ore_boulder_a', x: 119.5, z: 62.0, s: 1.50, r: 1.85, dy: 0.08 },
+                { modelKey: 'ore_boulder_b', x: 120.0, z: 44.0, s: 1.48, r: 4.21, dy: 0.08 }
             ],
             boulders: [],
             shrubs: [
@@ -827,6 +830,13 @@ window.LOCATIONS = {
             { id: 'kopje_east', type: 'rocks', x: 118.0, z: -48.0, radius: 9.0, count: 5, scaleMin: 0.9, scaleMax: 2.2, seed: 956 },
             { id: 'circle_rocks', type: 'rocks', x: 74.0, z: -70.0, radius: 10.0, count: 4, scaleMin: 0.9, scaleMax: 2.2, seed: 963 },
 
+            // Рудные валуны для добычи (ores)
+            { id: 'sv_ores_north', type: 'oreCluster', x: 12.0, z: -64.0, radius: 9.0, count: 5, seed: 1201 },
+            { id: 'sv_ores_centre', type: 'oreCluster', x: 38.0, z: 28.0, radius: 8.0, count: 5, seed: 1202 },
+            { id: 'sv_ores_west', type: 'oreCluster', x: -94.0, z: 24.0, radius: 8.0, count: 4, seed: 1203 },
+            { id: 'sv_ores_east', type: 'oreCluster', x: 114.0, z: -42.0, radius: 9.0, count: 5, seed: 1204 },
+            { id: 'sv_ores_se', type: 'oreCluster', x: 56.0, z: 62.0, radius: 8.0, count: 4, seed: 1205 },
+
             // Кусты и травянистые заросли
             { id: 'shrubs_w', type: 'shrubCluster', x: -80.0, z: -4.0, radius: 22.0, count: 9, spacing: 5.0, seed: 1000 },
             { id: 'shrubs_c', type: 'shrubCluster', x: 0.0, z: 20.0, radius: 24.0, count: 9, spacing: 5.0, seed: 1005 },
@@ -1081,6 +1091,12 @@ window.LOCATIONS = {
             { id: 'pv_rocks_2', type: 'rocks', x: 88.0, z: 14.0, radius: 10.0, count: 6, scaleMin: 0.9, scaleMax: 2.4, seed: 5142 },
             { id: 'pv_rocks_3', type: 'rocks', x: 105.0, z: -45.0, radius: 12.0, count: 7, scaleMin: 1.0, scaleMax: 2.5, seed: 5143 },
             { id: 'pv_rocks_4', type: 'rocks', x: -20.0, z: 28.0, radius: 7.0, count: 4, scaleMin: 0.8, scaleMax: 1.9, seed: 5144 },
+
+            // Рудные валуны для добычи (ores)
+            { id: 'pv_ores_coast', type: 'oreCluster', x: -88.0, z: -10.0, radius: 10.0, count: 5, seed: 5201 },
+            { id: 'pv_ores_northeast', type: 'oreCluster', x: 72.0, z: -50.0, radius: 11.0, count: 6, seed: 5202 },
+            { id: 'pv_ores_east', type: 'oreCluster', x: 95.0, z: 10.0, radius: 10.0, count: 5, seed: 5203 },
+            { id: 'pv_ores_lake_s', type: 'oreCluster', x: -14.0, z: 32.0, radius: 8.0, count: 4, seed: 5204 },
             // Кустарники и валежник
             { id: 'pv_shrubs_1', type: 'shrubCluster', x: 30.0, z: 0.0, radius: 20.0, count: 8, spacing: 5.0, seed: 5150 },
             { id: 'pv_shrubs_2', type: 'shrubCluster', x: -50.0, z: 0.0, radius: 20.0, count: 8, spacing: 5.0, seed: 5151 },
@@ -1231,7 +1247,9 @@ window.LOCATIONS = {
             { id: 'reeds_b',    type: 'reeds', x: -30.0, z: -21.0, radius: 6.0, count: 35, seed: 342 },
             { id: 'reeds_c',    type: 'reeds', x: -14.0, z: -25.0, radius: 4.0, count: 20, seed: 343 },
             { id: 'reeds_d',    type: 'reeds', x: 20.0,  z: -27.0, radius: 6.0, count: 30, seed: 344 },
-            { id: 'reeds_e',    type: 'reeds', x: 56.0,  z: -24.0, radius: 6.0, count: 30, seed: 345 }
+            { id: 'reeds_e',    type: 'reeds', x: 56.0,  z: -24.0, radius: 6.0, count: 30, seed: 345 },
+            // Рудные валуны для добычи (ores)
+            { id: 'camp_ores', type: 'oreCluster', x: -38.0, z: -40.0, radius: 8.0, count: 4, seed: 350 }
         ],
 
         // Костровище: огонь и брёвна-сиденья (content/props/campfire, огонь — js/fire.js)
