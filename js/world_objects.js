@@ -936,6 +936,9 @@
             if (rec.npc) {
                 if (!this.game.ui || !this.game.ui.openDialog) return;
                 this.openContainer = rec;
+                if (this.game.ui.dialog && this.game.ui.dialog.isOpen()) {
+                    this.game.ui.dialog.close();
+                }
                 this.game.ui.openDialog(rec.npc);
             } else this.openChest(rec);
         }

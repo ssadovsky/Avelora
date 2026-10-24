@@ -26,6 +26,41 @@
         return el;
     }
 
+    function makeTouchScrollable(el) {
+        if (!el || el.__touchScrollInit) return;
+        el.__touchScrollInit = true;
+        let startY = 0, lastY = 0, isDragging = false;
+        el.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches[0]) {
+                startY = e.touches[0].clientY;
+                lastY = startY;
+                isDragging = false;
+                el.__touchDragging = false;
+            }
+        }, { passive: true });
+        el.addEventListener('touchmove', (e) => {
+            if (e.touches && e.touches[0]) {
+                const currentY = e.touches[0].clientY;
+                const dy = lastY - currentY;
+                if (Math.abs(currentY - startY) > 4) {
+                    isDragging = true;
+                    el.__touchDragging = true;
+                }
+                if (isDragging && Math.abs(dy) > 0.5) {
+                    el.scrollTop += dy;
+                    lastY = currentY;
+                }
+            }
+        }, { passive: true });
+        el.addEventListener('click', (e) => {
+            if (isDragging || el.__touchDragging) {
+                e.stopPropagation();
+                e.preventDefault();
+                setTimeout(() => { el.__touchDragging = false; }, 50);
+            }
+        }, true);
+    }
+
     class AveloraDialog {
         constructor(game, ui) {
             this.game = game;
@@ -41,10 +76,14 @@
                 this.titleEl = this.panel.querySelector('.dlg-title');
                 this.body = this.panel.querySelector('.dlg-body');
                 const close = this.panel.querySelector('.dlg-close');
-                if (close) close.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.close();
-                });
+                if (close) {
+                    const onClose = (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        this.close();
+                    };
+                    ['pointerdown', 'touchend', 'click'].forEach(evt => close.addEventListener(evt, onClose));
+                }
             }
             this.goldEl = document.getElementById('gold-amount');
             this.tracker = document.createElement('div');
@@ -105,8 +144,13 @@
             this.panel.style.bottom = '';
             this.panel.style.transform = '';
             this.npc = npc;
-            this.nodeId = npc.start || 'start';
+            this.nodeId = (npc && npc.start) || 'start';
             this.mode = 'talk';
+            this.reward = null;
+            if (this.body) {
+                this.body.innerHTML = '';
+                this.body.scrollTop = 0;
+            }
             if (this.nameEl) this.nameEl.textContent = npc.name || '';
             if (this.titleEl) this.titleEl.textContent = npc.title || '';
             if (this.portrait) {
@@ -127,8 +171,12 @@
             this.npc = null;
             this.mode = 'talk';
             this.reward = null;
-            if (this.ui && this.ui.hideTooltip) this.ui.hideTooltip();
             this.nodeId = null;
+            if (this.body) {
+                this.body.innerHTML = '';
+                this.body.scrollTop = 0;
+            }
+            if (this.ui && this.ui.hideTooltip) this.ui.hideTooltip();
             if (this.panel) {
                 if (document.activeElement && this.panel.contains(document.activeElement)) {
                     try { document.activeElement.blur(); } catch (_) {}
@@ -136,8 +184,9 @@
                 this.panel.classList.remove('open', 'shop-mode');
                 this.panel.setAttribute('aria-hidden', 'true');
             }
-            if (this.game.worldObjects && this.game.worldObjects.openContainer) {
-                this.game.worldObjects.openContainer = null;
+            if (this.game.worldObjects) {
+                if (this.game.worldObjects.openContainer) this.game.worldObjects.openContainer = null;
+                if (this.game.worldObjects.pendingContainerId) this.game.worldObjects.pendingContainerId = null;
             }
             if (this.game.setInventoryOpen) {
                 this.game.setInventoryOpen(false);
@@ -165,6 +214,11 @@
             else if (this.mode === 'teach_alchemy') this.renderTeachRecipes(['alchemy'], 'Алхимия');
             else if (this.mode === 'teach_craft') this.renderTeachRecipes(['carpentry', 'materials', 'refining', 'tailoring', 'equipment', 'jewelry'], 'Ремесло');
             else this.renderShop();
+
+            if (this.body) {
+                const scrollables = this.body.querySelectorAll('.dlg-list, .dlg-options, .dlg-text');
+                scrollables.forEach(el => makeTouchScrollable(el));
+            }
         }
 
         // -----------------------------------------------------------
@@ -385,11 +439,16 @@
                     };
                 }
 
-                // Click on quest row opens full quests log (ignoring scrollbar clicks)
+                // Click on quest row opens full quests log (ignoring scrollbar clicks and touch scrolling drags)
                 const list = this.tracker.querySelector('.qt-list');
                 if (list) {
+                    makeTouchScrollable(list);
                     list.addEventListener('wheel', (e) => { e.stopPropagation(); }, { passive: true });
                     list.onclick = (e) => {
+                        if (list.__touchDragging) {
+                            list.__touchDragging = false;
+                            return;
+                        }
                         if (!e.target.closest('.qt-row')) return;
                         e.stopPropagation();
                         const ui = this.ui || (this.game && this.game.ui) || window.AveloraHotbar;
@@ -655,6 +714,7 @@
                         return;
                     }
                 }
+                this.mode = 'talk';
                 this.nodeId = this.npc.start || 'start';
                 this.render();
             } else if (o.action === 'questTurnIn') {
@@ -674,6 +734,7 @@
                     this.render();
                     return;
                 }
+                this.mode = 'talk';
                 this.nodeId = this.npc.start || 'start';
                 this.render();
             } else if (o.action === 'teach' || o.action === 'teach_magic') {
@@ -830,12 +891,14 @@
             back.type = 'button';
             back.className = 'dlg-tab back';
             back.textContent = '← Назад';
-            back.addEventListener('click', (e) => {
+            const onBackTeach = (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 this.mode = 'talk';
-                this.nodeId = this.npc.start || 'start';
+                this.nodeId = (this.npc && this.npc.start) || 'start';
                 this.render();
-            });
+            };
+            ['pointerdown', 'touchend', 'click'].forEach(evt => back.addEventListener(evt, onBackTeach));
             const gold = document.createElement('div');
             gold.className = 'dlg-gold';
             gold.innerHTML = '<span class="coin"></span> ' + (st ? st.gold : 0);
@@ -918,12 +981,14 @@
             back.type = 'button';
             back.className = 'dlg-tab back';
             back.textContent = '← Назад';
-            back.addEventListener('click', (e) => {
+            const onBackRecipes = (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 this.mode = 'talk';
-                this.nodeId = this.npc.start || 'start';
+                this.nodeId = (this.npc && this.npc.start) || 'start';
                 this.render();
-            });
+            };
+            ['pointerdown', 'touchend', 'click'].forEach(evt => back.addEventListener(evt, onBackRecipes));
             const gold = document.createElement('div');
             gold.className = 'dlg-gold';
             gold.innerHTML = '<span class="coin"></span> ' + (st ? st.gold : 0);
@@ -1019,13 +1084,15 @@
             back.type = 'button';
             back.className = 'dlg-tab back';
             back.textContent = '← Назад';
-            back.addEventListener('click', (e) => {
+            const onBackShop = (e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 this.mode = 'talk';
-                this.nodeId = this.npc.start || 'start';
-                if (this.game.setInventoryOpen) this.game.setInventoryOpen(false);
+                this.nodeId = (this.npc && this.npc.start) || 'start';
+                if (this.game && this.game.setInventoryOpen) this.game.setInventoryOpen(false);
                 this.render();
-            });
+            };
+            ['pointerdown', 'touchend', 'click'].forEach(evt => back.addEventListener(evt, onBackShop));
             tabs.appendChild(back);
             const gold = document.createElement('div');
             gold.className = 'dlg-gold';
