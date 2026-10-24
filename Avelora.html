@@ -227,28 +227,108 @@
         </button>
     </div>
 
-    <!-- Auto Actions Dock (Автобой / Автоквест) -->
+    <!-- Auto Actions Dock (Автобой / Автосбор / Автоквест) -->
     <div id="auto-actions-dock" aria-label="Автоматические действия">
-        <button type="button" id="auto-combat-btn" class="hud-btn auto-action-btn" title="Автобой (Z)" aria-label="Автобой">
-            <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/>
-                <path d="M13 19l6 2 2-6-4.5-4.5"/>
-                <path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/>
-                <path d="M5 14l-2 6 6-2 4.5-4.5"/>
-            </svg>
-            <span class="auto-action-label">БОЙ</span>
-            <span class="auto-action-key">Z</span>
-            <span class="auto-action-state">ВЫКЛ</span>
-        </button>
-        <button type="button" id="auto-quest-btn" class="hud-btn auto-action-btn" title="Автоквест (X)" aria-label="Автоквест">
-            <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="9"/>
-                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#efcf7a"/>
-            </svg>
-            <span class="auto-action-label">КВЕСТ</span>
-            <span class="auto-action-key">X</span>
-            <span class="auto-action-state">ВЫКЛ</span>
-        </button>
+        <div class="auto-action-group" id="auto-combat-group">
+            <button type="button" class="auto-action-chevron" id="auto-combat-chevron" title="Дистанция боя" aria-label="Дистанция боя">
+                <svg viewBox="0 0 10 6" width="9" height="6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 5l4-4 4 4"/>
+                </svg>
+            </button>
+            <button type="button" id="auto-combat-btn" class="hud-btn auto-action-btn" title="Автобой (Z)" aria-label="Автобой">
+                <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/>
+                    <path d="M13 19l6 2 2-6-4.5-4.5"/>
+                    <path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/>
+                    <path d="M5 14l-2 6 6-2 4.5-4.5"/>
+                </svg>
+                <span class="auto-action-label">БОЙ</span>
+                <span class="auto-action-key">Z</span>
+                <span class="auto-action-state">ВЫКЛ</span>
+            </button>
+            <div id="auto-combat-popup" class="auto-action-popup" style="display: none;">
+                <div class="auto-popup-header">
+                    <span>Дистанция боя</span>
+                    <button type="button" class="auto-popup-close" title="Закрыть" aria-label="Закрыть">×</button>
+                </div>
+                <button type="button" class="auto-popup-option active" data-radius="18">
+                    <span>Близко</span><span class="auto-popup-hint">18м</span>
+                </button>
+                <button type="button" class="auto-popup-option" data-radius="30">
+                    <span>Средне</span><span class="auto-popup-hint">30м</span>
+                </button>
+                <button type="button" class="auto-popup-option" data-radius="50">
+                    <span>Далеко</span><span class="auto-popup-hint">50м</span>
+                </button>
+                <button type="button" class="auto-popup-option" data-radius="0">
+                    <span>На месте</span><span class="auto-popup-hint">0м</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="auto-action-group" id="auto-gather-group">
+            <button type="button" class="auto-action-chevron" id="auto-gather-chevron" title="Настройки автосбора" aria-label="Настройки автосбора">
+                <svg viewBox="0 0 10 6" width="9" height="6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 5l4-4 4 4"/>
+                </svg>
+            </button>
+            <button type="button" id="auto-gather-btn" class="hud-btn auto-action-btn" title="Автосбор (C)" aria-label="Автосбор">
+                <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 12a8 8 0 0 1 14.9-4"/>
+                    <polyline points="15 8 19 8 19 4"/>
+                    <path d="M20 12a8 8 0 0 1-14.9 4"/>
+                    <polyline points="9 16 5 16 5 20"/>
+                    <path d="M8.5 13.5l3-3a1.5 1.5 0 0 1 2.1 2.1L12 14.2"/>
+                    <path d="M12 9.5l1.5-1.5a1.5 1.5 0 0 1 2.1 2.1L14 11.7"/>
+                    <path d="M9.5 15.5c1.5 1.5 3.5 1.5 5 0"/>
+                </svg>
+                <span class="auto-action-label">СБОР</span>
+                <span class="auto-action-key">C</span>
+                <span class="auto-action-state">ВЫКЛ</span>
+            </button>
+            <div id="auto-gather-popup" class="auto-action-popup" style="display: none;">
+                <div class="auto-popup-header">
+                    <span>Режимы сбора</span>
+                    <button type="button" class="auto-popup-close" title="Закрыть" aria-label="Закрыть">×</button>
+                </div>
+                <label class="auto-popup-item" title="Сбор трав и папоротников">
+                    <input type="checkbox" id="auto-gather-herb" checked>
+                    <span class="auto-popup-check"></span>
+                    <span class="auto-popup-icon">🌿</span>
+                    <span class="auto-popup-text">Трава</span>
+                </label>
+                <label class="auto-popup-item" title="Рубка деревьев топором">
+                    <input type="checkbox" id="auto-gather-wood" checked>
+                    <span class="auto-popup-check"></span>
+                    <span class="auto-popup-icon">🪓</span>
+                    <span class="auto-popup-text">Дерево</span>
+                </label>
+                <label class="auto-popup-item" title="Добыча руды и камня киркой">
+                    <input type="checkbox" id="auto-gather-ore" checked>
+                    <span class="auto-popup-check"></span>
+                    <span class="auto-popup-icon">⛏️</span>
+                    <span class="auto-popup-text">Камень</span>
+                </label>
+                <label class="auto-popup-item" title="Сбор предметов с земли">
+                    <input type="checkbox" id="auto-gather-loot" checked>
+                    <span class="auto-popup-check"></span>
+                    <span class="auto-popup-icon">📦</span>
+                    <span class="auto-popup-text">Добыча</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="auto-action-group" id="auto-quest-group">
+            <button type="button" id="auto-quest-btn" class="hud-btn auto-action-btn" title="Автоквест (X)" aria-label="Автоквест">
+                <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#efcf7a"/>
+                </svg>
+                <span class="auto-action-label">КВЕСТ</span>
+                <span class="auto-action-key">X</span>
+                <span class="auto-action-state">ВЫКЛ</span>
+            </button>
+        </div>
     </div>
 
     <!-- NPC dialog / shop -->

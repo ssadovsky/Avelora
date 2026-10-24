@@ -1545,11 +1545,50 @@
             bottom: 0px;
             left: calc(50% + clamp(345px, 19vw + 95px, 395px));
             display: flex;
-            gap: 4px;
-            align-items: center;
+            gap: 6px;
+            align-items: flex-end;
             z-index: 105;
             pointer-events: auto;
             padding-bottom: 4px;
+        }
+        .auto-action-group {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .auto-action-chevron {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 26px;
+            height: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(14, 18, 22, 0.94);
+            border: 1px solid rgba(195, 160, 95, 0.45);
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+            color: #c9b48c;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.15s ease;
+            z-index: 2;
+        }
+        .auto-action-chevron:hover,
+        .auto-action-chevron.open {
+            color: #ffe699;
+            border-color: rgba(239, 207, 122, 0.85);
+            background: rgba(26, 32, 40, 0.98);
+        }
+        .auto-action-chevron svg {
+            transition: transform 0.2s ease;
+        }
+        .auto-action-chevron.open svg {
+            transform: rotate(180deg);
         }
         .auto-action-btn {
             position: relative;
@@ -1614,6 +1653,148 @@
         }
         .auto-action-btn.active .auto-action-label {
             color: #ffe699;
+        }
+
+        /* Auto Actions Dropdown Popups */
+        .auto-action-popup {
+            position: absolute;
+            bottom: calc(100% + 18px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 165px;
+            background: linear-gradient(180deg, rgba(20, 25, 32, 0.98) 0%, rgba(12, 16, 22, 0.98) 100%);
+            border: 1px solid rgba(195, 160, 95, 0.55);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85), inset 0 0 10px rgba(0, 0, 0, 0.6);
+            padding: 6px 8px;
+            z-index: 109;
+            backdrop-filter: blur(8px);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            user-select: none;
+            pointer-events: auto;
+            animation: autoPopupFadeIn 0.15s ease-out;
+        }
+        @keyframes autoPopupFadeIn {
+            from { opacity: 0; transform: translate(-50%, 6px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .auto-popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 9px;
+            font-weight: 700;
+            color: #efcf7a;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 1px 2px 4px 4px;
+            border-bottom: 1px solid rgba(195, 160, 95, 0.25);
+            margin-bottom: 3px;
+        }
+        .auto-popup-close {
+            background: none;
+            border: none;
+            color: #c9b48c;
+            font-size: 15px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 4px;
+            margin: -2px -2px -2px 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            transition: color 0.15s ease, background 0.15s ease;
+            user-select: none;
+        }
+        .auto-popup-close:hover {
+            color: #fff;
+            background: rgba(239, 207, 122, 0.25);
+        }
+        .auto-popup-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            font-size: 11px;
+            color: #d8ceba;
+        }
+        .auto-popup-item:hover {
+            background: rgba(239, 207, 122, 0.14);
+            color: #fff;
+        }
+        .auto-popup-item input[type="checkbox"] {
+            display: none;
+        }
+        .auto-popup-check {
+            width: 13px;
+            height: 13px;
+            border: 1px solid rgba(195, 160, 95, 0.6);
+            border-radius: 3px;
+            background: rgba(8, 10, 14, 0.6);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+        .auto-popup-item input[type="checkbox"]:checked + .auto-popup-check {
+            background: rgba(239, 207, 122, 0.25);
+            border-color: #efcf7a;
+            box-shadow: 0 0 6px rgba(239, 207, 122, 0.4);
+        }
+        .auto-popup-item input[type="checkbox"]:checked + .auto-popup-check::after {
+            content: '';
+            width: 7px;
+            height: 3.5px;
+            border-left: 2px solid #efcf7a;
+            border-bottom: 2px solid #efcf7a;
+            transform: rotate(-45deg) translate(1px, -1px);
+        }
+        .auto-popup-icon {
+            font-size: 13px;
+            line-height: 1;
+        }
+        .auto-popup-text {
+            font-size: 11px;
+            line-height: 1;
+            font-weight: 500;
+        }
+        .auto-popup-option {
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 5px 8px;
+            color: #c9b48c;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.15s;
+        }
+        .auto-popup-option:hover {
+            background: rgba(239, 207, 122, 0.12);
+            color: #fff;
+        }
+        .auto-popup-option.active {
+            border-color: rgba(239, 207, 122, 0.6);
+            background: rgba(239, 207, 122, 0.18);
+            color: #efcf7a;
+            font-weight: 700;
+        }
+        .auto-popup-hint {
+            font-size: 9px;
+            opacity: 0.7;
         }
 
 /* ==========================================================================
@@ -4677,22 +4858,75 @@
                 z-index: 106 !important;
                 display: block !important;
             }
-            body.touch-ui .auto-action-btn {
+            body.touch-ui .auto-action-group {
                 position: absolute !important;
+                bottom: 3px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                pointer-events: none !important;
+            }
+            body.touch-ui #auto-combat-group {
+                right: 324px !important; /* continues row to the left after slot 6 (274px) */
+            }
+            body.touch-ui #auto-gather-group {
+                right: 374px !important; /* next round button in row */
+            }
+            body.touch-ui #auto-quest-group {
+                right: 424px !important; /* continues row further to the left, closer to center */
+            }
+            body.touch-ui .auto-action-btn {
+                position: relative !important;
                 pointer-events: auto !important;
                 border-radius: 50% !important;
                 border: none !important;
                 box-shadow: 0 4px 14px rgba(0, 0, 0, 0.75), inset 0 0 10px rgba(0, 0, 0, 0.85) !important;
                 width: 42px !important;
                 height: 42px !important;
-                bottom: 3px !important;
+                bottom: auto !important;
                 background: radial-gradient(circle, rgba(20, 24, 28, 0.92) 0%, rgba(8, 12, 14, 0.96) 100%) !important;
             }
-            body.touch-ui #auto-combat-btn {
-                right: 324px !important; /* continues row to the left after slot 6 (274px) */
+            body.touch-ui .auto-action-chevron {
+                position: absolute !important;
+                top: -15px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                width: 32px !important;
+                height: 15px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                pointer-events: auto !important;
+                background: rgba(16, 20, 26, 0.92) !important;
+                border: 1px solid rgba(195, 160, 95, 0.45) !important;
+                border-bottom: none !important;
+                border-radius: 8px 8px 0 0 !important;
+                color: #c9b48c !important;
+                cursor: pointer !important;
+                padding: 0 !important;
+                z-index: 107 !important;
             }
-            body.touch-ui #auto-quest-btn {
-                right: 372px !important; /* continues row further to the left, closer to center */
+            body.touch-ui .auto-action-chevron:active,
+            body.touch-ui .auto-action-chevron.open {
+                color: #ffe699 !important;
+                background: rgba(28, 34, 44, 0.98) !important;
+                border-color: #efcf7a !important;
+            }
+            body.touch-ui .auto-action-popup {
+                bottom: 48px !important;
+                width: 160px !important;
+            }
+            body.touch-ui .auto-popup-header {
+                padding: 2px 4px 6px 6px !important;
+            }
+            body.touch-ui .auto-popup-close {
+                font-size: 18px !important;
+                padding: 2px 6px !important;
+                min-width: 24px !important;
+                min-height: 24px !important;
+            }
+            body.touch-ui .auto-popup-item {
+                padding: 6px 6px !important;
             }
             body.touch-ui .auto-action-btn .auto-action-icon {
                 width: 22px !important;
@@ -4702,7 +4936,6 @@
             body.touch-ui .auto-action-btn .auto-action-key {
                 display: none !important;
             }
-
 
             /* Hide desktop slots 7..9 and PC xp-bar on mobile screens */
             .skill-bar .skill-slot[data-slot="7"],

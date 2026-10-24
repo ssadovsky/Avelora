@@ -1,8 +1,9 @@
 /**
  * Avelora Auto-Play System (js/auto_play.js)
  * Fully Data-Driven, autonomous gameplay assistant:
- * 1. Auto-Combat: Smart skill rotation (Shield -> AoE -> Nukes -> Spark), keeps distance, no melee stick rushes.
- * 2. Auto-Quest: Full autonomous lifecycle (Find -> Accept -> Hunt/Gather -> Turn In -> Next Quest).
+ * 1. Auto-Combat: Smart skill rotation & configurable range (BDM style).
+ * 2. Auto-Gather: Autonomous herb foraging, wood logging, ore mining & loot collection.
+ * 3. Auto-Quest: Full autonomous lifecycle (Find -> Accept -> Hunt/Gather -> Turn In -> Next Quest).
  */
 (function() {
     'use strict';
@@ -12,6 +13,10 @@
             this.game = game;
             this.combatEnabled = false;
             this.questEnabled = false;
+            this.gatherEnabled = false;
+
+            this.gatherConfig = this.loadGatherConfig();
+            this.combatRadius = this.loadCombatRadius();
 
             // Combat throttling & state
             this._combatTimer = 0;
@@ -23,12 +28,58 @@
             this._nextPathTime = 0;
             this._dialogCooldown = 0;
 
+            // Gather throttling & state
+            this._gatherTimer = 0;
+            this._lastGatherMsgTime = 0;
+            this._unreachableObjects = new Map();
+            this._currentGatherTarget = null;
+            this._gatherTargetStartTime = 0;
+
             // Cache DOM elements
             this.combatBtn = null;
+            this.combatChevron = null;
+            this.combatPopup = null;
+
+            this.gatherBtn = null;
+            this.gatherChevron = null;
+            this.gatherPopup = null;
+
             this.questBtn = null;
 
             this.initUI();
             this.initHotkeys();
+        }
+
+        loadGatherConfig() {
+            try {
+                const saved = localStorage.getItem('avelora_autogather_cfg');
+                if (saved) return Object.assign({ herb: true, wood: true, ore: true, loot: true }, JSON.parse(saved));
+            } catch (_) {}
+            return { herb: true, wood: true, ore: true, loot: true };
+        }
+
+        saveGatherConfig() {
+            try {
+                localStorage.setItem('avelora_autogather_cfg', JSON.stringify(this.gatherConfig));
+            } catch (_) {}
+        }
+
+        loadCombatRadius() {
+            try {
+                const saved = localStorage.getItem('avelora_autocombat_radius');
+                if (saved !== null) {
+                    const r = Number(saved);
+                    if (Number.isFinite(r)) return r;
+                }
+            } catch (_) {}
+            return 18.0;
+        }
+
+        saveCombatRadius(r) {
+            this.combatRadius = Number(r);
+            try {
+                localStorage.setItem('avelora_autocombat_radius', String(this.combatRadius));
+            } catch (_) {}
         }
 
         // ---------------------------------------------------------------------
@@ -36,6 +87,13 @@
         // ---------------------------------------------------------------------
         initUI() {
             this.combatBtn = document.getElementById('auto-combat-btn');
+            this.combatChevron = document.getElementById('auto-combat-chevron');
+            this.combatPopup = document.getElementById('auto-combat-popup');
+
+            this.gatherBtn = document.getElementById('auto-gather-btn');
+            this.gatherChevron = document.getElementById('auto-gather-chevron');
+            this.gatherPopup = document.getElementById('auto-gather-popup');
+
             this.questBtn = document.getElementById('auto-quest-btn');
             const dock = document.getElementById('auto-actions-dock');
 
@@ -44,7 +102,12 @@
                 window.__avelora_just_ui_tap = performance.now();
             };
 
-            const targets = [dock, this.combatBtn, this.questBtn].filter(Boolean);
+            const targets = [
+                dock,
+                this.combatBtn, this.combatChevron, this.combatPopup,
+                this.gatherBtn, this.gatherChevron, this.gatherPopup,
+                this.questBtn
+            ].filter(Boolean);
             const eventsToAbsorb = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend'];
 
             targets.forEach(el => {
@@ -62,12 +125,121 @@
                 });
             }
 
+            if (this.gatherBtn) {
+                this.gatherBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.__avelora_just_ui_tap = performance.now();
+                    this.toggleGather();
+                });
+            }
+
             if (this.questBtn) {
                 this.questBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     window.__avelora_just_ui_tap = performance.now();
                     this.toggleQuest();
+                });
+            }
+
+            // Dropdown Chevron Popups (BDM style)
+            const closeAllPopups = () => {
+                if (this.combatPopup) this.combatPopup.style.display = 'none';
+                if (this.combatChevron) this.combatChevron.classList.remove('open');
+                if (this.gatherPopup) this.gatherPopup.style.display = 'none';
+                if (this.gatherChevron) this.gatherChevron.classList.remove('open');
+            };
+
+            if (this.combatChevron && this.combatPopup) {
+                this.combatChevron.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.__avelora_just_ui_tap = performance.now();
+                    const isOpen = this.combatPopup.style.display !== 'none';
+                    closeAllPopups();
+                    if (!isOpen) {
+                        this.combatPopup.style.display = 'flex';
+                        this.combatChevron.classList.add('open');
+                    }
+                });
+            }
+
+            if (this.gatherChevron && this.gatherPopup) {
+                this.gatherChevron.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.__avelora_just_ui_tap = performance.now();
+                    const isOpen = this.gatherPopup.style.display !== 'none';
+                    closeAllPopups();
+                    if (!isOpen) {
+                        this.gatherPopup.style.display = 'flex';
+                        this.gatherChevron.classList.add('open');
+                    }
+                });
+            }
+
+            // Close buttons on popups
+            const setupCloseBtn = (popup, chevron) => {
+                if (!popup) return;
+                const closeBtn = popup.querySelector('.auto-popup-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.__avelora_just_ui_tap = performance.now();
+                        popup.style.display = 'none';
+                        if (chevron) chevron.classList.remove('open');
+                    });
+                }
+            };
+            setupCloseBtn(this.combatPopup, this.combatChevron);
+            setupCloseBtn(this.gatherPopup, this.gatherChevron);
+
+            document.addEventListener('pointerdown', (e) => {
+                if (dock && !dock.contains(e.target)) {
+                    closeAllPopups();
+                }
+            });
+
+            // Gather config checkboxes
+            const syncCheckbox = (id, key) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.checked = !!this.gatherConfig[key];
+                    el.addEventListener('change', () => {
+                        this.gatherConfig[key] = el.checked;
+                        this.saveGatherConfig();
+                        const labels = { herb: 'Трава', wood: 'Дерево', ore: 'Камень', loot: 'Добыча' };
+                        if (this.game.ui && this.game.ui.floatText) {
+                            this.game.ui.floatText(`${labels[key] || key}: ${el.checked ? 'ВКЛ' : 'ВЫКЛ'}`, el.checked ? 'good' : 'info');
+                        }
+                    });
+                }
+            };
+            syncCheckbox('auto-gather-herb', 'herb');
+            syncCheckbox('auto-gather-wood', 'wood');
+            syncCheckbox('auto-gather-ore', 'ore');
+            syncCheckbox('auto-gather-loot', 'loot');
+
+            // Combat radius radio options
+            if (this.combatPopup) {
+                const opts = this.combatPopup.querySelectorAll('.auto-popup-option');
+                opts.forEach(btn => {
+                    const r = Number(btn.getAttribute('data-radius'));
+                    btn.classList.toggle('active', r === this.combatRadius);
+                    btn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.__avelora_just_ui_tap = performance.now();
+                        this.saveCombatRadius(r);
+                        opts.forEach(b => b.classList.toggle('active', b === btn));
+                        const label = r === 0 ? 'На месте' : `${r} м`;
+                        if (this.game.ui && this.game.ui.floatText) {
+                            this.game.ui.floatText(`Дистанция боя: ${label}`, 'good');
+                        }
+                        closeAllPopups();
+                    });
                 });
             }
         }
@@ -78,14 +250,43 @@
                 const g = this.game;
                 if (!g || !g.isReady || g.isPaused) return;
 
-                if (e.code === 'KeyZ') { // Z key
+                if (e.code === 'KeyZ') { // Z key - Auto Combat
                     e.preventDefault();
                     this.toggleCombat();
-                } else if (e.code === 'KeyX') { // X key
+                } else if (e.code === 'KeyX') { // X key - Auto Quest
                     e.preventDefault();
                     this.toggleQuest();
+                } else if (e.code === 'KeyC') { // C key - Auto Gather
+                    e.preventDefault();
+                    this.toggleGather();
                 }
             });
+        }
+
+        toggleGather(force) {
+            this.gatherEnabled = (force !== undefined) ? !!force : !this.gatherEnabled;
+            if (this.gatherBtn) {
+                this.gatherBtn.classList.toggle('active', this.gatherEnabled);
+                const stateSpan = this.gatherBtn.querySelector('.auto-action-state');
+                if (stateSpan) stateSpan.textContent = this.gatherEnabled ? 'ВКЛ' : 'ВЫКЛ';
+            }
+            if (!this.gatherEnabled) {
+                this._currentGatherTarget = null;
+                const c = this.game.character;
+                if (c && c.isMoving) c.stopMovement();
+                if (this.game.combat && this.game.combat.engagement) {
+                    const k = this.game.combat.engagement.kind;
+                    if (k === 'trees' || k === 'ores' || k === 'gather') {
+                        this.game.combat.cancel();
+                    }
+                }
+                if (this.game.worldObjects && this.game.worldObjects.cancelPending) {
+                    this.game.worldObjects.cancelPending();
+                }
+            }
+            if (this.game.ui && this.game.ui.floatText) {
+                this.game.ui.floatText(this.gatherEnabled ? 'Автосбор: ВКЛ' : 'Автосбор: ВЫКЛ', this.gatherEnabled ? 'good' : 'info');
+            }
         }
 
         toggleCombat(force) {
@@ -133,16 +334,19 @@
             if (g.combat && g.combat.isDead) {
                 if (this.combatEnabled) this.toggleCombat(false);
                 if (this.questEnabled) this.toggleQuest(false);
+                if (this.gatherEnabled) this.toggleGather(false);
                 return;
             }
 
             // Hero starts a portal / recall by himself: the autopilot gets out of the way
-            if (this.questEnabled && g.skills && g.skills.channel) {
-                this.toggleQuest(false);
+            if ((this.questEnabled || this.gatherEnabled) && g.skills && g.skills.channel) {
+                if (this.questEnabled) this.toggleQuest(false);
+                if (this.gatherEnabled) this.toggleGather(false);
                 return;
             }
 
             if (this.combatEnabled) this.updateCombat(delta);
+            if (this.gatherEnabled) this.updateGather(delta);
             if (this.questEnabled) this.updateQuest(delta);
         }
 
@@ -280,7 +484,8 @@
                     // Priority 3: Only naturally aggressive enemies (def.behavior === 'aggressive')
                     // DO NOT attack neutral/yellow passive mobs unless already aggroed above!
                     if (!tgt) {
-                        const hostiles = (cr.list || []).filter(rec => cr.isAlive(rec) && rec.def && rec.def.behavior === 'aggressive' && Math.hypot(rec.x - c.position.x, rec.z - c.position.z) <= 18.0);
+                        const maxDist = this.combatRadius > 0 ? this.combatRadius : 4.0;
+                        const hostiles = (cr.list || []).filter(rec => cr.isAlive(rec) && rec.def && rec.def.behavior === 'aggressive' && Math.hypot(rec.x - c.position.x, rec.z - c.position.z) <= maxDist);
                         if (hostiles.length > 0) {
                             hostiles.sort((a, b) => Math.hypot(a.x - c.position.x, a.z - c.position.z) - Math.hypot(b.x - c.position.x, b.z - c.position.z));
                             tgt = hostiles[0];
@@ -356,7 +561,229 @@
         }
 
         // ---------------------------------------------------------------------
-        // 2. AUTO-QUEST ENGINE
+        // 2. AUTO-GATHER ENGINE (Gather / Mining / Logging / Drops)
+        // ---------------------------------------------------------------------
+        updateGather(delta) {
+            const g = this.game;
+            const ui = g.ui;
+            if (ui && ((ui.isDialogOpen && ui.isDialogOpen()) || (ui.isChestOpen && ui.isChestOpen()))) return;
+
+            // Player is steering manually: pause autopilot
+            if (Date.now() - (this._lastManualAt || 0) < 1200) return;
+
+            this._gatherTimer -= delta;
+            if (this._gatherTimer > 0) return;
+            this._gatherTimer = 0.2; // Evaluate decisions every 200ms
+
+            const c = g.character;
+            const combat = g.combat;
+            const wo = g.worldObjects;
+            const harvest = g.harvest;
+            const st = g.gameState;
+            if (!c || !combat) return;
+
+            const now = Date.now();
+
+            // Clean expired unreachable items
+            if (this._unreachableObjects.size > 0) {
+                for (const [id, until] of this._unreachableObjects.entries()) {
+                    if (now >= until) this._unreachableObjects.delete(id);
+                }
+            }
+
+            // Priority: If under active monster attack and auto-combat is ON, let combat handle defense
+            const cr = g.creatures;
+            if (cr && this.combatEnabled) {
+                const attackers = (cr.list || []).filter(rec => cr.isAlive(rec) && rec.aggro && (rec.state === 'chase' || rec.state === 'attack'));
+                if (attackers.length > 0) return;
+            }
+
+            // Verify current active target
+            if (this._currentGatherTarget) {
+                const tgt = this._currentGatherTarget;
+                const dist = Math.hypot(tgt.x - c.position.x, tgt.z - c.position.z);
+                const reach = tgt.reach || 1.8;
+
+                // Active harvesting in progress
+                const isHarvestEngaged = combat.engagement && (combat.engagement.id === tgt.id || (tgt.type === 'pile' && combat.engagement.kind === 'gather'));
+                const isWalkingToPile = tgt.type === 'pile' && wo && wo.pendingPileId === tgt.id;
+
+                if (isHarvestEngaged || (isWalkingToPile && c.isMoving)) {
+                    // Valid activity progressing
+                    if (now - this._gatherTargetStartTime > 14000) {
+                        // Stuck timeout: taking way too long on a single node
+                        this._unreachableObjects.set(tgt.id, now + 120000);
+                        if (combat.engagement) combat.cancel();
+                        if (wo && wo.cancelPending) wo.cancelPending();
+                        if (c.isMoving) c.stopMovement();
+                        this._currentGatherTarget = null;
+                    }
+                    return;
+                }
+
+                // If character stopped moving and did not engage harvesting within reach:
+                // Obstacle (waterfall rock, cliff, water) blocked path!
+                if (!c.isMoving && !isHarvestEngaged && !isWalkingToPile) {
+                    if (dist > reach + 0.4) {
+                        // Unreachable! Blacklist node for 2 minutes so we don't repeatedly head into the rock
+                        this._unreachableObjects.set(tgt.id, now + 120000);
+                        if (combat.engagement) combat.cancel();
+                        if (wo && wo.cancelPending) wo.cancelPending();
+                        this._currentGatherTarget = null;
+                    }
+                }
+            }
+
+            // If hero is actively engaged in other combat
+            if (combat.engagement) {
+                const k = combat.engagement.kind;
+                if (k === 'trees' || k === 'ores' || k === 'gather') return;
+            }
+            if (wo && wo.pendingPileId) return;
+
+            this._currentGatherTarget = null;
+
+            // Inventory capacity check
+            const inv = st && st.inventory;
+            const isBagFull = inv && inv.cells.every(cell => cell !== null);
+
+            const px = c.position.x, pz = c.position.z;
+            const GATHER_RANGE = 35.0;
+            const candidates = [];
+
+            // 1. Drops / ground piles
+            if (this.gatherConfig.loot && wo && wo.piles) {
+                for (const [pileId, pile] of wo.piles.entries()) {
+                    if (!pile || pile.remaining <= 0) continue;
+                    if (this._unreachableObjects.has(pileId)) continue;
+
+                    const dx = pile.data.x - px, dz = pile.data.z - pz;
+                    const dist = Math.hypot(dx, dz);
+                    if (dist > GATHER_RANGE) continue;
+
+                    // If bag is full, only collect if item stacks into existing cell
+                    if (inv && inv.spaceFor(pile.def.id) <= 0) continue;
+
+                    candidates.push({
+                        type: 'pile',
+                        pile,
+                        id: pileId,
+                        x: pile.data.x,
+                        z: pile.data.z,
+                        reach: 1.6,
+                        dist: Math.max(0, dist - 3.0), // Priority bonus for ground items
+                        rawDist: dist
+                    });
+                }
+            }
+
+            // 2. Interactive environment nodes (trees, ores, ferns)
+            const env = g.environment;
+            if (env && env.objects && harvest) {
+                for (const [objId, entry] of env.objects.entries()) {
+                    if (!entry || entry.visible === false) continue;
+                    if (this._unreachableObjects.has(objId)) continue;
+
+                    const node = harvest.nodeFor(entry.kind);
+                    if (!node) continue;
+
+                    const s = entry.s || 1;
+                    let reach = 1.8;
+
+                    // Herb / Fern gathering
+                    if (node.tool === 'gather' || entry.kind === 'ferns') {
+                        if (!this.gatherConfig.herb) continue;
+                        const drops = node.drops || [{ item: 'fern' }];
+                        if (isBagFull && inv && drops.every(d => inv.spaceFor(d.item) <= 0)) continue;
+                        reach = Math.max(1.3, 0.45 * s + 0.6);
+                    }
+                    // Ore mining
+                    else if (node.tool === 'mine' || entry.kind === 'ores') {
+                        if (!this.gatherConfig.ore) continue;
+                        if (!harvest.hasTool(node) && !harvest.findToolInBag('mine')) continue;
+                        const drops = node.drops || [{ item: 'stone' }];
+                        if (isBagFull && inv && drops.every(d => inv.spaceFor(d.item) <= 0)) continue;
+                        reach = Math.max(1.3, 0.6 * s + 0.9);
+                    }
+                    // Tree logging
+                    else if (node.tool === 'chop' || entry.kind === 'trees') {
+                        if (!this.gatherConfig.wood) continue;
+                        if (!harvest.hasTool(node) && !harvest.findToolInBag('chop')) continue;
+                        const drops = node.drops || [{ item: 'log' }];
+                        if (isBagFull && inv && drops.every(d => inv.spaceFor(d.item) <= 0)) continue;
+                        reach = Math.max(1.6, 0.8 * s + 0.95 - 0.3 * s);
+                    } else {
+                        continue;
+                    }
+
+                    const dx = entry.x - px, dz = entry.z - pz;
+                    const dist = Math.hypot(dx, dz);
+                    if (dist > GATHER_RANGE) continue;
+
+                    candidates.push({
+                        type: 'node',
+                        entry,
+                        node,
+                        id: objId,
+                        x: entry.x,
+                        z: entry.z,
+                        reach,
+                        dist,
+                        rawDist: dist
+                    });
+                }
+            }
+
+            if (candidates.length === 0) {
+                if (now - this._lastGatherMsgTime > 10000) {
+                    this._lastGatherMsgTime = now;
+                    if (ui && ui.floatText) {
+                        if (isBagFull) ui.floatText('Сумка полна — автосбор ожидает', 'warn');
+                        else ui.floatText('Поблизости нет ресурсов для сбора', 'info');
+                    }
+                }
+                return;
+            }
+
+            // Sort candidates by effective distance
+            candidates.sort((a, b) => a.dist - b.dist);
+
+            // Path validation: find closest candidate that is actually reachable
+            let best = null;
+            for (let i = 0; i < candidates.length; i++) {
+                const cand = candidates[i];
+                if (g.pathfinder && cand.rawDist > cand.reach + 0.3) {
+                    const path = g.pathfinder.findPath(c.position, { x: cand.x, z: cand.z });
+                    if (!path || path.length === 0) {
+                        this._unreachableObjects.set(cand.id, now + 120000);
+                        continue;
+                    }
+                    const endPt = path[path.length - 1];
+                    const endDist = Math.hypot(endPt.x - cand.x, endPt.z - cand.z);
+                    // If path ends short of reach distance (blocked by cliff, waterfall rocks or water)
+                    if (endDist > cand.reach + 0.8) {
+                        this._unreachableObjects.set(cand.id, now + 120000);
+                        continue;
+                    }
+                }
+                best = cand;
+                break;
+            }
+
+            if (!best) return;
+
+            this._currentGatherTarget = best;
+            this._gatherTargetStartTime = now;
+
+            if (best.type === 'pile') {
+                wo.requestPickup(best.pile);
+            } else if (best.type === 'node') {
+                harvest.request(best.entry);
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // 3. AUTO-QUEST ENGINE
         // ---------------------------------------------------------------------
         updateQuest(delta) {
             const g = this.game;
@@ -525,8 +952,43 @@
                         if (loc && loc !== this.curLocId()) this.navigateToLocation(loc);
                     }
                 }
+            } else if (obj.type === 'gather' || obj.type === 'collect') {
+                // Objective: gather or collect item for quest
+                const needItem = obj.item;
+                const env = g.environment, harvest = g.harvest, wo = g.worldObjects;
+                const px = c.position.x, pz = c.position.z;
+
+                // Priority 1: Ground drop piles with needed item
+                let bestTarget = null, bestDist = Infinity;
+                if (wo && wo.piles) {
+                    for (const [pileId, pile] of wo.piles.entries()) {
+                        if (!pile || pile.remaining <= 0 || pile.def.id !== needItem) continue;
+                        const dist = Math.hypot(pile.data.x - px, pile.data.z - pz);
+                        if (dist < bestDist) { bestDist = dist; bestTarget = { type: 'pile', pile }; }
+                    }
+                }
+                // Priority 2: Resource nodes that drop needed item
+                if (!bestTarget && env && env.objects && harvest) {
+                    for (const [id, entry] of env.objects.entries()) {
+                        if (!entry || entry.visible === false) continue;
+                        const node = harvest.nodeFor(entry.kind);
+                        if (!node) continue;
+                        const drops = node.drops || [];
+                        if (drops.some(d => d.item === needItem)) {
+                            const dist = Math.hypot(entry.x - px, entry.z - pz);
+                            if (dist < bestDist) { bestDist = dist; bestTarget = { type: 'node', entry }; }
+                        }
+                    }
+                }
+
+                if (bestTarget) {
+                    if (bestTarget.type === 'pile') wo.requestPickup(bestTarget.pile);
+                    else harvest.request(bestTarget.entry);
+                } else {
+                    this.toggleQuest(false);
+                    if (g.ui && g.ui.floatText) g.ui.floatText('Автоквест: «' + qDef.name + '» не найдены ресурсы рядом', 'warn');
+                }
             } else {
-                // Objective types the autopilot cannot do yet (gathering, crafting, building...): hand control back
                 this.toggleQuest(false);
                 if (g.ui && g.ui.floatText) g.ui.floatText('Автоквест: «' + qDef.name + '» нужно выполнить вручную', 'warn');
             }
