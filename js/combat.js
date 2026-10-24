@@ -198,6 +198,7 @@
             if (this._targetRing) this._targetRing.visible = false;
             if (this.game.ui && this.game.ui.hotbar) this.game.ui.hotbar._rangeTimer = 0;
             this.renderTargetFrame();
+            this._noAutoTargetUntil = (this.game ? this.game.gameTime : 0) + 1.2;
         }
 
         /**
@@ -448,6 +449,12 @@
                     return;
                 }
             }
+            // Auto-acquire attacker if player has no target
+            if (source && (!this.selectedTarget || (g.creatures && !g.creatures.isAlive(this.selectedTarget)))) {
+                if (g.creatures && g.creatures.isAlive(source)) {
+                    this.selectTarget(source);
+                }
+            }
             this.hp = Math.max(0, this.hp - amount);
             this.lastCombatAt = g.gameTime;
             if (this.hp <= this.maxHp * LOW_HP_FLASH_FRAC) this.flash = 1;
@@ -551,6 +558,22 @@
                 const distToTarget = Math.hypot(sel.x - char.position.x, sel.z - char.position.z);
                 if (sel.state === 'return' || distToTarget > 90.0) {
                     this.clearTarget();
+                }
+            }
+
+            // Auto-acquire target if a hostile creature aggroed and player has no target
+            if (!this.selectedTarget || (cr && !cr.isAlive(this.selectedTarget))) {
+                if (cr && char && char.position && now >= (this._noAutoTargetUntil || 0) && now >= (this._nextAggroCheck || 0)) {
+                    this._nextAggroCheck = now + 0.25;
+                    const px = char.position.x, pz = char.position.z;
+                    const attackers = (cr.list || []).filter(rec => cr.isAlive(rec) && rec.aggro && (rec.state === 'chase' || rec.state === 'attack'));
+                    if (attackers.length > 0) {
+                        attackers.sort((a, b) => Math.hypot(a.x - px, a.z - pz) - Math.hypot(b.x - px, b.z - pz));
+                        const closest = attackers[0];
+                        if (Math.hypot(closest.x - px, closest.z - pz) <= 24.0) {
+                            this.selectTarget(closest);
+                        }
+                    }
                 }
             }
 

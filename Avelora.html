@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <title>Avelora - Medieval Experience</title>
-    <link rel="stylesheet" href="css/main.css?v=20261024_hero4">
+    <link rel="stylesheet" href="css/main.css?v=20261024_auto11">
 </head>
 <body>
 
@@ -224,6 +224,30 @@
         <button type="button" id="inventory-btn" class="skill-slot hud-btn" title="Инвентарь (I)" aria-label="Инвентарь">
             <!-- Сумка: собственное изображение (см. lib/JiUj2.jpg), не требует атрибуции -->
             <img src="content/img/bag.jpg" alt="" aria-hidden="true">
+        </button>
+    </div>
+
+    <!-- Auto Actions Dock (Автобой / Автоквест) -->
+    <div id="auto-actions-dock" aria-label="Автоматические действия">
+        <button type="button" id="auto-combat-btn" class="hud-btn auto-action-btn" title="Автобой (Z)" aria-label="Автобой">
+            <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/>
+                <path d="M13 19l6 2 2-6-4.5-4.5"/>
+                <path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/>
+                <path d="M5 14l-2 6 6-2 4.5-4.5"/>
+            </svg>
+            <span class="auto-action-label">БОЙ</span>
+            <span class="auto-action-key">Z</span>
+            <span class="auto-action-state">ВЫКЛ</span>
+        </button>
+        <button type="button" id="auto-quest-btn" class="hud-btn auto-action-btn" title="Автоквест (X)" aria-label="Автоквест">
+            <svg class="auto-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="#efcf7a"/>
+            </svg>
+            <span class="auto-action-label">КВЕСТ</span>
+            <span class="auto-action-key">X</span>
+            <span class="auto-action-state">ВЫКЛ</span>
         </button>
     </div>
 
@@ -711,7 +735,7 @@
     <script src="js/config/creatures.js?v=20261024_honest2"></script>
     <script src="js/creatures.js?v=20261024_honest2"></script>
     <script src="js/harvest.js?v=20261021_questres1"></script>
-    <script src="js/combat.js?v=20261022_new2"></script>
+    <script src="js/combat.js?v=20261024_autotarget1"></script>
     <script src="js/hero.js?v=20261024_honest1"></script>
     <script src="js/recall_fx.js?v=20261002_2"></script>
     <script src="js/dialog.js?v=20261021_questres1"></script>
@@ -719,7 +743,8 @@
     <script src="js/ui_hotbar.js?v=20261024_sk1"></script>
     <script src="js/character.js?v=20261024_rockfix2"></script>
     <script src="js/map.js?v=20261024_map1"></script>
-    <script src="js/main.js?v=20261024_tw14"></script>
+    <script src="js/auto_play.js?v=20261024_auto11"></script>
+    <script src="js/main.js?v=20261024_auto11"></script>
     <script>
         // Register PWA Service Worker only on http(s) hosts (bypasses file:// cleanly)
         if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

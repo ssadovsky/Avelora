@@ -30,7 +30,7 @@
  */
 
 // HUD elements that must not trigger ground clicks / camera gestures
-const UI_SELECTOR = '#player-frame, #player-frame *, #target-frame, #target-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #crafting-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
+const UI_SELECTOR = '#player-frame, #player-frame *, #target-frame, #target-frame *, #player-portrait-btn, #player-portrait-btn *, .player-portrait-wrap, .player-portrait-wrap *, #hud-top-left, #compass-btn, #cam-btn, #joy-zone, #skill-bar, #auto-actions-dock, #auto-actions-dock *, .auto-action-btn, .auto-action-btn *, #inventory-panel, #chest-panel, #build-panel, #build-bar, #dialog-panel, #skills-panel, #crafting-panel, #hero-panel, #quests-panel, #quest-tracker, #quest-tracker *, #potion-modal, .micromenu-dock, .micromenu-container, #item-tooltip, #quantity-modal, #pause-overlay, #character-select-overlay, #hp-bar, #mana-bar, #xp-bar, #death-overlay, #map-overlay, #orientation-warning';
 window.AVELORA_UI_SELECTOR = UI_SELECTOR; // ui_hotbar.js: "released over the world?" (drop from the bag)
 
 // Real-time (not game-time) interval for the save-progress heartbeat. This is
@@ -196,6 +196,7 @@ class AveloraGame {
         this.combat = window.AveloraCombat ? new AveloraCombat(this) : null;
         this.hero = window.AveloraHero ? new AveloraHero(this) : null;   // level / xp / stats / mana (hero.js)
         this.map = window.AveloraMap ? new AveloraMap(this) : null;
+        this.autoPlay = window.AveloraAutoPlay ? new AveloraAutoPlay(this) : null;
 
         // Event Listeners
         this.setupEvents();
@@ -2948,6 +2949,7 @@ class AveloraGame {
         }
         if (manual) {   // steering by hand: drop auto-chase / auto-walk / click-to-move
             if (this.combat && this.combat.engagement) this.combat.cancel();
+            if (this.autoPlay) this.autoPlay.onManualMove();
             if (this.worldObjects && this.worldObjects.cancelPending) this.worldObjects.cancelPending();
         }
         const sp = c.moveSpeed * ((k.ShiftLeft || k.ShiftRight) ? 0.5 : 1);
@@ -3573,6 +3575,7 @@ class AveloraGame {
             this.character.update(delta);   // incl. the procedural swing / death pose overlay
         }
         if (this.combat) this.combat.update(delta);       // melee engagement, pending hits, HP regen
+        if (this.autoPlay) this.autoPlay.update(delta);     // auto-combat & auto-quest
         if (this.hero) this.hero.update(delta);           // mana regeneration
         if (this.creatures) this.creatures.update(delta); // AI, animation, corpses, respawns
         if (this.harvest) this.harvest.update(delta);     // chips, shakes, falling trees, regrow
