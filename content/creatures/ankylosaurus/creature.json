@@ -1,42 +1,43 @@
 {
-  "id": "ankylosaurus",
-  "name": "Анкилозавр",
-  "level": 12,
-  "hp": 650,
-  "damage": [
-    24,
-    34
-  ],
-  "attackRange": 2.6,
-  "attackCooldown": 2.4,
-  "walkSpeed": 0.9,
-  "runSpeed": 3.2,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "leashRadius": 16,
-  "wanderRadius": 5,
-  "respawnMinutes": 6,
-  "hitRadius": 2.6,
-  "hitBox": [
-    2.9,
-    2.3,
-    5.4,
-    0
-  ],
-  "scale": 1.0,
-  "gold": [
-    6,
-    12
-  ],
-  "xp": 260,
-  "drops": [
-    {
-      "item": "meat",
-      "count": 6
-    }
-  ],
-  "idlePause": [
-    5,
-    12
-  ]
+    "id": "ankylosaurus",
+    "name": "Анкилозавр",
+    "level": 12,
+    "hp": 650,
+    "damage": [
+        24,
+        34
+    ],
+    "attackRange": 2.6,
+    "attackCooldown": 2.4,
+    "walkSpeed": 0.9,
+    "runSpeed": 3.2,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "leashRadius": 16,
+    "wanderRadius": 5,
+    "respawnMinutes": 6,
+    "hitRadius": 2.6,
+    "hitBox": [
+        2.9,
+        2.3,
+        5.4,
+        0
+    ],
+    "scale": 1.0,
+    "gold": [
+        6,
+        12
+    ],
+    "xp": 260,
+    "drops": [
+        {
+            "item": "meat",
+            "count": 6
+        }
+    ],
+    "idlePause": [
+        5,
+        12
+    ],
+    "statMultiplier": 1.25
 }

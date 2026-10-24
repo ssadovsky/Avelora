@@ -28,5 +28,6 @@
     }
   ],
   "xp": 25,
-  "level": 1
-}
+  "level": 1,
+  "statMultiplier": 1.0
+}

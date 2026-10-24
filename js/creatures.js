@@ -215,18 +215,39 @@
             };
             const rm = RANK_MULTS[rank] || RANK_MULTS.normal;
 
-            const customBosses = cfg.customBosses || ['yasha', 'thunderclaw'];
-            const isCustomBoss = customBosses.includes(sp.type);
-            const baseHp = isCustomBoss ? (mergedDef.hp || 320) : (cfg.baseHp !== undefined ? cfg.baseHp : 50);
-            const hpGrowth = cfg.hpGrowthPerLevel !== undefined ? cfg.hpGrowthPerLevel : 0.20;
-            const hpMult = isCustomBoss ? rm.hp : (Math.pow(1 + hpGrowth, level - 1) * rm.hp);
-            const scaledHp = Math.max(1, Math.round(baseHp * hpMult));
+            // Множитель индивидуальной силы существа для стандартной базы (statMultiplier):
+            // 1.0 = обычная сила для своего уровня. Задаётся в creature.json каждого моба.
+            const statMult = (mergedDef.statMultiplier !== undefined && Number.isFinite(mergedDef.statMultiplier))
+                ? mergedDef.statMultiplier
+                : (mergedDef.powerMultiplier !== undefined && Number.isFinite(mergedDef.powerMultiplier))
+                    ? mergedDef.powerMultiplier
+                    : 1.0;
 
-            const baseDmg = isCustomBoss ? (mergedDef.damage || [18, 28]) : (cfg.baseDamage || [5, 8]);
-            const dmgGrowth = cfg.damageGrowthPerLevel !== undefined ? cfg.damageGrowthPerLevel : 0.20;
-            const dmgMult = isCustomBoss ? rm.dmg : (Math.pow(1 + dmgGrowth, level - 1) * rm.dmg);
-            const dmgMin = Math.max(1, Math.round((baseDmg[0] || 5) * dmgMult));
-            const dmgMax = Math.max(dmgMin, Math.round((baseDmg[1] || baseDmg[0] || 8) * dmgMult));
+            const hpStatMult = (mergedDef.hpMultiplier !== undefined && Number.isFinite(mergedDef.hpMultiplier))
+                ? mergedDef.hpMultiplier
+                : statMult;
+
+            const dmgStatMult = (mergedDef.dmgMultiplier !== undefined && Number.isFinite(mergedDef.dmgMultiplier))
+                ? mergedDef.dmgMultiplier
+                : (mergedDef.damageMultiplier !== undefined && Number.isFinite(mergedDef.damageMultiplier))
+                    ? mergedDef.damageMultiplier
+                    : statMult;
+
+            // Степенная модель (прирост ускоряется с каждым уровнем: stepBase + level * stepAcc)
+            const baseHp = (cfg.baseHp !== undefined ? cfg.baseHp : 50);
+            const stepBase = cfg.hpStepBase !== undefined ? cfg.hpStepBase : 15;
+            const stepAcc  = cfg.hpStepAcc !== undefined ? cfg.hpStepAcc : 3;
+            const n = Math.max(0, level - 1);
+            const levelHp = baseHp + n * stepBase + (n * level / 2) * stepAcc;
+            const scaledHp = Math.max(1, Math.round(levelHp * hpStatMult * rm.hp));
+            const hpMult = scaledHp / Math.max(1, baseHp);
+
+            const baseDmgCfg = cfg.baseDamage || [5, 8];
+            const dmgStepBase = cfg.dmgStepBase !== undefined ? cfg.dmgStepBase : 1.5;
+            const dmgStepAcc  = cfg.dmgStepAcc !== undefined ? cfg.dmgStepAcc : 0.25;
+            const dmgAdd = n * dmgStepBase + (n * level / 2) * dmgStepAcc;
+            const dmgMin = Math.max(1, Math.round(((baseDmgCfg[0] || 5) + dmgAdd) * dmgStatMult * rm.dmg));
+            const dmgMax = Math.max(dmgMin, Math.round(((baseDmgCfg[1] || baseDmgCfg[0] || 8) + dmgAdd) * dmgStatMult * rm.dmg));
 
             const xpMult = level * rm.xp * (cfg.xpMultiplier !== undefined ? cfg.xpMultiplier : 1.0);
             const goldMult = level * rm.gold * (cfg.goldMultiplier !== undefined ? cfg.goldMultiplier : 1.0);

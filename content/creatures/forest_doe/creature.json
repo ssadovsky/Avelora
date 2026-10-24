@@ -29,5 +29,6 @@
   "idlePause": [
     4,
     10
-  ]
+  ],
+  "statMultiplier": 1.0
 }

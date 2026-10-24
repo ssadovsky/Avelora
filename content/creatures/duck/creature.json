@@ -30,5 +30,6 @@
     }
   ],
   "swimmer": true,
-  "swimSink": 0.13
+  "swimSink": 0.13,
+  "statMultiplier": 1.0
 }

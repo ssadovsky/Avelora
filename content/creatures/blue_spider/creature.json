@@ -1,33 +1,34 @@
 {
-  "id": "blue_spider",
-  "name": "Синий паук",
-  "hp": 115,
-  "damage": [
-    10,
-    16
-  ],
-  "attackRange": 0.85,
-  "attackCooldown": 1.2,
-  "walkSpeed": 1.1,
-  "runSpeed": 3.8,
-  "behavior": "aggressive",
-  "aggroRadius": 9,
-  "leashRadius": 20,
-  "wanderRadius": 5,
-  "respawnMinutes": 5,
-  "hitRadius": 0.9,
-  "scale": 0.95,
-  "modelKey": "creatures/spider",
-  "drops": [
-    {
-      "item": "meat",
-      "count": 1
-    }
-  ],
-  "gold": [
-    6,
-    10
-  ],
-  "xp": 90,
-  "level": 9
+    "id": "blue_spider",
+    "name": "Синий паук",
+    "hp": 115,
+    "damage": [
+        10,
+        16
+    ],
+    "attackRange": 0.85,
+    "attackCooldown": 1.2,
+    "walkSpeed": 1.1,
+    "runSpeed": 3.8,
+    "behavior": "aggressive",
+    "aggroRadius": 9,
+    "leashRadius": 20,
+    "wanderRadius": 5,
+    "respawnMinutes": 5,
+    "hitRadius": 0.9,
+    "scale": 0.95,
+    "modelKey": "creatures/spider",
+    "drops": [
+        {
+            "item": "meat",
+            "count": 1
+        }
+    ],
+    "gold": [
+        6,
+        10
+    ],
+    "xp": 90,
+    "level": 9,
+    "statMultiplier": 1.1
 }

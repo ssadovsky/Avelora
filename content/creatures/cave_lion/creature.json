@@ -1,37 +1,38 @@
 {
-  "id": "cave_lion",
-  "name": "Пещерный лев",
-  "hp": 140,
-  "damage": [
-    10,
-    16
-  ],
-  "attackRange": 1.8,
-  "attackCooldown": 1.6,
-  "walkSpeed": 1.4,
-  "runSpeed": 6.5,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "leashRadius": 16,
-  "wanderRadius": 6,
-  "respawnMinutes": 6,
-  "hitRadius": 1.4,
-  "scale": 1.0,
-  "gold": [
-    4,
-    8
-  ],
-  "xp": 70,
-  "level": 7,
-  "tiltSpan": [
-    -0.5,
-    0.5,
-    0.2
-  ],
-  "drops": [
-    {
-      "item": "meat",
-      "count": 4
-    }
-  ]
+    "id": "cave_lion",
+    "name": "Пещерный лев",
+    "hp": 140,
+    "damage": [
+        10,
+        16
+    ],
+    "attackRange": 1.8,
+    "attackCooldown": 1.6,
+    "walkSpeed": 1.4,
+    "runSpeed": 6.5,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "leashRadius": 16,
+    "wanderRadius": 6,
+    "respawnMinutes": 6,
+    "hitRadius": 1.4,
+    "scale": 1.0,
+    "gold": [
+        4,
+        8
+    ],
+    "xp": 70,
+    "level": 7,
+    "tiltSpan": [
+        -0.5,
+        0.5,
+        0.2
+    ],
+    "drops": [
+        {
+            "item": "meat",
+            "count": 4
+        }
+    ],
+    "statMultiplier": 1.15
 }

@@ -1,32 +1,33 @@
 {
-  "id": "spider",
-  "name": "Паук-отшельник",
-  "hp": 50,
-  "damage": [
-    5,
-    8
-  ],
-  "attackRange": 0.85,
-  "attackCooldown": 1.2,
-  "walkSpeed": 1.0,
-  "runSpeed": 3.6,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "leashRadius": 15,
-  "wanderRadius": 5,
-  "respawnMinutes": 4,
-  "hitRadius": 0.9,
-  "scale": 0.85,
-  "drops": [
-    {
-      "item": "meat",
-      "count": 1
-    }
-  ],
-  "xp": 25,
-  "level": 2,
-  "gold": [
-    25,
-    25
-  ]
+    "id": "spider",
+    "name": "Паук-отшельник",
+    "hp": 50,
+    "damage": [
+        5,
+        8
+    ],
+    "attackRange": 0.85,
+    "attackCooldown": 1.2,
+    "walkSpeed": 1.0,
+    "runSpeed": 3.6,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "leashRadius": 15,
+    "wanderRadius": 5,
+    "respawnMinutes": 4,
+    "hitRadius": 0.9,
+    "scale": 0.85,
+    "drops": [
+        {
+            "item": "meat",
+            "count": 1
+        }
+    ],
+    "xp": 25,
+    "level": 2,
+    "gold": [
+        25,
+        25
+    ],
+    "statMultiplier": 1.1
 }

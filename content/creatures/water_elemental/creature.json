@@ -1,26 +1,27 @@
 {
-  "id": "water_elemental",
-  "name": "Водный элементаль",
-  "hp": 120,
-  "damage": [
-    7,
-    11
-  ],
-  "attackRange": 2.0,
-  "leashRadius": 14,
-  "wanderRadius": 5,
-  "respawnMinutes": 5,
-  "hitRadius": 1.2,
-  "gold": [
-    3,
-    5
-  ],
-  "xp": 50,
-  "level": 6,
-  "attackCooldown": 1.6,
-  "walkSpeed": 1.0,
-  "runSpeed": 4.2,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "scale": 1.0
+    "id": "water_elemental",
+    "name": "Водный элементаль",
+    "hp": 120,
+    "damage": [
+        7,
+        11
+    ],
+    "attackRange": 2.0,
+    "leashRadius": 14,
+    "wanderRadius": 5,
+    "respawnMinutes": 5,
+    "hitRadius": 1.2,
+    "gold": [
+        3,
+        5
+    ],
+    "xp": 50,
+    "level": 6,
+    "attackCooldown": 1.6,
+    "walkSpeed": 1.0,
+    "runSpeed": 4.2,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "scale": 1.0,
+    "statMultiplier": 1.1
 }

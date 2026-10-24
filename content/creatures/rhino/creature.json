@@ -1,38 +1,39 @@
 {
-  "id": "rhino",
-  "name": "Серый носорог",
-  "level": 7,
-  "rank": "elite",
-  "hp": 260,
-  "damage": [
-    14,
-    20
-  ],
-  "attackRange": 1.8,
-  "attackCooldown": 2.2,
-  "walkSpeed": 1.3,
-  "runSpeed": 6.0,
-  "behavior": "aggressive",
-  "aggroRadius": 10,
-  "leashRadius": 22,
-  "wanderRadius": 6,
-  "respawnMinutes": 8,
-  "hitRadius": 1.3,
-  "scale": 1.0,
-  "gold": [
-    5,
-    10
-  ],
-  "xp": 70,
-  "tiltSpan": [
-    -1.1,
-    1.0,
-    0.4
-  ],
-  "drops": [
-    {
-      "item": "meat",
-      "count": 5
-    }
-  ]
+    "id": "rhino",
+    "name": "Серый носорог",
+    "level": 7,
+    "rank": "elite",
+    "hp": 260,
+    "damage": [
+        14,
+        20
+    ],
+    "attackRange": 1.8,
+    "attackCooldown": 2.2,
+    "walkSpeed": 1.3,
+    "runSpeed": 6.0,
+    "behavior": "aggressive",
+    "aggroRadius": 10,
+    "leashRadius": 22,
+    "wanderRadius": 6,
+    "respawnMinutes": 8,
+    "hitRadius": 1.3,
+    "scale": 1.0,
+    "gold": [
+        5,
+        10
+    ],
+    "xp": 70,
+    "tiltSpan": [
+        -1.1,
+        1.0,
+        0.4
+    ],
+    "drops": [
+        {
+            "item": "meat",
+            "count": 5
+        }
+    ],
+    "statMultiplier": 1.25
 }

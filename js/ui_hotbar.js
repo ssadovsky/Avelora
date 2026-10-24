@@ -433,11 +433,7 @@
             });
             // All three main groups are always listed (an empty one says so); "Прочее" only when something lands there
             const shown = GROUPS.filter(g => byGroup[g[0]] || g[0] !== 'other');
-            const hasAttack = shown.some(g => g[0] === 'attack' && byGroup['attack'] && byGroup['attack'].length);
-            const firstFull = shown.find(g => byGroup[g[0]]);
-            if (!this.skillsOpenGroup || !shown.some(g => g[0] === this.skillsOpenGroup)) {
-                this.skillsOpenGroup = hasAttack ? 'attack' : (firstFull ? firstFull[0] : 'attack');
-            }
+            if (this.skillsOpenGroup && !shown.some(g => g[0] === this.skillsOpenGroup)) this.skillsOpenGroup = null;
             shown.forEach(([key, title]) => {
                 const sec = document.createElement('div');
                 sec.className = 'skill-group' + (this.skillsOpenGroup === key ? ' open' : '');
@@ -874,7 +870,7 @@
             this.setPanelAria(this.skillsPanel, open);
             if (this.skillsBtn) this.skillsBtn.classList.toggle('active', open);
             if (open) {
-                if (!this.skillsOpenGroup) this.skillsOpenGroup = 'attack';
+                this.skillsOpenGroup = null;   // по умолчанию все секции свёрнуты
                 this.renderSkills();
             }
             this.layoutPanels();
@@ -1462,7 +1458,7 @@
             if (attrs && hero && window.AVELORA_PROGRESSION) {
                 const names = window.AVELORA_PROGRESSION.statNames, tot = hero.stats(), gear = hero.gearStats();
                 const fmt = (v) => Math.floor(v + 1e-9);
-                attrs.innerHTML = ['str', 'dex', 'int'].map(k =>
+                attrs.innerHTML = ['str', 'dex', 'int', 'sta'].map(k =>
                     `<div class="hero-attr-row"><span>${names[k]}</span><span><b>${fmt(tot[k])}</b>${gear[k] ? `<i>(+${fmt(gear[k])})</i>` : ''}</span></div>`).join('');
             }
 
@@ -1476,7 +1472,7 @@
             if (hero) {
                 const sm = hero.skillMult({ damage: { type: 'lightning' } }), pm = hero.skillMult({ damage: { type: 'physical' } });
                 setText('hero-stat-spell', `маг. +${Math.round((sm - 1) * 100)}% · физ. +${Math.round((pm - 1) * 100)}%`);
-                setText('hero-stat-regen', hero.manaRegen >= 100 ? `${fmt(Math.round(hero.manaRegen))} / с` : `${hero.manaRegen.toFixed(1)} / с`);
+                setText('hero-stat-regen', hero.manaRegen >= 100 ? `${Math.round(hero.manaRegen)} / с` : `${hero.manaRegen.toFixed(1)} / с`);
                 setText('hero-stat-armor', `${Math.round(hero.armor() * 10) / 10} (−${Math.round(hero.mitigation() * 100)}% урона)`);
                 setText('hero-stat-dodge', `${Math.round(hero.dodge() * 100)}%`);
             }
@@ -1916,7 +1912,7 @@
             if (def.weapon && def.weapon.chop > 0) lines.push('Рубит деревья');
             if (def.weapon && def.weapon.mine > 0) lines.push('Добывает руду');
             if (def.stats) {
-                ['str', 'dex', 'int'].forEach(k => {
+                ['str', 'dex', 'int', 'sta'].forEach(k => {
                     if (def.stats[k]) lines.push(`${nm[k] || k} +${def.stats[k]}`);
                 });
             }
@@ -1975,7 +1971,7 @@
                 rows.push({ cls, text: `${label}: ${fmt(b)}${u} → ${fmt(a)}${u}` + (same ? '' : ` (${d > 0 ? '+' : '−'}${fmt(Math.abs(d))}${u})`) });
             };
             add('Броня', def.armor || 0, cur.armor || 0);
-            ['str', 'dex', 'int'].forEach(k => add(nm[k] || k, (def.stats && def.stats[k]) || 0, (cur.stats && cur.stats[k]) || 0));
+            ['str', 'dex', 'int', 'sta'].forEach(k => add(nm[k] || k, (def.stats && def.stats[k]) || 0, (cur.stats && cur.stats[k]) || 0));
             if (def.weapon || cur.weapon) {
                 const eff = w => (w && w.damage) ? (w.damage[0] + w.damage[1]) / 2 * this.weaponMult(w) : 0;
                 add('Средний урон (с характеристиками)', eff(def.weapon), eff(cur.weapon));
@@ -2010,7 +2006,7 @@
                 const rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
                 const parts = [];
                 if (rq.level) parts.push(`${rq.level}-й уровень`);
-                ['str', 'dex', 'int'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
+                ['str', 'dex', 'int', 'sta'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
                 mk('tt-req' + (this.unmetRequirement(def) ? ' bad' : ''), 'Требуется: ' + parts.join(', '));
             }
             if (equippable && st) {
@@ -2077,7 +2073,7 @@
             if (rq.level && h.level < rq.level) return `Нужен ${rq.level}-й уровень`;
             const names = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
             const st = h.stats();
-            for (const k of ['str', 'dex', 'int']) {
+            for (const k of ['str', 'dex', 'int', 'sta']) {
                 if (rq[k] && st[k] < rq[k]) return `Нужно: ${names[k] || k} ${rq[k]}`;
             }
             return null;
@@ -2268,7 +2264,7 @@
                 const lack = this.unmetRequirement(def), rq = def.requires, nm = (window.AVELORA_PROGRESSION && window.AVELORA_PROGRESSION.statNames) || {};
                 const parts = [];
                 if (rq.level) parts.push(`${rq.level}-й уровень`);
-                ['str', 'dex', 'int'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
+                ['str', 'dex', 'int', 'sta'].forEach(k => { if (rq[k]) parts.push(`${nm[k] || k} ${rq[k]}`); });
                 const r = document.createElement('div');
                 r.className = 'tt-req' + (lack ? ' bad' : '');
                 r.textContent = 'Требуется: ' + parts.join(', ');

@@ -1,38 +1,39 @@
 {
-  "id": "jaekelopterus",
-  "name": "Йекелоптерус",
-  "level": 10,
-  "hp": 200,
-  "damage": [
-    14,
-    20
-  ],
-  "attackRange": 1.3,
-  "attackCooldown": 2.0,
-  "walkSpeed": 0.8,
-  "runSpeed": 3.6,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "leashRadius": 14,
-  "wanderRadius": 3,
-  "respawnMinutes": 6,
-  "hitRadius": 1.2,
-  "hitBox": [
-    1.8,
-    1.7,
-    3.0,
-    0
-  ],
-  "scale": 1.0,
-  "gold": [
-    3,
-    6
-  ],
-  "xp": 120,
-  "drops": [
-    {
-      "item": "meat",
-      "count": 3
-    }
-  ]
+    "id": "jaekelopterus",
+    "name": "Йекелоптерус",
+    "level": 10,
+    "hp": 200,
+    "damage": [
+        14,
+        20
+    ],
+    "attackRange": 1.3,
+    "attackCooldown": 2.0,
+    "walkSpeed": 0.8,
+    "runSpeed": 3.6,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "leashRadius": 14,
+    "wanderRadius": 3,
+    "respawnMinutes": 6,
+    "hitRadius": 1.2,
+    "hitBox": [
+        1.8,
+        1.7,
+        3.0,
+        0
+    ],
+    "scale": 1.0,
+    "gold": [
+        3,
+        6
+    ],
+    "xp": 120,
+    "drops": [
+        {
+            "item": "meat",
+            "count": 3
+        }
+    ],
+    "statMultiplier": 1.2
 }

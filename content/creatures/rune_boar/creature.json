@@ -1,27 +1,28 @@
 {
-  "id": "rune_boar",
-  "name": "Рунный вепрь",
-  "hp": 280,
-  "damage": [
-    16,
-    24
-  ],
-  "attackRange": 1.75,
-  "attackCooldown": 1.5,
-  "walkSpeed": 1.4,
-  "runSpeed": 6.0,
-  "behavior": "aggressive",
-  "aggroRadius": 9,
-  "leashRadius": 18,
-  "wanderRadius": 3.0,
-  "respawnMinutes": 6,
-  "hitRadius": 1.5,
-  "scale": 1.3125,
-  "gold": [
-    6,
-    10
-  ],
-  "xp": 220,
-  "level": 10,
-  "rank": "elite"
+    "id": "rune_boar",
+    "name": "Рунный вепрь",
+    "hp": 280,
+    "damage": [
+        16,
+        24
+    ],
+    "attackRange": 1.75,
+    "attackCooldown": 1.5,
+    "walkSpeed": 1.4,
+    "runSpeed": 6.0,
+    "behavior": "aggressive",
+    "aggroRadius": 9,
+    "leashRadius": 18,
+    "wanderRadius": 3.0,
+    "respawnMinutes": 6,
+    "hitRadius": 1.5,
+    "scale": 1.3125,
+    "gold": [
+        6,
+        10
+    ],
+    "xp": 220,
+    "level": 10,
+    "rank": "elite",
+    "statMultiplier": 1.15
 }

@@ -16,7 +16,7 @@
     'use strict';
 
     const CFG = () => window.AVELORA_PROGRESSION;
-    const STATS = ['str', 'dex', 'int'];
+    const STATS = ['str', 'dex', 'int', 'sta'];
 
     /** XP needed to go from `level` to `level + 1`. */
     function xpStep(level) {
@@ -94,9 +94,8 @@
             const cls = this.classCfg(), M = CFG().multipliers, D = CFG().derived;
             const st = this.stats();
             const baseM = (cls && cls.baseMana) || 100;
-            const growth = (cls && cls.manaGrowth !== undefined) ? cls.manaGrowth : (CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20);
-            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
-            this.maxMana = Math.round(baseM * levelFactor + st.int * D.manaPerInt * M.mana);
+            const manaPerInt = D.manaPerInt !== undefined ? D.manaPerInt : 10;
+            this.maxMana = Math.round((baseM + st.int * manaPerInt) * M.mana);
 
             // Регенерация маны: процент от maxMana (5%/сек по умолчанию) + бонус от Интеллекта
             const cfgManaRegen = CFG().manaRegen || {};
@@ -120,7 +119,7 @@
 
         /** Stat bonuses of equipped items: { str, dex, int } (item.json `stats`). */
         gearStats() {
-            const out = { str: 0, dex: 0, int: 0 };
+            const out = { str: 0, dex: 0, int: 0, sta: 0 };
             const eq = this.state && this.state.equipped;
             if (!eq) return out;
             Object.keys(eq).forEach(slot => {
@@ -170,37 +169,31 @@
         maxHp() {
             const cls = this.classCfg();
             const base = (cls && cls.baseHp) || this.baseHp || 100;
-            const growth = (cls && cls.hpGrowth !== undefined) ? cls.hpGrowth : (CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20);
-            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
-            const strBonus = this.stats().str * CFG().derived.hpPerStr * CFG().multipliers.health;
-            return Math.max(1, Math.round(base * levelFactor + strBonus));
+            const D = CFG().derived || {};
+            const staVal = (this.stats() && this.stats().sta) || 0;
+            const strVal = (this.stats() && this.stats().str) || 0;
+            const hpPerSta = D.hpPerSta !== undefined ? D.hpPerSta : 15;
+            const hpBonus = staVal * hpPerSta + strVal * (D.hpPerStr || 0);
+            return Math.max(1, Math.round((base + hpBonus) * CFG().multipliers.health));
         }
 
         /** Damage multiplier of a weapon (item.json weapon.stat, default 'str'). */
         meleeMult(weapon) {
             const stat = (weapon && weapon.stat) || 'str';
-            const cls = this.classCfg();
-            const startStat = (cls && cls.start && cls.start[stat]) || 10;
-            const growth = CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20;
-            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
-            const gearStat = (this.gearStats() && this.gearStats()[stat]) || 0;
-            const baseMult = 1 + startStat * CFG().derived.damagePerStat;
-            const gearBonus = 1 + gearStat * CFG().derived.damagePerStat;
-            return baseMult * levelFactor * gearBonus * CFG().multipliers.damage;
+            const totalStat = (this.stats() && this.stats()[stat]) || 0;
+            const D = CFG().derived || {};
+            const dps = D.damagePerStat !== undefined ? D.damagePerStat : 0.05;
+            return Math.max(0.1, (1 + totalStat * dps) * CFG().multipliers.damage);
         }
 
         /** Damage multiplier of a skill (by its damage type, or skill.json `stat`). */
         skillMult(def) {
-            const map = CFG().damageStat;
-            const stat = (def && def.stat) || map[(def && def.damage && def.damage.type) || 'default'] || map.default;
-            const cls = this.classCfg();
-            const startStat = (cls && cls.start && cls.start[stat]) || 10;
-            const growth = CFG().levelScaling !== undefined ? CFG().levelScaling : 0.20;
-            const levelFactor = Math.pow(1 + growth, (this.level || 1) - 1);
-            const gearStat = (this.gearStats() && this.gearStats()[stat]) || 0;
-            const baseMult = 1 + startStat * CFG().derived.damagePerStat;
-            const gearBonus = 1 + gearStat * CFG().derived.damagePerStat;
-            return baseMult * levelFactor * gearBonus * CFG().multipliers.damage;
+            const map = CFG().damageStat || {};
+            const stat = (def && def.stat) || map[(def && def.damage && def.damage.type) || 'default'] || map.default || 'int';
+            const totalStat = (this.stats() && this.stats()[stat]) || 0;
+            const D = CFG().derived || {};
+            const dps = D.damagePerStat !== undefined ? D.damagePerStat : 0.05;
+            return Math.max(0.1, (1 + totalStat * dps) * CFG().multipliers.damage);
         }
 
         /** Dynamic mana cost of a skill, scaled symmetrically with skillMult damage bonus. */

@@ -1,26 +1,27 @@
 {
-  "id": "fire_elemental",
-  "name": "Огненный элементаль",
-  "hp": 130,
-  "damage": [
-    9,
-    14
-  ],
-  "attackRange": 2.0,
-  "leashRadius": 14,
-  "wanderRadius": 5,
-  "respawnMinutes": 5,
-  "hitRadius": 1.2,
-  "gold": [
-    4,
-    6
-  ],
-  "xp": 60,
-  "level": 7,
-  "attackCooldown": 1.6,
-  "walkSpeed": 1.0,
-  "runSpeed": 4.2,
-  "behavior": "retaliate",
-  "aggroRadius": 0,
-  "scale": 1.0
+    "id": "fire_elemental",
+    "name": "Огненный элементаль",
+    "hp": 130,
+    "damage": [
+        9,
+        14
+    ],
+    "attackRange": 2.0,
+    "leashRadius": 14,
+    "wanderRadius": 5,
+    "respawnMinutes": 5,
+    "hitRadius": 1.2,
+    "gold": [
+        4,
+        6
+    ],
+    "xp": 60,
+    "level": 7,
+    "attackCooldown": 1.6,
+    "walkSpeed": 1.0,
+    "runSpeed": 4.2,
+    "behavior": "retaliate",
+    "aggroRadius": 0,
+    "scale": 1.0,
+    "statMultiplier": 1.15
 }

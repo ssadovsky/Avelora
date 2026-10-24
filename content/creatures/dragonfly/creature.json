@@ -20,5 +20,6 @@
   "flyHeight": 1.25,
   "drops": [],
   "xp": 75,
-  "level": 8
+  "level": 8,
+  "statMultiplier": 1.0
 }
