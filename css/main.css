@@ -1,4 +1,4 @@
-﻿/* ==========================================================================
+/* ==========================================================================
    AVELORA RPG - MAIN STYLESHEET (css/main.css)
    Clean, modular stylesheet for PC and Mobile touch interfaces
    ========================================================================== */
@@ -2184,9 +2184,9 @@
             overflow: hidden;
         }
         .dlg-close {
-            position: absolute; top: -2px; right: 0; width: 24px; height: 24px;
+            position: absolute; top: -2px; right: 0; width: 26px; height: 26px;
             display: flex; align-items: center; justify-content: center;
-            font-family: inherit; font-size: 1.25rem; line-height: 1;
+            font-family: inherit; font-size: 1.2rem; line-height: 1;
             background: rgba(22, 27, 29, 0.7); border: 1px solid rgba(195, 160, 95, 0.35); border-radius: 3px;
             color: #b9a47a; cursor: pointer; z-index: 20;
             transition: all 0.15s ease;
@@ -4918,16 +4918,13 @@
             .dlg-close {
                 top: -2px !important;
                 right: 0 !important;
-                width: 38px !important;
-                height: 38px !important;
-                min-width: 38px !important;
-                min-height: 38px !important;
-                font-size: 1.45rem !important;
+                width: 26px !important;
+                height: 26px !important;
+                font-size: 1.2rem !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 z-index: 30 !important;
-                pointer-events: auto !important;
             }
             .slot-key { font-size: 7px; left: 2px; top: 0; }
             .slot-count, .cell-count { font-size: 8px; }
