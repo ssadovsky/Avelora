@@ -414,6 +414,14 @@
             if (this.cooldownRemaining(skillId) > 0) return 'cooldown';
             if (g.combat && g.combat.isDead) return 'unavailable';
 
+            if (def.type === 'mount') {
+                if (g.mount) return g.mount.activate(def);
+                return 'unavailable';
+            }
+            if (g.mount && g.mount.isMounted) {
+                g.mount.dismount('combat');
+            }
+
             if (def.type === 'teleport') return this.startTeleport(def);
             if (def.type === 'blink') return this.startBlink(def);
             if (def.type === 'buff') return this.startBuff(def);

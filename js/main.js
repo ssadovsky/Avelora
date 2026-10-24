@@ -197,6 +197,7 @@ class AveloraGame {
         this.hero = window.AveloraHero ? new AveloraHero(this) : null;   // level / xp / stats / mana (hero.js)
         this.map = window.AveloraMap ? new AveloraMap(this) : null;
         this.autoPlay = window.AveloraAutoPlay ? new AveloraAutoPlay(this) : null;
+        this.mount = window.AveloraMountManager ? new AveloraMountManager(this) : null;
 
         // Event Listeners
         this.setupEvents();
@@ -3596,6 +3597,7 @@ class AveloraGame {
         }
         if (this.worldObjects) this.worldObjects.update(delta); // auto-pickup on arrival
         if (this.building) this.building.update(delta);         // placement ghost, roof fade near/inside buildings
+        if (this.mount) this.mount.update(delta);               // mounts: riding, animation sync, terrain tilt
         if (this.skills) this.skills.update(delta);             // casts, projectiles, VFX
         if (this.ui) this.ui.update(delta);                     // cooldown sweeps, floating texts
 

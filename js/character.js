@@ -128,6 +128,9 @@ class MedievalCharacter {
         // currentRotation normally only eases while walking; faceTowards() sets
         // isTurning so update() keeps easing toward targetRotation when idle.
         this.isTurning = false;
+        this.isMounted = false;
+        this.mountRideHeight = 0.92;
+        this.mountBones = null;
 
         // Right-hand bone + hand-held item (items.js/ui_hotbar.js equip). The
         // item is parented to the bone; `handItemPending` holds an item that was
@@ -271,6 +274,7 @@ class MedievalCharacter {
 
             this.rightHandBone = this.findRightHandBone();
             this.swingBones = this.findSwingBones();
+            this.mountBones = this.findMountBones();
             if (this.handItemPending) {
                 const pending = this.handItemPending;
                 this.handItemPending = null;
@@ -576,6 +580,53 @@ class MedievalCharacter {
     }
 
     /** Undo last frame's overlay (a bone without an animation track would otherwise accumulate it). */
+    findMountBones() {
+        return {
+            lUpLeg: this.findBone('LeftUpLeg'),
+            rUpLeg: this.findBone('RightUpLeg'),
+            lLeg: this.findBone('LeftLeg'),
+            rLeg: this.findBone('RightLeg'),
+            lFoot: this.findBone('LeftFoot'),
+            rFoot: this.findBone('RightFoot'),
+            lArm: this.findBone('LeftArm'),
+            rArm: this.findBone('RightArm'),
+            lForearm: this.findBone('LeftForeArm'),
+            rForearm: this.findBone('RightForeArm'),
+            spine: this.findBone('Spine')
+        };
+    }
+
+    applyMountPose(delta) {
+        const b = this.mountBones;
+        if (!b || !this.mesh) return;
+
+        const allBones = [b.lUpLeg, b.rUpLeg, b.lLeg, b.rLeg, b.lFoot, b.rFoot, b.spine].filter(Boolean);
+        for (let i = 0; i < allBones.length; i++) this.saveOverlayBone(allBones[i]);
+
+        const r = this.currentRotation;
+        this._fwd.set(-Math.sin(r), 0, -Math.cos(r));
+        this._right.set(Math.cos(r), 0, -Math.sin(r));
+
+        // Thighs: swing forward (around Right) and abduct outward (around Fwd) to wrap wolf flanks
+        if (b.lUpLeg) {
+            this.rotateBoneWorld(b.lUpLeg, this._right, 52 * DEG);
+            this.rotateBoneWorld(b.lUpLeg, this._fwd, 34 * DEG);
+        }
+        if (b.rUpLeg) {
+            this.rotateBoneWorld(b.rUpLeg, this._right, 52 * DEG);
+            this.rotateBoneWorld(b.rUpLeg, this._fwd, -34 * DEG);
+        }
+        // Knees: flex backward along animal sides
+        if (b.lLeg) this.rotateBoneWorld(b.lLeg, this._right, -56 * DEG);
+        if (b.rLeg) this.rotateBoneWorld(b.rLeg, this._right, -56 * DEG);
+        // Feet: leveled
+        if (b.lFoot) this.rotateBoneWorld(b.lFoot, this._right, 14 * DEG);
+        if (b.rFoot) this.rotateBoneWorld(b.rFoot, this._right, 14 * DEG);
+
+        // Spine: slight forward rider lean
+        if (b.spine) this.rotateBoneWorld(b.spine, this._right, 6 * DEG);
+    }
+
     restoreOverlay() {
         for (let i = 0; i < this.overlaySaved.length; i++) {
             const e = this.overlaySaved[i];
@@ -1152,6 +1203,7 @@ class MedievalCharacter {
 
     /** Cross-fade to the action for a logical name ('idle' | 'run'), honoring idleFallback. */
     fadeToLogical(logicalName, duration = 0.2) {
+        if (this.isMounted && logicalName === 'run') logicalName = 'idle';
         const nextAction = this.resolveAction(logicalName);
         if (!nextAction || nextAction === this.currentAction) return;
 
@@ -1318,12 +1370,13 @@ class MedievalCharacter {
         }
 
         this._stepUpY = THREE.MathUtils.lerp(this._stepUpY || 0, stepUpTarget, Math.min(1.0, delta * 20));
-        this.position.y = groundHeight + this._stepUpY;
+        this.position.y = groundHeight + this._stepUpY + (this.isMounted ? (this.mountRideHeight || 0.65) : 0);
 
         if (this.mesh) {
             this.mesh.position.copy(this.position);
             // !!! НЕ ТРОГАТЬ: расчет рыскания меша жестко привязан к currentRotation и facingOffset !!!
             this.mesh.rotation.set(0, this.currentRotation + this.facingOffset, 0); // x/z всегда 0 — см. resetDeathPose()
+            if (this.isMounted && this.deathT < 0) this.applyMountPose(delta);
             if (this.swing) this.applySwingOverlay(delta);
             this.applyCarryUpright(delta);
         }

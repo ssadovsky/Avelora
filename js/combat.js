@@ -340,6 +340,7 @@
         /** Generic engagement (creatures above, trees from harvest.js). */
         engage(target) {
             if (this.isDead || !this.game.character) return;
+            if (this.game.mount && this.game.mount.isMounted) this.game.mount.dismount('combat');
             if (this.game.worldObjects) this.game.worldObjects.cancelPending();
             this.engagement = target;
             target.lastPathAt = -99;

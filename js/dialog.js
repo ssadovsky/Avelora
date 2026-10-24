@@ -211,6 +211,7 @@
             if (this.mode === 'talk') this.renderTalk();
             else if (this.mode === 'reward') this.renderReward();
             else if (this.mode === 'teach' || this.mode === 'teach_magic') this.renderTeach();
+            else if (this.mode === 'teach_mounts') this.renderTeachMounts();
             else if (this.mode === 'teach_alchemy') this.renderTeachRecipes(['alchemy'], 'Алхимия');
             else if (this.mode === 'teach_craft') this.renderTeachRecipes(['carpentry', 'materials', 'refining', 'tailoring', 'equipment', 'jewelry'], 'Ремесло');
             else this.renderShop();
@@ -681,7 +682,7 @@
                     }
                 } else if (o.action === 'shop') {
                     prefix = '[Торговля] ';
-                } else if (o.action === 'teach' || o.action === 'teach_magic' || o.action === 'teach_alchemy' || o.action === 'teach_craft') {
+                } else if (o.action === 'teach' || o.action === 'teach_magic' || o.action === 'teach_mounts' || o.action === 'teach_alchemy' || o.action === 'teach_craft') {
                     prefix = '[Обучение] ';
                 } else if (o.action === 'questAbandon') {
                     prefix = '[Отмена] ';
@@ -739,6 +740,9 @@
                 this.render();
             } else if (o.action === 'teach' || o.action === 'teach_magic') {
                 this.mode = 'teach_magic';
+                this.render();
+            } else if (o.action === 'teach_mounts') {
+                this.mode = 'teach_mounts';
                 this.render();
             } else if (o.action === 'teach_alchemy') {
                 this.mode = 'teach_alchemy';
@@ -913,7 +917,7 @@
                 .sort((a, b) => lvlOf(a) - lvlOf(b));
             ids.forEach(id => {
                 const def = this.game.skills ? this.game.skills.get(id) : null;
-                if (!def) return;
+                if (!def || def.category === 'mounts') return;
                 const known = !!st && st.knowsSkill(id);
                 if (known) return; // learned skills disappear from the teach list
                 const need = def.requiresLevel || 1;
@@ -971,6 +975,88 @@
             this.ui.floatText(`Изучено: ${def ? def.name : skillId}`, 'loot');
             window.dispatchEvent(new CustomEvent('game:questUpdated'));
             this.render();
+        }
+
+        renderTeachMounts() {
+            const st = this.state;
+            const cfg = this.game.currentCharacterConfig;
+            const basePrice = (this.npc && this.npc.teach && this.npc.teach.price !== undefined) ? this.npc.teach.price : 25;
+            const tabs = document.createElement('div');
+            tabs.className = 'dlg-tabs';
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'dlg-tab back';
+            back.textContent = '← Назад';
+            const onBackTeach = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.mode = 'talk';
+                this.nodeId = (this.npc && this.npc.start) || 'start';
+                this.render();
+            };
+            ['pointerdown', 'touchend', 'click'].forEach(evt => back.addEventListener(evt, onBackTeach));
+            const gold = document.createElement('div');
+            gold.className = 'dlg-gold';
+            gold.innerHTML = '<span class="coin"></span> ' + (st ? st.gold : 0);
+            tabs.append(back, gold);
+            this.body.appendChild(tabs);
+
+            const list = document.createElement('div');
+            list.className = 'dlg-list';
+            const heroLevel = this.game.hero ? this.game.hero.level : 1;
+            const lvlOf = (sid) => { const d = this.game.skills && this.game.skills.get(sid); return (d && d.requiresLevel) || 1; };
+            const ids = ((window.AveloraState && cfg) ? window.AveloraState.skillCatalog(cfg.id) : []).slice()
+                .filter(id => {
+                    const def = this.game.skills ? this.game.skills.get(id) : null;
+                    return def && def.category === 'mounts';
+                })
+                .sort((a, b) => lvlOf(a) - lvlOf(b));
+
+            ids.forEach(id => {
+                const def = this.game.skills ? this.game.skills.get(id) : null;
+                if (!def) return;
+                const known = !!st && st.knowsSkill(id);
+                const need = def.requiresLevel || 1;
+                const locked = heroLevel < need;
+                const price = (def.price !== undefined) ? def.price : basePrice;
+                const row = document.createElement('div');
+                row.className = 'dlg-row' + (locked ? ' locked' : '');
+                row.appendChild(makeIconEl(def));
+                const n = document.createElement('div');
+                n.className = 'dlg-row-name';
+                n.innerHTML = '';
+                const t = document.createElement('div'); t.textContent = def.name;
+                const d = document.createElement('div'); d.className = 'dlg-row-desc'; d.textContent = def.description || '';
+                n.append(t, d);
+                row.appendChild(n);
+                if (known) {
+                    const k = document.createElement('div');
+                    k.className = 'dlg-row-price';
+                    k.textContent = 'Изучено';
+                    row.appendChild(k);
+                } else {
+                    const p = document.createElement('div');
+                    p.className = 'dlg-row-price';
+                    p.innerHTML = locked ? `<span class="dlg-lvl">с ${need}-го ур.</span>` : `<span class="coin"></span> ${price}`;
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    const canBuy = !locked && st && st.gold >= price;
+                    b.className = 'dlg-buy' + (canBuy ? '' : ' disabled');
+                    b.textContent = locked ? 'Закрыто' : 'Изучить';
+                    b.disabled = !canBuy;
+                    if (locked) b.title = `Нужен ${need}-й уровень (у вас ${heroLevel}-й)`;
+                    b.addEventListener('click', (e) => { e.stopPropagation(); this.learn(id, price); });
+                    row.append(p, b);
+                }
+                list.appendChild(row);
+            });
+            if (!list.children.length) {
+                const e = document.createElement('div');
+                e.className = 'dlg-empty';
+                e.textContent = 'Все доступные верховые животные уже изучены.';
+                list.appendChild(e);
+            }
+            this.body.appendChild(list);
         }
 
         renderTeachRecipes(categories, titleText) {

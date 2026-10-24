@@ -1,0 +1,16 @@
+{
+  "id": "mount_wolf",
+  "name": "Призыв верхового волка",
+  "description": "Призывает крупного свирепого лесного волка, увеличивая скорость бега на 77% (до 8.5 м/с). Получение урона или использование боевых способностей спешивают вас.",
+  "type": "mount",
+  "category": "mounts",
+  "mountCreature": "wolf",
+  "mountScale": 1.45,
+  "rideHeight": 0.65,
+  "seatForward": 0.45,
+  "speedBonus": 3.7,
+  "cooldown": 2,
+  "castTime": 1.2,
+  "requiresLevel": 1,
+  "price": 25
+}

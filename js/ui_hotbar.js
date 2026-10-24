@@ -425,14 +425,14 @@
         renderSkills() {
             if (!this.skillsList) return;
             this.skillsList.innerHTML = '';
-            const GROUPS = [['attack', 'Атака'], ['defense', 'Защита'], ['travel', 'Перемещение'], ['other', 'Прочее']];
+            const GROUPS = [['attack', 'Атака'], ['defense', 'Защита'], ['travel', 'Перемещение'], ['mounts', 'Верховые животные'], ['other', 'Прочее']];
             const byGroup = {};
             this.characterSkills().forEach(def => {
                 const k = GROUPS.some(g => g[0] === def.category) ? def.category : 'other';
                 (byGroup[k] = byGroup[k] || []).push(def);
             });
             // All three main groups are always listed (an empty one says so); "Прочее" only when something lands there
-            const shown = GROUPS.filter(g => byGroup[g[0]] || g[0] !== 'other');
+            const shown = GROUPS.filter(g => byGroup[g[0]] || (g[0] !== 'other' && g[0] !== 'mounts'));
             if (this.skillsOpenGroup && !shown.some(g => g[0] === this.skillsOpenGroup)) this.skillsOpenGroup = null;
             shown.forEach(([key, title]) => {
                 const sec = document.createElement('div');
@@ -461,7 +461,7 @@
                 if (!byGroup[key]) {
                     const empty = document.createElement('div');
                     empty.className = 'skill-group-empty';
-                    empty.textContent = 'Пока нет навыков';
+                    empty.textContent = (key === 'mounts') ? 'Пока нет верховых животных' : 'Пока нет навыков';
                     body.appendChild(empty);
                 } else byGroup[key].forEach(def => body.appendChild(this.skillEntryEl(def)));
             });

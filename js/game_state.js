@@ -45,7 +45,7 @@
     // Skills EVERY character has, regardless of content/characters/<id>/skills.json.
     // They are always appended LAST: combat skills are added to a character's skills.json
     // and therefore always come before these.
-    const UNIVERSAL_SKILLS = ['home_recall'];
+    const UNIVERSAL_SKILLS = ['home_recall', 'mount_wolf'];
 
     // Skills that every save made before skills had to be learned already owns
     const LEGACY_SKILLS = [];
